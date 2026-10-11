@@ -82,7 +82,15 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
               for h in det.hits]
     qopts = QuantizeOptions(feel=opts.feel, allow_32nds=opts.allow_32nds, fixed_tempo=None)
     res = quantize(onsets, beat_slice, bars, qopts)
+    meter_notes: list[str] = []
+    if not opts.time_signature:
+        # Sections whose pattern doesn't fit the global meter (e.g. a 12/8 bridge in a 4/4 song).
+        refined = _refine_section_meters(det.hits, beat_slice, bars, res.measures, ts)
+        if refined is not None:
+            beat_slice, bars, meter_notes = refined
+            res = quantize(onsets, beat_slice, bars, qopts)
     measures = res.measures
+    rolls = _notate_rolls(measures)
     while len(measures) > 1 and not measures[-1].hits:
         measures.pop()
     if measures and not measures[0].hits and not measures[0].is_pickup:
@@ -103,16 +111,172 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "detected_onsets": len(det.hits),
         "instrument_counts": dict(counts.most_common()),
         "low_confidence_hits": low,
+        "rolls_notated": rolls,
         "mean_abs_offset_ms": res.mean_abs_offset_ms,
         "grid_counts": res.grid_counts,
         "sections": [f"{r['label']}: bar {r['first_bar']}, {r['bars']} bars, {r['main_cymbal'] or 'no cymbal'}"
                      + (f", {r['fills']} fill bar(s)" if r["fills"] else "") for r in roadmap],
-        "notes": grid.notes + [
+        "notes": grid.notes + meter_notes + [
             "Section letters are pattern-based; rename them with --sections once you know the song form.",
             "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed.",
         ],
     }
     return score
+
+
+ROLL_MIN_STROKES = 8  # a quarter note of 32nds; shorter bursts stay written out
+
+
+def _notate_rolls(measures) -> int:
+    """Write long runs of 32nd strokes on one drum as a single rolled note.
+
+    Fast single strokes (a couple of 32nds) stay written out; a sustained
+    stream of 32nds is a roll, and drum charts write it with roll slashes.
+    """
+    from fractions import Fraction
+    step = Fraction(1, 32)
+    count = 0
+    for m in measures:
+        for inst in ("snare", "tom1", "tom2", "floor_tom"):
+            strokes = sorted((h for h in m.hits if h.inst == inst), key=lambda h: h.pos)
+            i = 0
+            while i < len(strokes):
+                j = i
+                while j + 1 < len(strokes) and strokes[j + 1].pos - strokes[j].pos == step:
+                    j += 1
+                n = j - i + 1
+                if n >= ROLL_MIN_STROKES:
+                    run = strokes[i:j + 1]
+                    head = run[0]
+                    length = min(n * step, m.actual_length - head.pos)
+                    others = [h for h in m.hits if h.inst not in (inst,) and head.pos < h.pos < head.pos + length
+                              and h.inst not in ("kick", "kick2", "hihat_pedal")]
+                    if not others:  # the hands are busy with the roll
+                        head.roll = length
+                        head.confidence = min(h.confidence for h in run)
+                        for h in run[1:]:
+                            m.hits.remove(h)
+                        count += 1
+                i = j + 1
+    return count
+
+
+def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measures, ts: TimeSig):
+    """Re-meter sections whose drum pattern repeats every 6 tracked beats (12/8) or 3 (3/4).
+
+    The beat tracker follows one pulse. A 12/8 shuffle section inside a 4/4 song
+    is tracked at two eighths per beat, which is rhythmically right but reads
+    badly (syncopated straight 8ths). Here each section is tested on its own.
+    """
+    from .beats import _beat_features, _repetition
+    from .structure import find_sections
+    if str(ts) != "4/4" or len(bars) < 4:
+        return None
+    starts = find_sections(measures)
+    if len(starts) < 2:
+        return None
+    bounds = starts + [len(bars)]
+    new_beats: list[float] = []
+    new_bars: list[BarDef] = []
+    notes: list[str] = []
+    changed = False
+    beat_arr = np.array(beats)
+
+    def interp(x: float) -> float:
+        i = int(np.floor(x))
+        if i >= len(beat_arr) - 1:
+            i = len(beat_arr) - 2
+        return float(beat_arr[i] + (x - i) * (beat_arr[i + 1] - beat_arr[i]))
+
+    # Bars before the first section (pickup) are kept.
+    def keep(bar_from: int, bar_to: int) -> None:
+        for b in bars[bar_from:bar_to]:
+            first = len(new_beats)
+            for j in range(b.beats):
+                new_beats.append(beats[b.first_beat + j])
+            new_bars.append(BarDef(first, b.time_sig, b.beats))
+
+    def snare_on_beat(bar: BarDef) -> bool | None:
+        """True if the bar's strong snares sit on tracked beats (4/4 backbeat),
+        False if between them (12/8 backbeat at two eighths per tracked beat)."""
+        on = off = 0
+        for h in hits:
+            if h.inst != "snare" or h.ghost or h.strength < 0.5:
+                continue
+            k = bar.first_beat
+            if not beat_arr[k] - 0.05 <= h.time < beat_arr[min(k + bar.beats, len(beat_arr) - 1)] - 0.05:
+                continue
+            j = int(np.searchsorted(beat_arr, h.time + 0.05, side="right")) - 1
+            rel = (h.time - beat_arr[j]) / (beat_arr[j + 1] - beat_arr[j]) if j + 1 < len(beat_arr) else 0
+            rel = rel - round(rel)
+            if abs(rel) < 0.12:
+                on += 1
+            elif abs(abs(rel) - 0.5) < 0.12:
+                off += 1
+        if on + off == 0:
+            return None
+        return on >= off
+
+    # Candidate regions come from sections; trim 4/4-looking bars off their ends.
+    regions: list[tuple[int, int]] = []
+    for si in range(len(bounds) - 1):
+        b0, b1 = bounds[si], bounds[si + 1]
+        while b0 < b1 and snare_on_beat(bars[b0]) is True:
+            b0 += 1
+        while b1 > b0 and snare_on_beat(bars[b1 - 1]) is True:
+            b1 -= 1
+        regions.append((b0, b1))
+    cuts = sorted({bounds[0], bounds[-1]} | {b for r in regions for b in r} | set(bounds))
+    bounds = cuts
+
+    keep(0, bounds[0])
+    for si in range(len(bounds) - 1):
+        b0, b1 = bounds[si], bounds[si + 1]
+        sec_bars = bars[b0:b1]
+        if any(snare_on_beat(b) is True for b in sec_bars):
+            keep(b0, b1)
+            continue
+        if len(sec_bars) < 3 or any(b.beats != 4 for b in sec_bars):
+            keep(b0, b1)
+            continue
+        k_start = sec_bars[0].first_beat
+        k_end = sec_bars[-1].first_beat + sec_bars[-1].beats
+        sec_beats = beat_arr[k_start:k_end + 1]
+        sec_hits = [h for h in hits if sec_beats[0] - 0.05 <= h.time < sec_beats[-1] - 0.05]
+        F = _beat_features(sec_hits, sec_beats)
+        r4, r6 = _repetition(F, 4), _repetition(F, 6)
+        # 8th-level strokes only (no 16th positions), as a 12/8 reading needs.
+        pos = []
+        for h in sec_hits:
+            k = int(np.searchsorted(sec_beats, h.time, side="right")) - 1
+            if 0 <= k < len(sec_beats) - 1:
+                pos.append((h.time - sec_beats[k]) / (sec_beats[k + 1] - sec_beats[k]))
+        pos = np.array(pos)
+        on_eighths = float(np.mean(np.min(np.abs(pos[:, None] - np.array([0, 0.5, 1.0])[None, :]), axis=1) < 0.08)) if len(pos) else 0
+        n_tracked = k_end - k_start
+        if r6 > r4 + 0.1 and r6 > 0.55 and on_eighths > 0.9 and n_tracked >= 12:
+            n128 = n_tracked // 6
+            for j in range(n128):
+                first = len(new_beats)
+                for q in range(4):
+                    new_beats.append(interp(k_start + j * 6 + q * 1.5))
+                new_bars.append(BarDef(first, TimeSig(12, 8), 4))
+            rest = n_tracked - n128 * 6
+            if rest:
+                first = len(new_beats)
+                for q in range(rest):
+                    new_beats.append(beats[k_start + n128 * 6 + q])
+                new_bars.append(BarDef(first, TimeSig(rest, 4), rest))
+            notes.append(f"bars {b0 + 1}-{b1}: pattern repeats every 6 beats with 8th-note strokes; written in 12/8 "
+                         f"(repetition 6 beats {r6:.2f} vs 4 beats {r4:.2f})")
+            changed = True
+        else:
+            keep(b0, b1)
+    if not changed:
+        return None
+    new_beats.append(beats[bars[-1].first_beat + bars[-1].beats] if bars[-1].first_beat + bars[-1].beats < len(beats)
+                     else new_beats[-1] + (new_beats[-1] - new_beats[-2]))
+    return new_beats, new_bars, notes
 
 
 def transcribe_file(path: str | Path, opts: TranscribeOptions) -> Score:

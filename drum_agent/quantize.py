@@ -227,7 +227,9 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         m = Measure(time_sig=ts, length=length, start_time=round(beat_times[ks[0]], 4) if ks else None)
         m.hits = sorted((h for (b, _, _), (h, _) in placed.items() if b == bi), key=lambda h: (h.pos, h.inst))
         low = [h for h in m.hits if h.confidence < opts.uncertain_conf]
-        if low or any(beat_uncertain[k] for k in ks):
+        very_low = [h for h in low if h.confidence < 0.6 * opts.uncertain_conf]
+        # One borderline stroke in a busy bar is normal; flag bars where doubt piles up.
+        if len(low) >= 2 or very_low or any(beat_uncertain[k] for k in ks):
             m.uncertain = True
             if low:
                 m.notes.append(f"{len(low)} low-confidence hit(s): " +
@@ -260,6 +262,13 @@ def _apply_tempo_marks(measures: list[Measure], bar_tempi: list[float], opts: Qu
     measures[0].tempo = float(current)
     i = 1
     while i < n:
+        # A change between simple and compound meter always gets a fresh tempo mark
+        # (the beat unit changes from quarter to dotted quarter or back).
+        if measures[i].time_sig.is_compound != measures[i - 1].time_sig.is_compound:
+            current = round(window(i))
+            measures[i].tempo = float(current)
+            i += 1
+            continue
         w = window(i)
         if abs(w - current) / current > opts.tempo_change_threshold and i + 1 < n and \
                 abs(window(i + 1) - current) / current > opts.tempo_change_threshold:

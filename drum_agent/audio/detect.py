@@ -78,11 +78,13 @@ REGIONS = {
 }
 CYMBALS = ("hihat", "hihat_open", "ride", "crash")
 TOMS = ("tom1", "tom2", "floor_tom")
-FEET = ("kick",)  # instruments not played with the hands (hi-hat pedal has no detector class)
+FEET = ("kick",)
+FLAM_DRUMS = ("snare", "tom1", "tom2", "floor_tom")
+FAMILIES = (("hihat", "hihat_open", "ride", "crash"), ("snare", "tom1", "tom2", "floor_tom"), ("kick", "floor_tom"))  # instruments not played with the hands (hi-hat pedal has no detector class)
 # (minimum share of the regional rise, minimum loudness vs the region's typical rise)
 _THRESH = {
     "kick": (0.35, 0.10),
-    "snare": (0.30, 0.10),
+    "snare": (0.50, 0.10),
     "tom1": (0.35, 0.15),
     "tom2": (0.35, 0.15),
     "floor_tom": (0.35, 0.15),
@@ -201,16 +203,20 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
     sens = max(opts.sensitivity, 0.1)
     # Per-recording loudness floors: where a class's candidate strokes split into a
     # weak cluster (bleed from other sounds) and a strong one, cut between them.
-    # Not for snare/hi-hat, whose soft strokes (ghost notes) are real music.
+    # Capped for the snare so ghost notes survive; not used for the hi-hat.
     floors = {}
     for c in classes:
         base = _THRESH[c][1] / sens
-        if c in ("snare", "hihat") or not len(cand):
+        if c == "hihat" or not len(cand):
             floors[c] = base
             continue
         share = r_cls[c] / (r_tot[c] + 1e-9)
         loud = r_cls[c] / region_ref[c]
         floors[c] = _adaptive_floor(loud[share >= _THRESH[c][0]], base)
+        if c == "snare":
+            # Bleed onto the snare from kick+hat strokes is cut, but never above the
+            # level of a soft ghost note.
+            floors[c] = min(floors[c], max(base, 0.25 / sens))
 
     # High-band energy of the full signal: an open hi-hat keeps ringing up there,
     # even when the NMF lets free components absorb its wash in a band mix.
@@ -226,13 +232,15 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
                    round(float(r_cls[c][k] / region_ref[c]), 2)) for c in classes}
         debug.append((time, dbg))
         score: dict[str, tuple[float, float, float]] = {}  # class -> (share, loudness, margin)
+        evidence: dict[str, float] = {}  # margin for every class, accepted or not
         for c in classes:
             share = r_cls[c][k] / (r_tot[c][k] + 1e-9)
             loud = r_cls[c][k] / region_ref[c]
             thr_share = _THRESH[c][0]
             thr_loud = floors[c]
+            evidence[c] = min(share / thr_share, loud / thr_loud)
             if share >= thr_share and loud >= thr_loud:
-                score[c] = (share, loud, min(share / thr_share, loud / thr_loud))
+                score[c] = (share, loud, evidence[c])
         # Cymbals: one per stroke unless a second is nearly as dominant.
         cym = sorted(((c, v) for c, v in score.items() if c in CYMBALS), key=lambda x: -x[1][0] * x[1][1])
         for c, v in cym[1:]:
@@ -266,10 +274,27 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
         for c in hands[2:]:
             score.pop(c)
         for c, (share, loud, margin) in score.items():
+            flam = False
             conf = float(1 / (1 + np.exp(-3.0 * (margin - 1.3))))
+            # Ambiguity: a same-family rival that wasn't chosen but has similar evidence
+            # (hi-hat vs ride, snare vs tom, kick vs floor tom) makes the label uncertain.
+            rivals = [evidence[o] for fam in FAMILIES if c in fam for o in fam
+                      if o != c and o not in score and o in evidence]
+            if rivals:
+                amb = min(1.0, max(rivals) / max(margin, 1e-9))
+                conf *= 1.0 - 0.7 * amb ** 2
             vel = int(np.clip(35 + 75 * min(loud, 1.5) / 1.5, 1, 127))
-            hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3)))
+            hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3), flam=flam))
 
+    # Flams: a grace bump before the stroke, looking back no further than the
+    # previous detected stroke on the same drum (the grace itself is often an
+    # onset candidate that wasn't classified, so candidates can't be the limit).
+    last_frame: dict[str, int] = {}
+    for h in sorted(hits, key=lambda h: h.time):
+        if h.inst in FLAM_DRUMS:
+            f = int(round((h.time + PAD) / FRAME))
+            h.flam = _has_grace(A[h.inst], f, last_frame.get(h.inst, -10**9), T)
+            last_frame[h.inst] = f
     hits = _merge_flams(hits)
     _dynamics(hits)
     pad_frames = int(round(PAD / FRAME))
@@ -281,6 +306,23 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
         activations={c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()},
         stats={"free_components": free, "templates": K0, "frames": int(T), "debug": debug},
     )
+
+
+def _has_grace(a: np.ndarray, t: int, prev_t: int, T: int) -> bool:
+    """A flam: a small separate bump in the drum's activation 12-70 ms before the stroke."""
+    peak = float(a[t:min(T, t + 5)].max())
+    lo = max(0, t - 12, prev_t + 3)  # never reach back into the previous detected stroke
+    hi = t - 1
+    if peak <= 0 or hi - lo < 3:
+        return False
+    win = a[lo:hi]
+    j = int(np.argmax(win))
+    bump = float(win[j])
+    if bump < 0.12 * peak or bump > 0.6 * peak or j >= len(win) - 1:
+        return False
+    dip = float(win[j:].min())
+    before = float(a[max(0, lo - 3):lo + 1].min())
+    return dip < 0.7 * bump and before < 0.5 * bump
 
 
 def _ring(a: np.ndarray, t: int, nxt: int, T: int, baseline: bool) -> float:
@@ -337,14 +379,26 @@ def _merge_flams(hits: list[DrumHit]) -> list[DrumHit]:
 
 
 def _dynamics(hits: list[DrumHit]) -> None:
-    """Mark ghost notes and accents on the snare relative to its typical stroke."""
+    """Mark snare ghost notes and accents relative to the player's normal stroke.
+
+    Ghost notes: well below the median stroke. Accents: at least 1.6x the
+    player's ordinary nearby strokes (30th percentile within 3 s).
+    """
     sn = [h for h in hits if h.inst == "snare"]
     if len(sn) < 8:
         return
     med = float(np.median([h.strength for h in sn]))
-    spread = np.percentile([h.strength for h in sn], 90) / (np.percentile([h.strength for h in sn], 10) + 1e-9)
     for h in sn:
-        if h.strength < 0.4 * med:
+        if h.strength < 0.4 * med and not h.flam:
             h.ghost = True
-        elif spread > 2.5 and h.strength > 1.5 * med:
+    normal = [h for h in sn if not h.ghost]
+    times = np.array([h.time for h in normal])
+    vals = np.array([h.strength for h in normal])
+    for h in normal:
+        near = vals[np.abs(times - h.time) <= 3.0]
+        if len(near) < 4:
+            continue
+        # Relative to the player's ordinary strokes nearby (30th percentile), so a
+        # passage played uniformly loud gets no accents.
+        if h.strength >= 1.6 * float(np.percentile(near, 30)):
             h.accent = True

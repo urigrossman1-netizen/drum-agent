@@ -26,6 +26,7 @@ from drum_agent.synth import find_soundfont  # noqa: E402
 
 KITS = tuple(int(k) for k in __import__("os").environ.get("TEMPLATE_KITS", "0,8,16,24,25").split(","))
 VELOCITIES = (60, 95, 125)
+ACOUSTIC_KITS = (0, 8, 16)
 SPACING = 2.0  # seconds between hits
 
 
@@ -62,6 +63,9 @@ def main() -> None:
         k = 0
         for c in classes:
             for n in CLASS_NOTES[c]:
+                # Electronic kits' toms are near-sine pitched sounds that match bass
+                # notes in a band mix; toms come from the acoustic kits only.
+                skip_class = c in ("tom1", "tom2", "floor_tom") and program not in ACOUSTIC_KITS
                 specs = []
                 for v in VELOCITIES:
                     start = int(round(k * SPACING * SR / HOP))
@@ -77,7 +81,7 @@ def main() -> None:
                     below = np.nonzero(env[peak:] < 0.25)[0]
                     decays.append((c, program, (below[0] if len(below) else len(env)) * HOP / SR))
                     k += 1
-                if specs:
+                if specs and not skip_class:
                     templates.append(np.mean(specs, axis=0))
                     labels.append(c)
                     kits.append(program)
