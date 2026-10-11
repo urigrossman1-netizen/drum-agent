@@ -65,7 +65,15 @@ def track_beats(onset_env: np.ndarray, duration: float, bpm_hint: float | None =
                 continue
             scored.append((_grid_fit(hits or [], bc, float(np.atleast_1d(tc)[0])), c, float(np.atleast_1d(tc)[0]), bc))
         if not scored:
-            raise ValueError("beat tracking failed; pass --bpm")
+            # Forcing a fixed tempo fails when the tempo keeps changing (accelerando,
+            # rubato): let the tracker follow the pulse freely instead.
+            tc, bc = librosa.beat.beat_track(onset_envelope=env, sr=SR, hop_length=HOP, start_bpm=t0,
+                                             tightness=40, trim=False, units="time")
+            bc = np.asarray(bc, dtype=float)
+            if len(bc) < 4:
+                raise ValueError("beat tracking failed; pass --bpm")
+            scored.append((0.0, t0, float(np.atleast_1d(tc)[0]), bc))
+            notes.append("tempo varies strongly; beats were tracked freely (check the tempo marks)")
         scored.sort(key=lambda x: -x[0])
         best_score, _, tempo, beats = scored[0]
         for sc, _, tc, _ in scored[1:]:
@@ -77,7 +85,46 @@ def track_beats(onset_env: np.ndarray, duration: float, bpm_hint: float | None =
                 break
     if len(beats) < 4:
         raise ValueError("beat tracking found fewer than 4 beats; pass --bpm")
+    # Steady-tempo music: a regular grid (period and phase searched) can explain the
+    # strokes better than DP beats, which syncopation can bend or shift. Keep
+    # whichever fits better; songs with real tempo changes keep the DP beats.
+    if hits and len(hits) >= 8:
+        reg = _regular_grid(hits, beats, tempo)
+        if reg is not None:
+            reg_beats, reg_tempo, reg_fit = reg
+            dp_fit = _grid_fit(hits, beats, tempo)
+            if reg_fit > dp_fit + 0.02:
+                beats, tempo = reg_beats, reg_tempo
+                notes.append("steady tempo: beats placed on a regular grid fitted to the strokes")
+    # Phase: syncopated kicks can pull the tracker onto the off-beats (tempo right,
+    # beats half a beat late). Compare with the half-beat-shifted grid.
+    if hits:
+        mids = (beats[:-1] + beats[1:]) / 2
+        shifted = np.concatenate([[beats[0] - (mids[0] - beats[0])], mids])
+        here, there = _grid_fit(hits, beats, tempo), _grid_fit(hits, shifted, tempo)
+        if there > here + 0.05:
+            beats = shifted
+            notes.append("beat phase corrected by half a beat (syncopated pattern)")
     return tempo, beats, notes
+
+
+def _regular_grid(hits: list[DrumHit], beats: np.ndarray, tempo: float):
+    """Best constant-tempo grid near the tracked tempo: (beats, tempo, fit) or None."""
+    p0 = float(np.median(np.diff(beats)))
+    if p0 <= 0:
+        return None
+    first = min(h.time for h in hits)
+    last = max(h.time for h in hits)
+    best = None
+    for p in p0 * np.linspace(0.97, 1.03, 25):
+        for phi in np.linspace(0, p, 48, endpoint=False):
+            start = first - ((first - phi) % p)  # last grid point at or before the first stroke
+            n = int(np.ceil((last - start) / p)) + 2
+            grid = start + p * np.arange(n)
+            f = _grid_fit(hits, grid, 60.0 / p)
+            if best is None or f > best[2]:
+                best = (grid, 60.0 / p, f)
+    return best
 
 
 def _grid_fit(hits: list[DrumHit], beats: np.ndarray, tempo: float) -> float:

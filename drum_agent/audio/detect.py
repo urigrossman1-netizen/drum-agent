@@ -40,6 +40,7 @@ class DrumHit:
     flam: bool = False
     ghost: bool = False
     accent: bool = False
+    ride_vs_hat: tuple[float, float] | None = None  # (ride evidence, hi-hat evidence) for cymbal strokes
 
 
 @dataclass
@@ -95,11 +96,12 @@ _THRESH = {
 }
 
 
+HARM_MARGIN = 1.0  # HPSS margin for the harmonic part that trains the accompaniment basis
 CHUNK_S = 30.0  # front end works in chunks so memory doesn't grow with song length
 OVERLAP_S = 1.0
 
 
-def _front_end(y: np.ndarray, fb: np.ndarray, opts: "DetectOptions") -> tuple[np.ndarray, np.ndarray]:
+def _front_end(y: np.ndarray, fb: np.ndarray, opts: "DetectOptions") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Mel magnitude spectrograms of the signal and of its percussive part (HPSS).
 
     Computed chunk by chunk with overlap and stitched on exact frame indices, so
@@ -110,6 +112,7 @@ def _front_end(y: np.ndarray, fb: np.ndarray, opts: "DetectOptions") -> tuple[np
     n_frames = 1 + len(y) // HOP
     M_full = np.zeros((fb.shape[0], n_frames), dtype=np.float32)
     M_perc = np.zeros((fb.shape[0], n_frames), dtype=np.float32)
+    M_harm = np.zeros((fb.shape[0], n_frames), dtype=np.float32)
     core = int(CHUNK_S * SR) // HOP * HOP
     ov = int(OVERLAP_S * SR) // HOP * HOP
     c0 = 0
@@ -118,25 +121,61 @@ def _front_end(y: np.ndarray, fb: np.ndarray, opts: "DetectOptions") -> tuple[np
         s0, s1 = max(0, c0 - ov), min(len(y), c1 + ov)
         S = np.abs(librosa.stft(y[s0:s1], n_fft=2048, hop_length=HOP, center=True)).astype(np.float32)
         if opts.drums_only:
-            P = S
+            P, Hm = S, np.zeros_like(S)
         else:
-            _, P = librosa.decompose.hpss(S, kernel_size=(17, 31), margin=(1.0, opts.hpss_margin))
+            # Percussive part with the usual margin; harmonic part with a strict margin
+            # (only clearly tonal content: sustained cymbal wash falls into the residual).
+            mask_h, mask_p = librosa.decompose.hpss(S, kernel_size=(17, 31), margin=(HARM_MARGIN, opts.hpss_margin),
+                                                    mask=True)
+            Hm, P = S * mask_h, S * mask_p
         g0 = s0 // HOP  # global index of this segment's first frame
         lo, hi = c0 // HOP - g0, min(c1 // HOP, n_frames) - g0
         hi = min(hi, S.shape[1])
         M_full[:, g0 + lo:g0 + hi] = fb @ S[:, lo:hi]
         M_perc[:, g0 + lo:g0 + hi] = fb @ P[:, lo:hi]
-        del S, P
+        M_harm[:, g0 + lo:g0 + hi] = fb @ Hm[:, lo:hi]
+        del S, P, Hm
         c0 = c1
-    return M_full, M_perc
+    return M_full, M_perc, M_harm
 
 
-def _nmf(V: np.ndarray, W0: np.ndarray, free: int, iters: int, adapt: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
-    """KL-NMF with fixed (semi-adaptive) drum columns and `free` adaptive columns."""
+def _harmonic_basis(M_harm: np.ndarray, k: int, seed: int, iters: int = 40) -> np.ndarray:
+    """Free components for the accompaniment, learned from the harmonic part only.
+
+    They are then frozen in the main decomposition: adaptive free components
+    learned on the full signal can turn into a copy of a drum that doesn't match
+    the templates (a solo snare lost 75% of its share that way).
+    """
+    from .features import stack_frames
+    V = stack_frames(M_harm)
+    rng = np.random.default_rng(seed + 1)
+    W = rng.random((V.shape[0], k)).astype(np.float32) + 0.1
+    H = rng.random((k, V.shape[1])).astype(np.float32) + 0.1
+    eps = 1e-9
+    ones = np.ones_like(V)
+    for _ in range(iters):
+        R = V / (W @ H + eps)
+        H *= (W.T @ R) / (W.T @ ones + eps)
+        R = V / (W @ H + eps)
+        W *= (R @ H.T) / (ones @ H.T + eps)
+        scale = W.sum(axis=0, keepdims=True) + eps
+        W /= scale
+        H *= scale.T
+    return W
+
+
+def _nmf(V: np.ndarray, W0: np.ndarray, free: int, iters: int, adapt: float, seed: int,
+         W_fixed: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """KL-NMF: semi-adaptive drum columns, plus either `free` adaptive columns or
+    `W_fixed` frozen accompaniment columns."""
     rng = np.random.default_rng(seed)
     F, T = V.shape
     K0 = W0.shape[1]
-    W = np.concatenate([W0, rng.random((F, free)).astype(np.float32) + 0.1], axis=1) if free else W0.copy()
+    if W_fixed is not None:
+        W = np.concatenate([W0, W_fixed], axis=1)
+        free = 0
+    else:
+        W = np.concatenate([W0, rng.random((F, free)).astype(np.float32) + 0.1], axis=1) if free else W0.copy()
     W = W / (W.sum(axis=0, keepdims=True) + 1e-9)
     H = (rng.random((W.shape[1], T)).astype(np.float32) + 0.1) * (V.mean() + 1e-9)
     eps = 1e-9
@@ -194,17 +233,22 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
 
     from .features import STACK, filterbank, stack_frames
     fb = filterbank()
-    M_full, V_plain = _front_end(y, fb, opts)  # mel of the full signal, and of its percussive part
+    M_full, V_plain, M_harm = _front_end(y, fb, opts)  # full signal, percussive part, harmonic part
     use_full = opts.nmf_input == "full" or (opts.nmf_input == "auto" and not opts.drums_only)
     V = stack_frames(M_full if use_full else V_plain)
 
     W0, labels = load_templates()
     classes = list(dict.fromkeys(labels))
     free = opts.free_components if opts.free_components is not None else (2 if opts.drums_only else 10)
-    W, H = _nmf(V, W0, free, opts.nmf_iter, opts.adapt, opts.seed)
+    W_fixed = None
+    if not opts.drums_only and use_full and free:
+        # The accompaniment basis is learned from the strictly harmonic part (see
+        # HARM_MARGIN) so it can't absorb drums or cymbal wash.
+        W_fixed = _harmonic_basis(M_harm, free, opts.seed)
+    W, H = _nmf(V, W0, free, opts.nmf_iter, opts.adapt, opts.seed, W_fixed=W_fixed)
     K0 = W0.shape[1]
     A = {c: H[[i for i, lab in enumerate(labels) if lab == c]].sum(axis=0) for c in classes}
-    A_free = H[K0:].sum(axis=0) if free else np.zeros(V.shape[1], dtype=np.float32)
+    A_free = H[K0:].sum(axis=0) if W.shape[1] > K0 else np.zeros(V.shape[1], dtype=np.float32)
 
     flux = _superflux(V_plain)
     delta = 0.06 / max(opts.sensitivity, 0.1)
@@ -272,12 +316,23 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             evidence[c] = min(share / thr_share, loud / thr_loud)
             if share >= thr_share and loud >= thr_loud:
                 score[c] = (share, loud, evidence[c])
-        # Cymbals: one per stroke unless a second is nearly as dominant.
+        # Cymbals: hi-hat and ride are never struck at the same instant (one hand
+        # each would be needed, and their templates overlap on real cymbals), so
+        # keep the stronger. A crash may sound with either only on strong evidence.
         cym = sorted(((c, v) for c, v in score.items() if c in CYMBALS), key=lambda x: -x[1][0] * x[1][1])
-        for c, v in cym[1:]:
-            best = cym[0][1]
-            if not (v[0] >= 0.8 * best[0] and v[1] >= 0.8 * best[1]) or {c, cym[0][0]} <= {"hihat", "hihat_open"}:
-                score.pop(c)
+        if cym:
+            keep = {cym[0][0]}
+            for c, v in cym[1:]:
+                if "crash" in (c, cym[0][0]) and c not in keep and v[0] >= 0.6 and v[1] >= 0.8 \
+                        and not ({c} | keep) <= {"hihat", "hihat_open"}:
+                    keep.add(c)
+            for c, _ in cym:
+                if c not in keep:
+                    score.pop(c)
+        # Snare wires put noise into the cymbal region: a crash that coincides with a
+        # snare stroke needs stronger evidence of its own.
+        if "crash" in score and "snare" in score and score["crash"][0] < 0.5:
+            score.pop("crash")
         # Hi-hat open/closed from how long the hi-hat activation rings.
         hh_c = next((c for c in ("hihat", "hihat_open") if c in score), None)
         if hh_c:
@@ -315,7 +370,9 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
                 amb = min(1.0, max(rivals) / max(margin, 1e-9))
                 conf *= 1.0 - 0.7 * amb ** 2
             vel = int(np.clip(35 + 75 * min(loud, 1.5) / 1.5, 1, 127))
-            hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3), flam=flam))
+            hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3), flam=flam,
+                                ride_vs_hat=(evidence["ride"], evidence["hihat"] + evidence["hihat_open"])
+                                if c in ("hihat", "ride") else None))
 
     # Flams: a grace bump before the stroke, looking back no further than the
     # previous detected stroke on the same drum (the grace itself is often an
@@ -327,6 +384,7 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             h.flam = _has_grace(A[h.inst], f, last_frame.get(h.inst, -10**9), T)
             last_frame[h.inst] = f
     hits = _merge_flams(hits)
+    _smooth_cymbals(hits)
     _dynamics(hits)
     pad_frames = int(round(PAD / FRAME))
     return Detection(
@@ -389,6 +447,35 @@ def _adaptive_floor(values: np.ndarray, base: float) -> float:
     if eta > 0.65 and (m1 - m0) > 1.1 and np.exp(m0) < 0.45:
         return max(base, float(np.exp(thr)))
     return base
+
+
+def _smooth_cymbals(hits: list[DrumHit], window: float = 2.0) -> None:
+    """Keep time-keeping cymbal strokes on one instrument within a phrase.
+
+    Drummers ride one cymbal (hi-hat or ride) for a passage. A stroke whose
+    label disagrees with a clear local majority (>= 70% of nearby strokes,
+    confidence-weighted) and whose own evidence isn't strong takes the
+    majority label, with a little less confidence. A passage-level evidence
+    vote was tried and rejected: it measurably mislabelled strokes near
+    hi-hat/ride section changes.
+    """
+    cym = [h for h in hits if h.inst in ("hihat", "ride")]
+    times = np.array([h.time for h in cym])
+    changes = []
+    for i, h in enumerate(cym):
+        near = [cym[j] for j in np.nonzero(np.abs(times - h.time) <= window)[0] if j != i]
+        if len(near) < 4:
+            continue
+        w = {"hihat": 0.0, "ride": 0.0}
+        for o in near:
+            w[o.inst] += o.confidence
+        maj = max(w, key=w.get)
+        share = w[maj] / (sum(w.values()) + 1e-9)
+        if maj != h.inst and share >= 0.7 and h.confidence < 0.85:
+            changes.append((h, maj))
+    for h, maj in changes:
+        h.inst = maj
+        h.confidence = round(h.confidence * 0.85, 3)
 
 
 def _merge_flams(hits: list[DrumHit]) -> list[DrumHit]:

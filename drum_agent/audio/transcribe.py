@@ -97,6 +97,7 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         # leading silence that slipped in
         while len(measures) > 1 and not measures[0].hits:
             measures.pop(0)
+    density_note = _check_kick_density(measures)
     roadmap = label_sections(measures)
     counts = Counter(h.inst for m in measures for h in m.hits)
     low = sum(1 for m in measures for h in m.hits if h.confidence < 0.5)
@@ -116,12 +117,37 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "grid_counts": res.grid_counts,
         "sections": [f"{r['label']}: bar {r['first_bar']}, {r['bars']} bars, {r['main_cymbal'] or 'no cymbal'}"
                      + (f", {r['fills']} fill bar(s)" if r["fills"] else "") for r in roadmap],
-        "notes": grid.notes + meter_notes + [
+        "notes": grid.notes + meter_notes + ([density_note] if density_note else []) + [
             "Section letters are pattern-based; rename them with --sections once you know the song form.",
             "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed.",
         ],
     }
     return score
+
+
+def _check_kick_density(measures) -> str | None:
+    """Flag a kick line denser than any drummer plays for long (bass bleed in a mix)."""
+    import statistics
+    per_beat = []
+    for m in measures:
+        beats = len(m.time_sig.beats()) if not m.is_pickup else 0
+        if beats:
+            per_beat.append(sum(1 for h in m.hits if h.inst == "kick") / beats)
+    if len(per_beat) < 2:
+        return None
+    med = statistics.median(per_beat)
+    if med <= 2.5:  # more than ~10 kicks per 4/4 bar, bar after bar, is implausible
+        return None
+    for m in measures:
+        for h in m.hits:
+            if h.inst == "kick":
+                h.confidence = round(min(h.confidence, 0.45), 3)
+        m.uncertain = True
+        if "kick line implausibly dense" not in " ".join(m.notes):
+            m.notes.append("kick line implausibly dense (bass bleed?)")
+    return (f"WARNING: the kick line is implausibly dense (median {med:.1f} kicks per beat). This usually "
+            f"means bass-guitar or synth-bass attacks were taken for kicks. Transcribe an isolated drum stem "
+            f"(--drums-only) or a MIDI drum track, or verify every kick by ear.")
 
 
 ROLL_MIN_STROKES = 8  # a quarter note of 32nds; shorter bursts stay written out
@@ -215,7 +241,11 @@ def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measure
                 off += 1
         if on + off == 0:
             return None
-        return on >= off
+        if on >= 2 and off == 0:
+            return True  # clearly a 4/4 backbeat
+        if off >= on:
+            return False
+        return None  # mixed evidence: neither trims nor blocks
 
     # Candidate regions come from sections; trim 4/4-looking bars off their ends.
     regions: list[tuple[int, int]] = []
@@ -233,7 +263,8 @@ def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measure
     for si in range(len(bounds) - 1):
         b0, b1 = bounds[si], bounds[si + 1]
         sec_bars = bars[b0:b1]
-        if any(snare_on_beat(b) is True for b in sec_bars):
+        votes = [snare_on_beat(b) for b in sec_bars]
+        if votes.count(True) > votes.count(False):  # mostly a 4/4 backbeat; one stray snare can't veto
             keep(b0, b1)
             continue
         if len(sec_bars) < 3 or any(b.beats != 4 for b in sec_bars):
@@ -254,7 +285,7 @@ def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measure
         pos = np.array(pos)
         on_eighths = float(np.mean(np.min(np.abs(pos[:, None] - np.array([0, 0.5, 1.0])[None, :]), axis=1) < 0.08)) if len(pos) else 0
         n_tracked = k_end - k_start
-        if r6 > r4 + 0.1 and r6 > 0.55 and on_eighths > 0.9 and n_tracked >= 12:
+        if r6 > r4 + 0.1 and r6 > 0.55 and on_eighths > 0.8 and n_tracked >= 12:
             n128 = n_tracked // 6
             for j in range(n128):
                 first = len(new_beats)
