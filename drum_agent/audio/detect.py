@@ -1,0 +1,350 @@
+"""Drum stroke detection: audio -> timed, labelled strokes with confidence.
+
+Method (classical, explainable; no network model is available offline):
+
+1. Harmonic/percussive separation (skipped for isolated drum stems).
+2. Semi-adaptive NMF on a mel magnitude spectrogram. Fixed drum templates
+   (drum_agent/data/templates.npz) explain drum sounds; a few free components
+   absorb whatever else is in the mix. Templates may adapt slightly toward the
+   actual kit after the first iterations.
+3. A superflux onset function finds candidate strokes (high recall).
+4. At each candidate, every drum class is scored by how much its activation
+   *rises* there, both relative to its own typical level and as a share of
+   the total rise. Several classes can fire at once (kick + crash + snare).
+5. Hi-hat open/closed is decided by how long the hi-hat activation rings.
+6. Flams (two strokes 12-45 ms apart, the first softer) become one flam.
+
+Every stroke carries a confidence; weak or ambiguous ones are flagged so the
+chart marks the bar for human review instead of silently guessing.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from .features import FMAX as FMAX_ALL, FMIN as FMIN_ALL, HOP, SR, band_centers, band_spectrogram
+from .templates import load_templates
+
+FRAME = HOP / SR
+
+
+@dataclass
+class DrumHit:
+    time: float
+    inst: str
+    strength: float  # rise relative to the class's typical stroke (1.0 = typical)
+    velocity: int
+    confidence: float
+    flam: bool = False
+    ghost: bool = False
+    accent: bool = False
+
+
+@dataclass
+class DetectOptions:
+    drums_only: bool = False
+    sensitivity: float = 1.0
+    nmf_iter: int = 80
+    adapt: float = 0.25  # how far templates may move toward the recording (0 = fixed)
+    free_components: int | None = None
+    nmf_input: str = "auto"  # "full" | "percussive" | "auto" (full for mixes, as-is for stems)
+    hpss_margin: float = 1.0
+    seed: int = 0
+
+
+@dataclass
+class Detection:
+    hits: list[DrumHit]
+    onset_env: np.ndarray  # frame-rate onset strength (for beat tracking)
+    candidates: int
+    duration: float
+    activations: dict[str, np.ndarray] = field(default_factory=dict)
+    stats: dict = field(default_factory=dict)
+
+
+# Each class is judged inside the frequency region where it is distinctive.
+REGIONS = {
+    "kick": (30, 150),
+    "snare": (150, 5000),
+    "tom1": (60, 600),
+    "tom2": (60, 600),
+    "floor_tom": (50, 500),
+    "hihat": (4000, 17000),
+    "hihat_open": (4000, 17000),
+    "ride": (2500, 17000),
+    "crash": (2500, 17000),
+}
+CYMBALS = ("hihat", "hihat_open", "ride", "crash")
+TOMS = ("tom1", "tom2", "floor_tom")
+FEET = ("kick",)  # instruments not played with the hands (hi-hat pedal has no detector class)
+# (minimum share of the regional rise, minimum loudness vs the region's typical rise)
+_THRESH = {
+    "kick": (0.35, 0.10),
+    "snare": (0.30, 0.10),
+    "tom1": (0.35, 0.15),
+    "tom2": (0.35, 0.15),
+    "floor_tom": (0.35, 0.15),
+    "hihat": (0.30, 0.06),
+    "hihat_open": (0.30, 0.06),
+    "ride": (0.30, 0.08),
+    "crash": (0.35, 0.10),
+}
+
+
+def _nmf(V: np.ndarray, W0: np.ndarray, free: int, iters: int, adapt: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """KL-NMF with fixed (semi-adaptive) drum columns and `free` adaptive columns."""
+    rng = np.random.default_rng(seed)
+    F, T = V.shape
+    K0 = W0.shape[1]
+    W = np.concatenate([W0, rng.random((F, free)).astype(np.float32) + 0.1], axis=1) if free else W0.copy()
+    W = W / (W.sum(axis=0, keepdims=True) + 1e-9)
+    H = (rng.random((W.shape[1], T)).astype(np.float32) + 0.1) * (V.mean() + 1e-9)
+    eps = 1e-9
+    ones = np.ones_like(V)
+    for it in range(iters):
+        WH = W @ H + eps
+        R = V / WH
+        H *= (W.T @ R) / (W.T @ ones + eps)
+        if free or (adapt > 0 and it >= iters // 2):
+            WH = W @ H + eps
+            R = V / WH
+            upd = (R @ H.T) / (ones @ H.T + eps)
+            Wn = W * upd
+            if free:
+                W[:, K0:] = Wn[:, K0:]
+            if adapt > 0 and it >= iters // 2:
+                Wd = Wn[:, :K0] / (Wn[:, :K0].sum(axis=0, keepdims=True) + eps)
+                W[:, :K0] = (1 - adapt) * W0 + adapt * Wd
+            scale = W.sum(axis=0, keepdims=True) + eps
+            W /= scale
+            H *= scale.T
+    return W, H
+
+
+def _superflux(V: np.ndarray) -> np.ndarray:
+    L = np.log1p(100.0 * V / (V.max() + 1e-9))
+    from scipy.ndimage import maximum_filter1d
+    Lm = maximum_filter1d(L, size=3, axis=0)
+    lag = 2
+    d = np.zeros(L.shape[1], dtype=np.float32)
+    d[lag:] = np.maximum(0.0, L[:, lag:] - Lm[:, :-lag]).sum(axis=0)
+    return d
+
+
+def _peaks(env: np.ndarray, delta: float, wait: int = 4) -> np.ndarray:
+    import librosa
+    if env.max() <= 0:
+        return np.array([], dtype=int)
+    e = env / (np.percentile(env, 99) + 1e-9)
+    return librosa.util.peak_pick(e, pre_max=2, post_max=2, pre_avg=12, post_avg=6, delta=delta, wait=wait)
+
+
+def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
+    import librosa
+    opts = options or DetectOptions()
+    y = np.asarray(y, dtype=np.float32)
+    if y.size == 0 or np.max(np.abs(y)) < 1e-5:
+        return Detection([], np.zeros(1, dtype=np.float32), 0, len(y) / SR)
+    y = y / (np.max(np.abs(y)) + 1e-9) * 0.9
+    duration = len(y) / SR
+    # Lead-in silence: a stroke at t=0 would otherwise be analysed with half-empty
+    # STFT windows and no pre-onset baseline (it was being missed or mislabelled).
+    PAD = 0.25
+    y = np.concatenate([np.zeros(int(PAD * SR), dtype=np.float32), y])
+
+    S = np.abs(librosa.stft(y, n_fft=2048, hop_length=HOP, center=True)).astype(np.float32)
+    if not opts.drums_only:
+        _, P = librosa.decompose.hpss(S, kernel_size=(17, 31), margin=(1.0, opts.hpss_margin))
+    else:
+        P = S
+    from .features import STACK, filterbank, stack_frames
+    fb = filterbank()
+    V_plain = (fb @ P).astype(np.float32)  # percussive part: onset detection
+    use_full = opts.nmf_input == "full" or (opts.nmf_input == "auto" and not opts.drums_only)
+    V = stack_frames((fb @ S).astype(np.float32) if use_full else V_plain)
+
+    W0, labels = load_templates()
+    classes = list(dict.fromkeys(labels))
+    free = opts.free_components if opts.free_components is not None else (2 if opts.drums_only else 10)
+    W, H = _nmf(V, W0, free, opts.nmf_iter, opts.adapt, opts.seed)
+    K0 = W0.shape[1]
+    A = {c: H[[i for i, lab in enumerate(labels) if lab == c]].sum(axis=0) for c in classes}
+    A_free = H[K0:].sum(axis=0) if free else np.zeros(V.shape[1], dtype=np.float32)
+
+    flux = _superflux(V_plain)
+    delta = 0.06 / max(opts.sensitivity, 0.1)
+    cand = _peaks(flux, delta)
+    T = V.shape[1]
+    centers = np.tile(band_centers(), len(STACK))
+
+    # Regional energy of each class and of the whole reconstruction.
+    E_cls: dict[str, np.ndarray] = {}
+    E_tot: dict[str, np.ndarray] = {}
+    for c in classes:
+        lo, hi = REGIONS.get(c, (FMIN_ALL, FMAX_ALL))
+        band_mask = (centers >= lo) & (centers <= hi)
+        idx = [i for i, lab in enumerate(labels) if lab == c]
+        E_cls[c] = W[band_mask][:, idx].sum(axis=0) @ H[idx]
+        E_tot[c] = W[band_mask].sum(axis=0) @ H
+
+    def rise(a: np.ndarray, t: int) -> float:
+        hi = a[max(0, t - 1):min(T, t + 5)].max()
+        lo = a[max(0, t - 6):max(1, t)].min()
+        return float(max(0.0, hi - lo))
+
+    r_cls = {c: np.array([rise(E_cls[c], t) for t in cand]) for c in classes}
+    r_tot = {c: np.array([rise(E_tot[c], t) for t in cand]) for c in classes}
+    region_ref = {c: max(float(np.percentile(r_tot[c], 90)) if len(cand) else 0.0, 1e-9) for c in classes}
+
+    sens = max(opts.sensitivity, 0.1)
+    # Per-recording loudness floors: where a class's candidate strokes split into a
+    # weak cluster (bleed from other sounds) and a strong one, cut between them.
+    # Not for snare/hi-hat, whose soft strokes (ghost notes) are real music.
+    floors = {}
+    for c in classes:
+        base = _THRESH[c][1] / sens
+        if c in ("snare", "hihat") or not len(cand):
+            floors[c] = base
+            continue
+        share = r_cls[c] / (r_tot[c] + 1e-9)
+        loud = r_cls[c] / region_ref[c]
+        floors[c] = _adaptive_floor(loud[share >= _THRESH[c][0]], base)
+
+    # High-band energy of the full signal: an open hi-hat keeps ringing up there,
+    # even when the NMF lets free components absorb its wash in a band mix.
+    hf_energy = (filterbank() @ S)[band_centers() > 6000].sum(axis=0)
+
+    hits: list[DrumHit] = []
+    debug: list[tuple[float, dict]] = []
+    for k, t in enumerate(cand):
+        time = float(t * FRAME) - PAD
+        if time < -0.02:
+            continue
+        dbg = {c: (round(float(r_cls[c][k] / (r_tot[c][k] + 1e-9)), 2),
+                   round(float(r_cls[c][k] / region_ref[c]), 2)) for c in classes}
+        debug.append((time, dbg))
+        score: dict[str, tuple[float, float, float]] = {}  # class -> (share, loudness, margin)
+        for c in classes:
+            share = r_cls[c][k] / (r_tot[c][k] + 1e-9)
+            loud = r_cls[c][k] / region_ref[c]
+            thr_share = _THRESH[c][0]
+            thr_loud = floors[c]
+            if share >= thr_share and loud >= thr_loud:
+                score[c] = (share, loud, min(share / thr_share, loud / thr_loud))
+        # Cymbals: one per stroke unless a second is nearly as dominant.
+        cym = sorted(((c, v) for c, v in score.items() if c in CYMBALS), key=lambda x: -x[1][0] * x[1][1])
+        for c, v in cym[1:]:
+            best = cym[0][1]
+            if not (v[0] >= 0.8 * best[0] and v[1] >= 0.8 * best[1]) or {c, cym[0][0]} <= {"hihat", "hihat_open"}:
+                score.pop(c)
+        # Hi-hat open/closed from how long the hi-hat activation rings.
+        hh_c = next((c for c in ("hihat", "hihat_open") if c in score), None)
+        if hh_c:
+            v = score.pop(hh_c)
+            nxt = cand[k + 1] if k + 1 < len(cand) else T
+            ring = max(_ring(A["hihat"] + A["hihat_open"], t, nxt, T, baseline=False),
+                       _ring(hf_energy, t, nxt, T, baseline=True))
+            score["hihat_open" if ring > 0.45 else "hihat"] = v
+        # Toms: strongest one; drop toms that look like kick/snare bleed.
+        toms = sorted(((c, v) for c, v in score.items() if c in TOMS), key=lambda x: -x[1][1])
+        for c, v in toms[1:]:
+            if v[1] < 0.7 * toms[0][1][1]:
+                score.pop(c)
+        for c in [c for c in score if c in TOMS]:
+            # A crash + kick downbeat partly matches the floor-tom template; a tom that
+            # coincides with a kick must show strong evidence of its own.
+            if "kick" in score and (score[c][1] < 0.9 or score[c][0] < 0.5):
+                score.pop(c)
+                continue
+            for other in ("snare", "kick"):
+                if other in score and r_cls[c][k] < 0.6 * r_cls[other][k] * (region_ref[c] / region_ref[other]):
+                    score.pop(c, None)
+        # Two hands: at most two hand-played instruments can sound at one instant.
+        hands = sorted((c for c in score if c not in FEET), key=lambda c: -score[c][2])
+        for c in hands[2:]:
+            score.pop(c)
+        for c, (share, loud, margin) in score.items():
+            conf = float(1 / (1 + np.exp(-3.0 * (margin - 1.3))))
+            vel = int(np.clip(35 + 75 * min(loud, 1.5) / 1.5, 1, 127))
+            hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3)))
+
+    hits = _merge_flams(hits)
+    _dynamics(hits)
+    pad_frames = int(round(PAD / FRAME))
+    return Detection(
+        hits=sorted(hits, key=lambda h: (h.time, h.inst)),
+        onset_env=flux[pad_frames:],
+        candidates=int(len(cand)),
+        duration=duration,
+        activations={c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()},
+        stats={"free_components": free, "templates": K0, "frames": int(T), "debug": debug},
+    )
+
+
+def _ring(a: np.ndarray, t: int, nxt: int, T: int, baseline: bool) -> float:
+    """How much of a stroke's level remains 70-175 ms later (0 = dead, 1 = sustained)."""
+    pre = float(a[max(0, t - 6):max(1, t - 1)].min()) if baseline else 0.0
+    peak = float(a[t:min(T, t + 4)].max()) - pre
+    if peak <= 1e-9:
+        return 0.0
+    stop = min(T, t + 30, nxt - 1)
+    tail = a[min(T - 1, t + 12):stop] if stop > t + 12 else a[min(T - 1, t + 6):max(t + 7, stop)]
+    return float((tail.mean() - pre) / peak) if tail.size else 0.0
+
+
+def _adaptive_floor(values: np.ndarray, base: float) -> float:
+    """Otsu split of log-loudness, used only when clearly bimodal with a weak lower cluster."""
+    v = values[values > 0.02]
+    if len(v) < 12:
+        return base
+    lv = np.log(v)
+    best = None
+    for thr in np.quantile(lv, np.linspace(0.05, 0.95, 37)):
+        lo, hi = lv[lv < thr], lv[lv >= thr]
+        if len(lo) < 3 or len(hi) < 6:
+            continue
+        w0, w1 = len(lo) / len(lv), len(hi) / len(lv)
+        sb = w0 * w1 * (lo.mean() - hi.mean()) ** 2
+        if best is None or sb > best[0]:
+            best = (sb, thr, lo.mean(), hi.mean())
+    if best is None:
+        return base
+    sb, thr, m0, m1 = best
+    eta = sb / (lv.var() + 1e-9)
+    if eta > 0.65 and (m1 - m0) > 1.1 and np.exp(m0) < 0.45:
+        return max(base, float(np.exp(thr)))
+    return base
+
+
+def _merge_flams(hits: list[DrumHit]) -> list[DrumHit]:
+    """Two strokes on the same drum 12-45 ms apart, first softer -> one flam."""
+    out: list[DrumHit] = []
+    by_inst: dict[str, list[DrumHit]] = {}
+    for h in sorted(hits, key=lambda h: h.time):
+        by_inst.setdefault(h.inst, []).append(h)
+    for inst, hs in by_inst.items():
+        skip = set()
+        for i in range(len(hs) - 1):
+            a, b = hs[i], hs[i + 1]
+            if inst in ("snare", "tom1", "tom2", "floor_tom") and 0.012 <= b.time - a.time <= 0.045 \
+                    and a.strength < 0.8 * b.strength:
+                b.flam = True
+                skip.add(i)
+        out += [h for i, h in enumerate(hs) if i not in skip]
+    return out
+
+
+def _dynamics(hits: list[DrumHit]) -> None:
+    """Mark ghost notes and accents on the snare relative to its typical stroke."""
+    sn = [h for h in hits if h.inst == "snare"]
+    if len(sn) < 8:
+        return
+    med = float(np.median([h.strength for h in sn]))
+    spread = np.percentile([h.strength for h in sn], 90) / (np.percentile([h.strength for h in sn], 10) + 1e-9)
+    for h in sn:
+        if h.strength < 0.4 * med:
+            h.ghost = True
+        elif spread > 2.5 and h.strength > 1.5 * med:
+            h.accent = True
