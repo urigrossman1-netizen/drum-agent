@@ -1,0 +1,28 @@
+title: "Case 07: Ghost Notes, Accents, Flams and Rolls"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 92
+patterns:
+  ghosts:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "-g--X-g--gg-X--g"
+    bd: "x-----x---x-----"
+  accents:
+    sn: "X--x--X--x--X-x-"
+    bd: "x---x---x---x---"
+  flams:
+    sn: "f---F---f-f-F---"
+    bd: "x---x---x---x---"
+  rolls:
+    sn: "r~~~x---r~~~~~~~"
+    bd: "x-------x-------"
+  long_roll:
+    sn: "r~~~~~~~~~~~x---"
+    bd: "x---------------"
+  drags:
+    sn: "d---x---d---X---"
+    bd: "x---x---x---x---"
+sections:
+  - label: A
+    bars: [ghosts, accents, flams, rolls, long_roll, drags]

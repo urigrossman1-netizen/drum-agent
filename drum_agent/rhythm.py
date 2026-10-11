@@ -102,8 +102,9 @@ def _is_ternary(length: Fraction) -> bool:
 
 
 # Candidate grids per beat, simplest first: (slots, tuplet ratio or None).
-_BINARY_GRIDS = [(1, None), (2, None), (4, None), (3, (3, 2)), (8, None), (6, (3, 2)), (12, (3, 2))]
-_TERNARY_GRIDS = [(1, None), (3, None), (6, None), (2, (2, 3)), (4, (2, 3)), (12, None)]
+# Sextuplets are labelled "6" (6:4), compound quadruplets "4" (4:6), as engravers do.
+_BINARY_GRIDS = [(1, None), (2, None), (4, None), (3, (3, 2)), (8, None), (6, (6, 4)), (12, (12, 8))]
+_TERNARY_GRIDS = [(1, None), (3, None), (6, None), (2, (2, 3)), (4, (4, 6)), (12, None)]
 
 
 def _make_segment(start: Fraction, length: Fraction, n: int, tuplet: tuple[int, int] | None) -> Segment:
@@ -285,6 +286,7 @@ def spell_voice(measure: Measure, hits: list[Hit]) -> list[Token]:
 
     _mark_tuplets(tokens, segments)
     tokens = _merge_beat_rests(tokens, ts, segments, offset)
+    tokens = _merge_roll_ties(tokens, ts, segments, offset)
     assign_beams(tokens, segments, ts)
     return _shift(tokens, -offset) if offset else tokens
 
@@ -353,6 +355,38 @@ def _merge_beat_rests(tokens: list[Token], ts: TimeSig, segments: list[Segment],
             merged = Token("rest", start, length, rv[0], rv[1], segment=segs[0])
             idx = tokens.index(group[0])
             tokens = tokens[:idx] + [merged] + tokens[idx + 2:]
+    return tokens
+
+
+def _merge_roll_ties(tokens: list[Token], ts: TimeSig, segments: list[Segment],
+                     offset: Fraction) -> list[Token]:
+    """Join tied whole-beat roll pieces into one note per half bar or bar.
+
+    A roll over beats 3-4 of 4/4 is a half note with roll slashes, not two tied
+    quarters. Pieces stay tied across the middle of a 4/4 bar, as Gould
+    requires for any note.
+    """
+    if offset:
+        return tokens
+    nodes = [(Fraction(0), ts.bar_length)] + (ts.half_bar_spans() or [])
+    for start, length in nodes:
+        group = [t for t in tokens if start <= t.pos < start + length]
+        if len(group) < 2 or sum(t.dur for t in group) != length:
+            continue
+        if not all(t.kind == "note" and t.is_roll and t.tuplet is None for t in group):
+            continue
+        if not all(group[k].tie_start and group[k + 1].tie_stop for k in range(len(group) - 1)):
+            continue
+        if any([h.key() for h in t.hits] != [h.key() for h in group[0].hits] for t in group):
+            continue
+        rv = representable(length)
+        if rv is None:
+            continue
+        merged = Token("note", start, length, rv[0], rv[1], hits=group[0].hits,
+                       tie_start=group[-1].tie_start, tie_stop=group[0].tie_stop,
+                       segment=group[0].segment)
+        idx = tokens.index(group[0])
+        tokens = tokens[:idx] + [merged] + tokens[idx + len(group):]
     return tokens
 
 

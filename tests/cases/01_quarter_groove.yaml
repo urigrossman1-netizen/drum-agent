@@ -1,0 +1,18 @@
+title: "Case 01: Quarter-Note Groove"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 90
+patterns:
+  quarters:
+    hh: "xxxx"
+    sn: "-x-x"
+    bd: "x-x-"
+  quarters_crash:
+    cr: "x---"
+    hh: "-xxx"
+    sn: "-x-x"
+    bd: "x-x-"
+sections:
+  - label: Groove
+    bars: [quarters_crash, quarters, quarters, quarters]

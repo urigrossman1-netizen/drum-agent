@@ -1,0 +1,26 @@
+title: "Case 04: Simultaneous Cymbal, Snare and Bass Drum"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 132
+patterns:
+  hits:
+    cr: "x-----x-"
+    sn: "x-----x-"
+    bd: "x-----x-"
+    hh: "--x-x---"
+  stabs:
+    cr: "x---x---"
+    cr2: "--x-----"
+    sn: "x-x-x---"
+    bd: "x-x-x-x-"
+    ft: "------x-"
+  ride_bell:
+    rd: "x-x-x-x-"
+    rb: "-x---x--"
+    sn: "--x---x-"
+    bd: "x---x---"
+    hf: "--x---x-"
+sections:
+  - label: Hits
+    bars: [hits, stabs, ride_bell, hits]

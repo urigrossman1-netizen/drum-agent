@@ -1,0 +1,17 @@
+title: "Case 02: Eighth-Note Rock Beat"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 120
+patterns:
+  rock:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x---x---"
+  rock_var:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x--xx-x-"
+sections:
+  - label: A
+    bars: [rock, rock_var, rock, rock_var]

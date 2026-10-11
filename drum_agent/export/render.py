@@ -117,10 +117,12 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     pngs = sorted(out_dir.glob(f"{stem}*.png"), key=_page_key) if png else []
     if png and not pngs:
         raise RenderError("LilyPond produced no PNG pages", log)
-    midi = None
-    for ext in (".midi", ".mid"):
-        if (out_dir / f"{stem}{ext}").exists():
-            midi = out_dir / f"{stem}{ext}"
+    # LilyPond writes "<stem>.midi". Never fall back to "<stem>.mid": that is the
+    # MIDI file our own exporter writes, and confusing the two would make the
+    # engraving check compare our MIDI with itself.
+    midi = out_dir / f"{stem}.midi"
+    if not midi.exists():
+        raise RenderError("LilyPond produced no MIDI file for the engraving check", log)
     return RenderResult(ly_path, pdf, pngs, midi, warnings, log, ver_str)
 
 

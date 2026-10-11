@@ -1,0 +1,21 @@
+title: "Case 03: Sixteenth Notes and Syncopation"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 96
+patterns:
+  sixteenth_hats:
+    hh: "xxxxxxxxxxxxxxxx"
+    sn: "----x-------x---"
+    bd: "x--x--x---x-----"
+  syncopated:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x--x-x--x---"
+    bd: "-x--x-x--x---x-x"
+  offbeat_kicks:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "---x---x-x-x---x"
+sections:
+  - label: A
+    bars: [sixteenth_hats, syncopated, offbeat_kicks, sixteenth_hats]

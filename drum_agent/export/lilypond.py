@@ -99,8 +99,8 @@ def header(score: Score) -> str:
     return "\n".join(lines)
 
 
-def paper(paper_size: str, staff_size: float, has_uncertain: bool, score: Score) -> str:
-    footer = ""
+def paper(paper_size: str, staff_size: float, ragged_last: bool) -> str:
+    footer = "  ragged-last = ##t\n" if ragged_last else ""
     return (
         f"#(set-global-staff-size {staff_size})\n"
         "\\paper {\n"
@@ -113,7 +113,7 @@ def paper(paper_size: str, staff_size: float, has_uncertain: bool, score: Score)
         "  right-margin = 14\\mm\n"
         "  ragged-last-bottom = ##t\n"
         "  ragged-bottom = ##f\n"
-        "  markup-system-spacing.basic-distance = #10\n"
+        "  markup-system-spacing.basic-distance = #7\n"
         "  score-markup-spacing.basic-distance = #8\n"
         "  score-system-spacing.basic-distance = #14\n"
         "  system-system-spacing = #'((basic-distance . 14) (minimum-distance . 10) (padding . 2) (stretchability . 12))\n"
@@ -190,6 +190,7 @@ class _Writer:
         self.kit = kit
         self.plan = plan
         self.hh_open = False  # hi-hat state for "+" marks, in printed order
+        self.shared_rest = False
 
     # -- tokens ------------------------------------------------------------
     def _hit_name(self, h: Hit) -> str:
@@ -218,7 +219,11 @@ class _Writer:
     def token(self, t: Token, voice: int) -> str:
         dur = duration(t.value, t.dots)
         if t.kind == "measure_rest":
-            return f"R1*{t.dur.numerator}/{t.dur.denominator}" if t.dur != 1 else "R1"
+            rest = f"R1*{t.dur.numerator}/{t.dur.denominator}" if t.dur != 1 else "R1"
+            if self.shared_rest:
+                # Both voices silent: one rest at its normal height, not raised for voice 1.
+                rest = "\\once \\override MultiMeasureRest.direction = #CENTER " + rest
+            return rest
         if t.kind == "rest":
             return f"r{dur}"
         hits = t.hits
@@ -345,7 +350,9 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         elif score.measures[after.index].section and not last_in_group.volta_end and not after.volta_start:
             end_bar = "||"
         gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None)
+        w.shared_rest = sm.shared_rest
         up = w.voice_bar(sm.voices[1], 1, m)
+        w.shared_rest = False
         if sm.shared_rest:
             down = _skip(m.actual_length)
         else:
@@ -410,11 +417,21 @@ def legend(score: Score, kit: Kit) -> str:
         "      \\override StaffSymbol.staff-space = #0.8\n"
         "      fontSize = #-2\n"
         "    } \\drummode { \\cadenzaOn " + " ".join(notes) + " \\cadenzaOff }\n"
-        "    \\new Lyrics \\with { \\override LyricText.font-size = #-3 } \\lyricmode { " + " ".join(labels) + " }\n"
+        "    \\new Lyrics \\with { \\override LyricText.font-size = #-3 "
+        "\\override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } "
+        "\\lyricmode { " + " ".join(labels) + " }\n"
         "  >>\n"
         "  \\layout { ragged-right = ##t indent = 0 \\context { \\Score \\remove Bar_number_engraver } }\n"
         "}\n"
     )
+
+
+def _short_last_line(score: Score, plan: LayoutPlan) -> bool:
+    """True when the final system holds less than 60% of a full line."""
+    from ..layout import PERCENT_WEIGHT, _weight
+    last = max(k for k, b in enumerate(plan.bars) if b.line_break)
+    weight = sum(PERCENT_WEIGHT if b.percent else _weight(score.measures[b.index]) for b in plan.bars[last:])
+    return weight < 0.6 * plan.bars_per_line
 
 
 def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = None,
@@ -428,7 +445,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     parts = [
         preamble(kit),
         header(score),
-        paper(paper_size, staff_size, has_uncertain, score),
+        paper(paper_size, staff_size, _short_last_line(score, plan)),
         layout_block(),
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",
         f"upMusic = \\drummode {{\n  \\autoBeamOff\n  {up}\n}}",

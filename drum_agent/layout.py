@@ -69,6 +69,7 @@ def _same(a: Measure, b: Measure) -> bool:
 
 
 def _weight(m: Measure) -> float:
+    """Horizontal space a bar needs, in units of a plain 4/4 groove bar."""
     sm = spell_measure(m)
     n = max(len(sm.voices[1]), len(sm.voices[2]))
     tuplets = any(t.tuplet for v in sm.voices.values() for t in v)
@@ -79,8 +80,11 @@ def _weight(m: Measure) -> float:
         w = 2.0
     if tuplets and n > 10:
         w = max(w, 1.4)
-    if m.time_sig.bar_length > 1:  # long bars (5/4, 7/4, 12/8 ...)
-        w *= float(m.time_sig.bar_length)
+    length = float(m.actual_length)
+    if length > 1:  # long bars (5/4, 12/8 ...)
+        w *= length
+    elif n <= 8:  # short, sparse bars (pickups, 2/4, 3/4) need less room
+        w *= max(0.4, length)
     return w
 
 
@@ -137,66 +141,149 @@ def _units(score: Score, idxs: list[int], mode: str) -> list[tuple]:
     return units
 
 
+PERCENT_WEIGHT = 0.75
+SHORT_LINE = 0.4  # a line filled below this fraction may be continued by the next section
+
+
+@dataclass
+class _Atom:
+    index: int
+    percent: bool
+    weight: float  # as written (percent atoms use PERCENT_WEIGHT unless they start a line)
+    written_weight: float
+    boundary: str = ""  # "section" | "volta" | "after_volta" before this atom
+    volta_start: bool = False
+    volta_end: bool = False
+    volta_times: int = 0
+
+
+def _atoms(score: Score, repeats: str, weights: list[float]) -> list[_Atom]:
+    atoms: list[_Atom] = []
+
+    def add_unit(unit: tuple, boundary: str) -> None:
+        if unit[0] == "written":
+            atoms.append(_Atom(unit[1], False, weights[unit[1]], weights[unit[1]], boundary))
+        else:  # percent run
+            start, run = unit[1], unit[2]
+            atoms.append(_Atom(start, False, weights[start], weights[start], boundary))
+            for k in range(1, run):
+                atoms.append(_Atom(start + k, True, PERCENT_WEIGHT, weights[start + k]))
+
+    pending = "section"
+    for sec in _sections(score):
+        pending = "section"
+        for unit in _units(score, sec, repeats):
+            if unit[0] == "volta":
+                _, phrase, times, inner = unit
+                first = len(atoms)
+                for j, iu in enumerate(inner):
+                    add_unit(iu, pending if j == 0 and pending == "section" else ("volta" if j == 0 else ""))
+                atoms[first].volta_start = True
+                atoms[first].volta_times = times
+                atoms[-1].volta_end = True
+                atoms[-1].volta_times = times
+                pending = "after_volta"
+            else:
+                add_unit(unit, pending)
+                pending = ""
+    return atoms
+
+
+def _line_weight(line: list[_Atom]) -> float:
+    if not line:
+        return 0.0
+    first = line[0].written_weight if line[0].percent else line[0].weight
+    return first + sum(a.weight for a in line[1:])
+
+
+def _balance(atoms: list[_Atom], capacity: float, first_room: float) -> list[int]:
+    """Break points (indices where a new line starts) minimizing squared slack.
+
+    `first_room` is the space left on the line this paragraph starts on
+    (less than capacity when a short previous line is continued).
+    """
+    n = len(atoms)
+    INF = float("inf")
+    best = [INF] * (n + 1)
+    prev = [0] * (n + 1)
+    best[0] = 0.0
+    for j in range(1, n + 1):
+        for i in range(j - 1, -1, -1):
+            room = first_room if i == 0 else capacity
+            w = _line_weight(atoms[i:j])
+            if w > room + 1e-9 and j - i > 1:
+                break
+            slack = max(0.0, room - w)
+            # Breaking before a simile mark rewrites it as a full bar: small penalty.
+            penalty = 0.5 if (i > 0 and atoms[i].percent) else 0.0
+            cost = best[i] + slack * slack + penalty
+            if cost < best[j]:
+                best[j] = cost
+                prev[j] = i
+    breaks = []
+    j = n
+    while j > 0:
+        breaks.append(prev[j])
+        j = prev[j]
+    return sorted(set(breaks))
+
+
 def plan_layout(score: Score, repeats: str = "auto", bars_per_line: float = 4.0) -> LayoutPlan:
     if repeats not in REPEAT_MODES:
         raise ValueError(f"repeats must be one of {REPEAT_MODES}")
     weights = [_weight(m) for m in score.measures]
-    bars: list[PrintedBar] = []
     capacity = bars_per_line
+    atoms = _atoms(score, repeats, weights)
 
-    line_weight = 0.0
+    # Paragraphs: runs of atoms between hard boundaries.
+    paragraphs: list[list[_Atom]] = []
+    for a in atoms:
+        if not paragraphs or a.boundary:
+            paragraphs.append([])
+        paragraphs[-1].append(a)
 
-    def place(pb: PrintedBar, w: float, force_break: bool = False) -> None:
-        nonlocal line_weight
-        if force_break or (bars and line_weight + w > capacity + 1e-9):
-            pb.line_break = True
-            line_weight = 0.0
-        if not bars:
-            pb.line_break = True
+    line_starts: set[int] = set()  # atom positions (global) that start a line
+    pos = 0
+    carry = 0.0  # weight on the current (last) line
+    for para in paragraphs:
+        boundary = para[0].boundary
+        can_share = (pos > 0 and boundary in ("section", "volta") and carry < SHORT_LINE * capacity)
+        if can_share:
+            breaks = _balance(para, capacity, capacity - carry)
+            breaks = [b for b in breaks if b > 0]
+        else:
+            breaks = _balance(para, capacity, capacity)
+        for b in breaks:
+            line_starts.add(pos + b)
+        if pos == 0 or not can_share:
+            line_starts.add(pos)
+        # Weight on the last line of this paragraph.
+        last_start = max(b for b in [0] + breaks)
+        tail = para[last_start:]
+        carry = _line_weight(tail) + (carry if (can_share and last_start == 0) else 0.0)
+        if para[-1].volta_end:
+            carry = capacity  # always start a new line after a repeated phrase
+        pos += len(para)
+
+    bars: list[PrintedBar] = []
+    for k, a in enumerate(atoms):
+        pb = PrintedBar(a.index, percent=a.percent and k not in line_starts,
+                        line_break=k in line_starts, volta_start=a.volta_start,
+                        volta_end=a.volta_end, volta_times=a.volta_times)
         bars.append(pb)
-        line_weight += w
-
-    def place_percent_run(start_idx: int, run: int, first_break: bool) -> None:
-        # Written bar followed by simile marks; a new line restarts with the written bar.
-        nonlocal line_weight
-        k = 0
-        while k < run:
-            pb = PrintedBar(start_idx + k)
-            place(pb, weights[start_idx + k], force_break=first_break and k == 0)
-            group = [pb]
-            k += 1
-            while k < run and line_weight + 0.75 <= capacity + 1e-9:
-                q = PrintedBar(start_idx + k, percent=True)
-                bars.append(q)
-                line_weight += 0.75
-                group.append(q)
-                k += 1
-            if len(group) > 1:
-                pb.percent_run = len(group)
-
-    for sec in _sections(score):
-        first = True
-        for unit in _units(score, sec, repeats):
-            kind = unit[0]
-            if kind == "written":
-                place(PrintedBar(unit[1]), weights[unit[1]], force_break=first)
-            elif kind == "percent":
-                place_percent_run(unit[1], unit[2], first)
-            else:  # volta
-                _, phrase, times, inner = unit
-                start = len(bars)
-                force = first or line_weight > 0
-                for j, iu in enumerate(inner):
-                    if iu[0] == "written":
-                        place(PrintedBar(iu[1]), weights[iu[1]], force_break=force and j == 0)
-                    else:
-                        place_percent_run(iu[1], iu[2], force and j == 0)
-                bars[start].volta_start = True
-                bars[start].volta_times = times
-                bars[-1].volta_end = True
-                bars[-1].volta_times = times
-                line_weight = capacity  # the next unit starts a new line after a repeat
-            first = False
+    # Simile runs: a written bar followed by percent bars on the same line.
+    for k, pb in enumerate(bars):
+        if pb.percent:
+            continue
+        run = 1
+        while k + run < len(bars) and bars[k + run].percent:
+            run += 1
+        if run > 1:
+            pb.percent_run = run
+    # A simile run may not cross a volta boundary (the plan never builds one, but check).
+    for k, pb in enumerate(bars):
+        if pb.percent and pb.volta_start:
+            raise AssertionError("simile mark at the start of a repeat")
 
     plan = LayoutPlan(bars, bars_per_line)
     _number(plan, score)

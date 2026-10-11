@@ -108,10 +108,10 @@ def _apply_sections(score, spec: str | None) -> None:
 
 
 def cmd_transcribe(args) -> int:
+    from .rights import require_rights
+    require_rights(args.rights, args.input)  # before touching the audio
     from .audio.transcribe import TranscribeOptions, transcribe_file
     from .pipeline import export_all
-    from .rights import require_rights
-    require_rights(args.rights, args.input)
     kit = _kit(args)
     topts = TranscribeOptions(
         bpm=args.bpm, time_signature=args.time_signature, downbeat=args.downbeat,

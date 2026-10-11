@@ -1,0 +1,42 @@
+title: "Case 09: Odd and Compound Meters"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 120
+patterns:
+  waltz:
+    hh: "xxxxxx"
+    sn: "--x-x-"
+    bd: "x-----"
+sections:
+  - label: "3/4"
+    time: 3/4
+    bars: [waltz, waltz]
+  - label: "7/8"
+    time: 7/8
+    bars:
+      - {hh: "xxxxxxx", sn: "--x-x--", bd: "x---x--"}
+      - {hh: "xxxxxxx", sn: "--x--x-", bd: "x-x----"}
+  - label: "5/4"
+    time: 5/4
+    bars:
+      - {rd: "x-x-x-x-x-", sn: "--x-----x-", bd: "x---x-x---"}
+  - label: "6/8"
+    time: 6/8
+    tempo: "4.=72"
+    bars:
+      - {hh: "xxxxxx", sn: "---x--", bd: "x-----"}
+      - {hh: "xxxxxx", sn: "---x--", bd: "x-x--x"}
+  - label: "12/8 shuffle"
+    time: 12/8
+    bars:
+      - {rd: "x-xx-xx-xx-x", sn: "---x-----x--", bd: "x-----x-----"}
+  - label: "5/8"
+    time: 5/8
+    tempo: 160
+    bars:
+      - {hh: "xxxxx", sn: "--x--", bd: "x----"}
+  - label: "2/4"
+    time: 2/4
+    bars:
+      - {sn: "xxxx", bd: "x-x-"}

@@ -1,0 +1,31 @@
+title: "Case 08: Rests and Unusual Subdivisions"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 80
+patterns:
+  sparse:
+    sn: "-x--|----|---x|----"
+    bd: "----|x---|----|---x"
+  triplets:
+    hh: "xxx|xxx|xxx|xxx"
+    sn: "---|x--|---|x--"
+    bd: "x--|--x|x--|---"
+  mixed:
+    sn: "xxx|xxxx|xxxxxx|x"
+    bd: "x--|x---|x-----|x"
+  thirtyseconds:
+    sn: "xxxxxxxx|x---|x-x-|xxxx"
+    bd: "x-------|----|x---|x---"
+  silent_hands:
+    bd: "x-x-x-x-"
+sections:
+  - label: A
+    bars:
+      - sparse
+      - triplets
+      - mixed
+      - thirtyseconds
+      - {t1: "x---x---x---x--x--x--x--", bd: "x-----------x-----x-----"}
+      - silent_hands
+      - {sn: "----", bd: "----"}

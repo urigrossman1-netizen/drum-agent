@@ -1,0 +1,31 @@
+title: "Case 06: Tom Fills Across the Barline"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 100
+patterns:
+  groove:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-------"
+  fill_start:
+    hh: "x-x-x-x-x-x-----"
+    sn: "----x-------xxxx"
+    bd: "x-------x-------"
+  fill_end:
+    t1: "xxxx------------"
+    t2: "----xxxx--------"
+    ft: "--------xx-x----"
+    sn: "-----------x----"
+    cr: "------------x---"
+    bd: "------------x---"
+  crash_in:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-------"
+sections:
+  - label: Groove
+    bars: [groove, groove, fill_start, fill_end]
+  - label: Chorus
+    bars: [crash_in, groove]

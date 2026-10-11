@@ -1,0 +1,26 @@
+title: "Case 05: Open and Closed Hi-Hat"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 104
+patterns:
+  disco:
+    hh: "xoxoxoxo"
+    sn: "--x---x-"
+    bd: "x-x-x-x-"
+  open_end:
+    hh: "xxxxxxxo"
+    sn: "--x---x-"
+    bd: "x---x---"
+  half_open:
+    hh: "xxhxxxhx"
+    sn: "--x---x-"
+    bd: "x---x---"
+  foot:
+    rd: "x-x-x-x-"
+    sn: "--x---x-"
+    bd: "x---x---"
+    hf: "--x---x-"
+sections:
+  - label: A
+    bars: [disco, open_end, half_open, foot]

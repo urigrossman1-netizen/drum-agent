@@ -1,0 +1,61 @@
+title: "Case 10: Full Arrangement with Tempo and Meter Changes"
+artist: Drum Agent regression suite (original)
+transcriber: Drum Agent
+chart_type: full_transcription
+rights: original
+tempo: 108
+pickup: "1/4"
+patterns:
+  pickup_fill:
+    sn: "xxxx"
+  verse:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  verse_crash:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  verse_fill:
+    hh: "x-x-x-x-x-------"
+    sn: "----x-------xxxx"
+    bd: "x-------x-------"
+  chorus:
+    rd: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  chorus_crash:
+    cr: "x---------------"
+    rd: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  chorus_end:
+    rd: "x-x-x-x-x-------"
+    sn: "----x---x-xxxxxx"
+    bd: "x-x-----x-------"
+  bridge:
+    hh: "x-xx-xx-xx-x"
+    sn: "---x-----x--"
+    bd: "x-----x-----"
+  final:
+    cr: "x---"
+    sn: "x---"
+    bd: "x---"
+sections:
+  - label: Pickup
+    bars: [pickup_fill]
+  - label: Intro
+    bars: [verse_crash, "verse*2", verse_fill]
+  - label: Verse 1
+    bars: [verse_crash, "verse*6", verse_fill]
+  - label: Chorus
+    bars: [chorus_crash, chorus, chorus, chorus_end, chorus_crash, chorus, chorus, chorus_end]
+  - label: Bridge
+    time: 12/8
+    tempo: "4.=70"
+    bars: ["bridge*3", {hh: "x-xx-xx-xx-x", sn: "---x--xxxxxx", bd: "x-----x-----"}]
+  - label: Outro
+    time: 4/4
+    tempo: 100
+    bars: [verse_crash, verse, verse, verse_fill, final]
