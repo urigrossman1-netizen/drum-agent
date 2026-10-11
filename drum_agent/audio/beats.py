@@ -115,9 +115,16 @@ def _grid_fit(hits: list[DrumHit], beats: np.ndarray, tempo: float) -> float:
 
 
 def _tempo_estimate(env: np.ndarray) -> float:
-    """Tempo prior: autocorrelation peak, folded into 70-180 BPM."""
+    """Tempo prior: autocorrelation peak, folded into 70-180 BPM.
+
+    Computed on a 4x max-pooled envelope (23 ms frames, librosa's usual
+    resolution): the full-rate tempogram of a song needed over 2 GB.
+    """
     import librosa
-    t = librosa.feature.tempo(onset_envelope=env, sr=SR, hop_length=HOP, start_bpm=110, aggregate=np.median)
+    f = 4
+    n = len(env) // f * f
+    pooled = env[:n].reshape(-1, f).max(axis=1) if n else env
+    t = librosa.feature.tempo(onset_envelope=pooled, sr=SR, hop_length=HOP * f, start_bpm=110, aggregate=np.median)
     bpm = float(np.atleast_1d(t)[0])
     while bpm < 70:
         bpm *= 2

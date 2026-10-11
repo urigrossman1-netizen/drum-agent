@@ -211,6 +211,20 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         if residuals and statistics.mean(residuals) > 1.6:
             beat_uncertain[k] = True
 
+    # A hi-hat can't be open and closed at the same instant: when two detections of
+    # different hi-hat states land on one slot, keep the more confident one.
+    hh_states = ("hihat", "hihat_open", "hihat_half")
+    by_slot: dict[tuple[int, Fraction], list[tuple[int, Fraction, str]]] = {}
+    for key in placed:
+        if key[2] in hh_states:
+            by_slot.setdefault((key[0], key[1]), []).append(key)
+    for keys in by_slot.values():
+        if len(keys) > 1:
+            keys.sort(key=lambda k: (placed[k][0].confidence, placed[k][0].velocity), reverse=True)
+            for k in keys[1:]:
+                del placed[k]
+                merged += 1
+
     # Build measures.
     measures: list[Measure] = []
     beat_k = 0

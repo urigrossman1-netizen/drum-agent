@@ -95,6 +95,42 @@ _THRESH = {
 }
 
 
+CHUNK_S = 30.0  # front end works in chunks so memory doesn't grow with song length
+OVERLAP_S = 1.0
+
+
+def _front_end(y: np.ndarray, fb: np.ndarray, opts: "DetectOptions") -> tuple[np.ndarray, np.ndarray]:
+    """Mel magnitude spectrograms of the signal and of its percussive part (HPSS).
+
+    Computed chunk by chunk with overlap and stitched on exact frame indices, so
+    a full song needs ~200 MB instead of ~2 GB (HPSS median filters on a whole
+    1025-bin spectrogram were the peak).
+    """
+    import librosa
+    n_frames = 1 + len(y) // HOP
+    M_full = np.zeros((fb.shape[0], n_frames), dtype=np.float32)
+    M_perc = np.zeros((fb.shape[0], n_frames), dtype=np.float32)
+    core = int(CHUNK_S * SR) // HOP * HOP
+    ov = int(OVERLAP_S * SR) // HOP * HOP
+    c0 = 0
+    while c0 // HOP < n_frames:
+        c1 = min(c0 + core, n_frames * HOP)
+        s0, s1 = max(0, c0 - ov), min(len(y), c1 + ov)
+        S = np.abs(librosa.stft(y[s0:s1], n_fft=2048, hop_length=HOP, center=True)).astype(np.float32)
+        if opts.drums_only:
+            P = S
+        else:
+            _, P = librosa.decompose.hpss(S, kernel_size=(17, 31), margin=(1.0, opts.hpss_margin))
+        g0 = s0 // HOP  # global index of this segment's first frame
+        lo, hi = c0 // HOP - g0, min(c1 // HOP, n_frames) - g0
+        hi = min(hi, S.shape[1])
+        M_full[:, g0 + lo:g0 + hi] = fb @ S[:, lo:hi]
+        M_perc[:, g0 + lo:g0 + hi] = fb @ P[:, lo:hi]
+        del S, P
+        c0 = c1
+    return M_full, M_perc
+
+
 def _nmf(V: np.ndarray, W0: np.ndarray, free: int, iters: int, adapt: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
     """KL-NMF with fixed (semi-adaptive) drum columns and `free` adaptive columns."""
     rng = np.random.default_rng(seed)
@@ -156,16 +192,11 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
     PAD = 0.25
     y = np.concatenate([np.zeros(int(PAD * SR), dtype=np.float32), y])
 
-    S = np.abs(librosa.stft(y, n_fft=2048, hop_length=HOP, center=True)).astype(np.float32)
-    if not opts.drums_only:
-        _, P = librosa.decompose.hpss(S, kernel_size=(17, 31), margin=(1.0, opts.hpss_margin))
-    else:
-        P = S
     from .features import STACK, filterbank, stack_frames
     fb = filterbank()
-    V_plain = (fb @ P).astype(np.float32)  # percussive part: onset detection
+    M_full, V_plain = _front_end(y, fb, opts)  # mel of the full signal, and of its percussive part
     use_full = opts.nmf_input == "full" or (opts.nmf_input == "auto" and not opts.drums_only)
-    V = stack_frames((fb @ S).astype(np.float32) if use_full else V_plain)
+    V = stack_frames(M_full if use_full else V_plain)
 
     W0, labels = load_templates()
     classes = list(dict.fromkeys(labels))
@@ -220,7 +251,7 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
 
     # High-band energy of the full signal: an open hi-hat keeps ringing up there,
     # even when the NMF lets free components absorb its wash in a band mix.
-    hf_energy = (filterbank() @ S)[band_centers() > 6000].sum(axis=0)
+    hf_energy = M_full[band_centers() > 6000].sum(axis=0)
 
     hits: list[DrumHit] = []
     debug: list[tuple[float, dict]] = []
