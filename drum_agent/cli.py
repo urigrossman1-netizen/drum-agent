@@ -151,11 +151,12 @@ def cmd_synth(args) -> int:
 
 def cmd_evaluate(args) -> int:
     from .charts import load_any
-    from .evaluate import evaluate_scores, format_eval
+    from .evaluate import evaluate_scores, format_eval, format_notation
     ref = load_any(args.reference)
     est = load_any(args.estimate)
     res = evaluate_scores(ref, est, tolerance=args.tolerance)
     print(format_eval(res))
+    print(format_notation(ref, est))
     return 0
 
 
@@ -288,7 +289,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.set_defaults(func=cmd_synth)
 
-    p = sub.add_parser("evaluate", help="compare an estimated score with a reference (onset F-measure)")
+    p = sub.add_parser("evaluate", help="compare an estimated score with a reference (onset and notation accuracy)")
     p.add_argument("reference")
     p.add_argument("estimate")
     p.add_argument("--tolerance", type=float, default=0.05, help="seconds")

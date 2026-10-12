@@ -151,6 +151,30 @@ def notation_accuracy(ref: Score, est: Score) -> ClassScore:
     return ClassScore(len(r), len(e), len(r & e))
 
 
+def notation_accuracy_by_class(ref: Score, est: Score) -> dict[str, ClassScore]:
+    def keys(s: Score):
+        return {(i, h.pos, EVAL_CLASS.get(h.inst, h.inst)) for i, _, h in s.iter_hits()}
+    r, e = keys(ref), keys(est)
+    out = {}
+    for c in sorted({k[2] for k in r | e}):
+        rc = {k for k in r if k[2] == c}
+        ec = {k for k in e if k[2] == c}
+        out[c] = ClassScore(len(rc), len(ec), len(rc & ec))
+    return out
+
+
+def format_notation(ref: Score, est: Score) -> str:
+    total = notation_accuracy(ref, est)
+    lines = [f"Notation accuracy (same bar, same position, same instrument): F={total.f:.3f} "
+             f"P={total.precision:.3f} R={total.recall:.3f} (ref {total.ref}, est {total.est})"]
+    if len(ref.measures) != len(est.measures):
+        lines.append(f"  note: bar counts differ (reference {len(ref.measures)}, estimate {len(est.measures)}); "
+                     "a shifted downbeat or pickup lowers this score even when the strokes are right")
+    for c, s in notation_accuracy_by_class(ref, est).items():
+        lines.append(f"  {c:12s} F={s.f:.3f} P={s.precision:.3f} R={s.recall:.3f}  ref={s.ref:4d} est={s.est:4d}")
+    return "\n".join(lines)
+
+
 def format_eval(res: EvalResult) -> str:
     d = res.as_dict()
     lines = [f"Onset accuracy (tolerance {int(res.tolerance * 1000)} ms): "

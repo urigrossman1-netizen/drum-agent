@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Install the official LilyPond binary release (no root needed if PREFIX is writable).
+#
+#   scripts/install_lilypond.sh            # installs 2.26.0 into /opt
+#   PREFIX=$HOME/.local scripts/install_lilypond.sh
+#
+# Then either keep the default location (/opt/lilypond-<ver>/bin/lilypond is
+# found automatically) or export DRUM_AGENT_LILYPOND=<prefix>/lilypond-<ver>/bin/lilypond.
+set -euo pipefail
+
+VERSION="${LILYPOND_VERSION:-2.26.0}"
+PREFIX="${PREFIX:-/opt}"
+case "$(uname -s)-$(uname -m)" in
+  Linux-x86_64) ASSET="lilypond-${VERSION}-linux-x86_64.tar.gz" ;;
+  Darwin-*)     ASSET="lilypond-${VERSION}-darwin-x86_64.tar.gz" ;;  # runs under Rosetta on Apple silicon
+  *) echo "No official binary for $(uname -s)-$(uname -m); use your package manager (lilypond >= 2.24)." >&2; exit 1 ;;
+esac
+URL="https://gitlab.com/lilypond/lilypond/-/releases/v${VERSION}/downloads/${ASSET}"
+
+if [ -x "${PREFIX}/lilypond-${VERSION}/bin/lilypond" ]; then
+  echo "LilyPond ${VERSION} already installed at ${PREFIX}/lilypond-${VERSION}"
+  exit 0
+fi
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+echo "Downloading ${URL}"
+curl -fL --retry 3 -o "${tmp}/${ASSET}" "${URL}"
+mkdir -p "${PREFIX}"
+tar -xzf "${tmp}/${ASSET}" -C "${PREFIX}"
+"${PREFIX}/lilypond-${VERSION}/bin/lilypond" --version | head -1
+echo "Installed. Check with: python -m drum_agent doctor"

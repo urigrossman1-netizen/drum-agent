@@ -1,0 +1,37 @@
+# Audio diagnostic chart (original): tom-based grooves and fills, where toms
+# play together with or right next to the snare. Used by scripts/eval_notation.py.
+title: "Audio case 11: Tom Grooves and Fills"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 96
+patterns:
+  floor_groove:
+    ft: "x-x-x-x-x-x-x-x-"
+    sn: "----X-------X---"
+    bd: "x-------x-------"
+  tom_tribal:
+    t2: "x--x--x---------"
+    ft: "--------x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+  fill_down:
+    sn: "xxxx------------"
+    t1: "----xxxx--------"
+    t2: "--------xxxx----"
+    ft: "------------xxxx"
+    bd: "x---------------"
+  fill_mixed:
+    hh: "x-x-x-x---------"
+    sn: "----x---x-x-----"
+    t1: "---------x-x----"
+    ft: "------------x-x-"
+    bd: "x-----x-----x---"
+  crash_back:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+sections:
+  - label: A
+    bars: [floor_groove, floor_groove, floor_groove, fill_down, crash_back, tom_tribal, tom_tribal, fill_mixed, crash_back]
