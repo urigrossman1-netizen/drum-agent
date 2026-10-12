@@ -3,14 +3,19 @@
 Tick each item on every page. Fix the cause and re-render; never deliver with
 an item failing.
 
-## Automated (from report.md)
-- [ ] LilyPond MIDI, MusicXML and MIDI file each match score.json (three "OK" lines)
+## Automated (from report.md, read after every render)
+- [ ] All checks OK: engraved notes and tempo map, MusicXML notes, articulations
+      and meters, MIDI notes, tempo map and barlines
 - [ ] MusicXML 4.0 schema: valid
 - [ ] No LilyPond warnings in the Warnings section
-- [ ] Chart type and status are right for what was actually done
+- [ ] Chart type and status are right for what was actually done (entered,
+      unverified_auto, unverified_import; verified only after a human checked it)
+- [ ] For MIDI input: the `pickup` line and any "falls inside a bar" warning explained
 
 ## Page and header
 - [ ] Title centred, artist as subtitle, "Transcribed by" at the right, chart-type line present
+- [ ] Every header word came from the user (or is listed as your assumption)
+- [ ] Requested style/feel printed (tempo_text)
 - [ ] Tempo mark (and "Swing"/feel text if any) at the start
 - [ ] Drum Key present when more than 3 instruments are used
 - [ ] Page numbers from page 2; no page with a single system unless it's the last
@@ -45,8 +50,9 @@ an item failing.
 - [ ] Systems balanced (no lonely bar stretched across a line; short last line ragged)
 - [ ] Nothing collides: text, accents, ledger lines, tuplet numbers
 
-## Musical sense (transcriptions)
-- [ ] Tempo and meter match what you hear (the most damaging errors)
-- [ ] Backbeat on 2 and 4 (in rock/pop) — otherwise the downbeat is off
+## Musical sense
+- [ ] Downbeat test: backbeat on 2 and 4 (rock/pop/funk), crashes and section
+      starts on beat 1, fills leading into a downbeat. Otherwise the grid is off
+- [ ] Tempo and meter match what you hear or what was asked
 - [ ] Instrument counts plausible; no toms where there are no fills
 - [ ] Flagged bars listed in your delivery message

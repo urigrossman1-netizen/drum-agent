@@ -23,12 +23,16 @@ chart some other way). Fix the cause.
 | `exports disagree with the IR` | LilyPond MIDI, MusicXML or MIDI didn't match score.json. The report lists the first differing events. Never deliver; it's an exporter bug |
 | `MusicXML 4.0 schema: INVALID` | same: exporter bug, report the element named |
 | `need a grid finer than 32nds/sextuplets` | the rhythm (e.g. a quintuplet or 64ths) isn't supported. Simplify to the nearest supported rhythm and say so in the delivery, or leave the bar marked |
+| `... characters don't divide this 4/4 bar into a supported grid` | a chart-spec line is miscounted; the message names section, bar, pattern and instrument and lists the valid lengths |
+| `nothing to verify` | `verify score.json` looks for `<stem>.midi/.musicxml/.mid` next to it; pass `--musicxml/--midi/--ly-midi` otherwise |
 
 ## Input
 | Message | Fix |
 |---|---|
 | `no notes on MIDI channel 10 (drums); channels present: [...]` | the drums are on another channel: `midi FILE --channel N` |
 | `no MIDI notes map to the drum kit` | not GM drum notes. Check the file (some e-kits use custom maps) and pass a `--kit` override |
+| Chart from MIDI is shifted: backbeat on 1 and 3, crashes on beat 2, a "meter change ... falls inside a bar" warning | the file starts with a pickup the importer couldn't infer. Re-run `midi FILE --pickup 1/4` (length in whole notes). Never deliver the shifted chart |
+| `midi` printed `pickup: ...` but the chart still looks shifted | the inference was wrong; `--pickup 0` turns it off, `--pickup 1/8` sets another length |
 | `unknown symbol` / `beat segments` / `unknown pattern` | chart-spec error; the message names the pattern and bar |
 | `conflicting hi-hat states` | an open and closed hi-hat at the same moment; keep one |
 | `both accent and ghost` | choose one |

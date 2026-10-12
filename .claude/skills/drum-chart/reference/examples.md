@@ -59,6 +59,10 @@ accuracy per instrument), which is how the numbers in
 
 ## 6. From a MIDI drum track
 ```bash
-python -m drum_agent midi groove.mid --title "Groove" --rights own -o out/groove
+python -m drum_agent midi groove.mid --title "Groove" -o out/groove
 ```
-Uses the MIDI tempo map; GM drum notes on channel 10 (`--channel N` otherwise).
+Uses the MIDI tempo map, GM drum notes on channel 10 (`--channel N` otherwise)
+and the file's markers as section names. A pickup is inferred from a short
+opening meter or from meter changes and markers that sit off the barlines;
+otherwise pass `--pickup 1/4`. The chart's status is `unverified_import`: the
+strokes are exact, the barlines are worked out.
