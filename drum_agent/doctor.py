@@ -34,6 +34,6 @@ def run_doctor() -> int:
     print(f"  [{'ok' if fs else 'optional'}] fluidsynth {fs or 'not found'} (test-fixture synthesis)")
     print(f"  [{'ok' if sf else 'optional'}] GM soundfont {sf or 'not found'}")
     ff = shutil.which("ffmpeg")
-    print(f"  [{'ok' if ff else 'optional'}] ffmpeg {ff or 'not found'} (MP3/M4A decoding)")
+    print(f"  [{'ok' if ff else 'optional'}] ffmpeg {ff or 'not found'} (M4A/AAC and other formats libsndfile cannot read)")
     print("All required dependencies present." if ok else "Missing required dependencies.")
     return 0 if ok else 1

@@ -3,7 +3,7 @@
  "chart_type": "full_transcription",
  "status": "unverified_auto",
  "bars": 60,
- "events": 925,
+ "events": 877,
  "files": {
   "json": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.json",
   "ly": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.ly",
@@ -21,8 +21,8 @@
   {
    "name": "engraved score (LilyPond MIDI)",
    "ok": true,
-   "expected": 925,
-   "found": 925
+   "expected": 877,
+   "found": 877
   },
   {
    "name": "engraved score tempo map",
@@ -33,14 +33,14 @@
   {
    "name": "MusicXML",
    "ok": true,
-   "expected": 925,
-   "found": 925
+   "expected": 877,
+   "found": 877
   },
   {
    "name": "MusicXML articulations",
    "ok": true,
-   "expected": 87,
-   "found": 87
+   "expected": 64,
+   "found": 64
   },
   {
    "name": "MusicXML meters",
@@ -51,8 +51,8 @@
   {
    "name": "MIDI",
    "ok": true,
-   "expected": 926,
-   "found": 926
+   "expected": 878,
+   "found": 878
   },
   {
    "name": "MIDI tempo map",
@@ -69,18 +69,13 @@
  ],
  "musicxml_errors": [],
  "uncertain_bars": [
-  4,
   5,
   6,
   8,
   9,
   11,
-  13,
-  14,
-  15,
   17,
   21,
-  24,
   25,
   26,
   27,
@@ -88,28 +83,19 @@
   29,
   30,
   31,
-  33,
   34,
-  35,
   36,
-  40,
   48,
-  52,
   60
  ],
  "uncertain_score_bars": [
-  4,
   5,
   6,
   8,
   9,
   11,
-  13,
-  14,
-  15,
   17,
   21,
-  24,
   25,
   26,
   27,
@@ -117,13 +103,9 @@
   29,
   30,
   31,
-  33,
   34,
-  35,
   36,
-  40,
   48,
-  52,
   60
  ],
  "warnings": [],
@@ -132,12 +114,12 @@
   "input": "audio",
   "tempo_estimate": "83.35 BPM (quarter note)",
   "meter": "4/4 (confidence 1.0)",
-  "downbeat_confidence": 0.91,
+  "downbeat_confidence": 0.86,
   "feel": "straight",
-  "detected_onsets": 925,
+  "detected_onsets": 877,
   "instrument_counts": {
-   "snare": 250,
    "kick": 247,
+   "snare": 202,
    "ride": 185,
    "hihat": 156,
    "floor_tom": 46,
@@ -146,9 +128,9 @@
    "crash": 11,
    "tom1": 3
   },
-  "low_confidence_hits": 83,
+  "low_confidence_hits": 43,
   "rolls_notated": 0,
-  "mean_abs_offset_ms": 1.6,
+  "mean_abs_offset_ms": 1.5,
   "grid_counts": {
    "2": 197,
    "4": 31,
@@ -162,7 +144,6 @@
    "D: bar 49, 12 bars, ride, 3 fill bar(s)"
   ],
   "notes": [
-   "tempo ambiguous: 83 BPM chosen, 167 BPM also plausible (score 0.92 of best); pass --bpm if the chart reads at the wrong speed",
    "bar 48: the downbeat shifts by 2 beat(s) (crashes moved from beat 1 to beat 3); a 2/4 bar was inserted (bars after it repeat earlier ones 0.93 vs 0.71). Verify by ear.",
    "Section letters are pattern-based; rename them with --sections once you know the song form.",
    "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed."

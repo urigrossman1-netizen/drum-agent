@@ -22,6 +22,9 @@ from .detect import DrumHit
 from .features import HOP, SR
 
 
+METER_WARN = 0.7  # below this the report says "meter uncertain"
+
+
 @dataclass
 class BeatGrid:
     beat_times: list[float]  # one entry per beat, plus one past the end
@@ -274,7 +277,10 @@ def estimate_grid(hits: list[DrumHit], onset_env: np.ndarray, duration: float, b
         meter_conf = float(min(1.0, abs(r4 - r3) * 4 + 0.3))
         compound = feel == "triplet" and bpb == 4 and tempo < 100
         ts = "12/8" if compound else f"{bpb}/4"
-        if meter_conf < 0.5:
+        # Measured: correct meters score 0.6-1.0 on synthesized songs, and a real
+        # waltz was called 4/4 at 0.59. A warning on a correct chart costs a check;
+        # a wrong meter without one costs every bar.
+        if meter_conf < METER_WARN:
             notes.append(f"meter uncertain (pattern repetition 3 beats {r3:.2f} vs 4 beats {r4:.2f}); pass --time-signature")
 
     # Downbeat phase.

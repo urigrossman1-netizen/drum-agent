@@ -10,12 +10,12 @@
   "input": "audio",
   "tempo_estimate": "83.35 BPM (quarter note)",
   "meter": "4/4 (confidence 1.0)",
-  "downbeat_confidence": 0.91,
+  "downbeat_confidence": 0.86,
   "feel": "straight",
-  "detected_onsets": 925,
+  "detected_onsets": 877,
   "instrument_counts": {
-   "snare": 250,
    "kick": 247,
+   "snare": 202,
    "ride": 185,
    "hihat": 156,
    "floor_tom": 46,
@@ -24,9 +24,9 @@
    "crash": 11,
    "tom1": 3
   },
-  "low_confidence_hits": 83,
+  "low_confidence_hits": 43,
   "rolls_notated": 0,
-  "mean_abs_offset_ms": 1.6,
+  "mean_abs_offset_ms": 1.5,
   "grid_counts": {
    "2": 197,
    "4": 31,
@@ -40,7 +40,6 @@
    "D: bar 49, 12 bars, ride, 3 fill bar(s)"
   ],
   "notes": [
-   "tempo ambiguous: 83 BPM chosen, 167 BPM also plausible (score 0.92 of best); pass --bpm if the chart reads at the wrong speed",
    "bar 48: the downbeat shifts by 2 beat(s) (crashes moved from beat 1 to beat 3); a 2/4 bar was inserted (bars after it repeat earlier ones 0.93 vs 0.71). Verify by ear.",
    "Section letters are pattern-based; rename them with --sections once you know the song form.",
    "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed."
@@ -381,10 +380,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "4 low-confidence hit(s): snare"
-   ],
    "start_time": 8.5682,
    "hits": [
     {
@@ -463,42 +458,23 @@
      "pos": "9/16",
      "inst": "snare",
      "velocity": 99,
-     "accent": true,
      "confidence": 0.999,
      "time": 10.1758,
      "offset_ms": -3.3
     },
     {
      "pos": "5/8",
-     "inst": "snare",
-     "velocity": 45,
-     "ghost": true,
-     "confidence": 0.283,
-     "time": 10.3557,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "5/8",
      "inst": "tom1",
      "velocity": 72,
-     "confidence": 0.984,
+     "confidence": 0.934,
      "time": 10.3557,
      "offset_ms": -0.4
-    },
-    {
-     "pos": "11/16",
-     "inst": "snare",
-     "velocity": 45,
-     "ghost": true,
-     "confidence": 0.677,
-     "time": 10.5299,
-     "offset_ms": -3.3
     },
     {
      "pos": "11/16",
      "inst": "tom1",
      "velocity": 76,
-     "confidence": 0.986,
+     "confidence": 0.932,
      "time": 10.5299,
      "offset_ms": -3.3
     },
@@ -506,15 +482,7 @@
      "pos": "3/4",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.98,
-     "time": 10.7098,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "3/4",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.361,
+     "confidence": 0.902,
      "time": 10.7098,
      "offset_ms": -0.4
     },
@@ -522,15 +490,7 @@
      "pos": "13/16",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.953,
-     "time": 10.8898,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "13/16",
-     "inst": "snare",
-     "velocity": 66,
-     "confidence": 0.6,
+     "confidence": 0.832,
      "time": 10.8898,
      "offset_ms": -0.4
     },
@@ -543,26 +503,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 60,
-     "confidence": 0.28,
-     "time": 11.0697,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.952,
-     "time": 11.2439,
-     "offset_ms": -6.2
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.437,
+     "confidence": 0.874,
      "time": 11.2439,
      "offset_ms": -6.2
     }
@@ -685,7 +629,6 @@
      "pos": "3/4",
      "inst": "snare",
      "velocity": 81,
-     "accent": true,
      "confidence": 0.921,
      "time": 13.5717,
      "offset_ms": -0.4
@@ -1530,7 +1473,6 @@
     {
      "pos": "3/4",
      "inst": "snare",
-     "accent": true,
      "confidence": 0.974,
      "time": 33.5699,
      "offset_ms": -0.4
@@ -1539,7 +1481,6 @@
      "pos": "13/16",
      "inst": "snare",
      "velocity": 94,
-     "accent": true,
      "confidence": 0.993,
      "time": 33.7498,
      "offset_ms": 1.1
@@ -1548,7 +1489,6 @@
      "pos": "7/8",
      "inst": "snare",
      "velocity": 92,
-     "accent": true,
      "confidence": 0.984,
      "time": 33.9298,
      "offset_ms": 2.5
@@ -1557,7 +1497,6 @@
      "pos": "15/16",
      "inst": "snare",
      "velocity": 94,
-     "accent": true,
      "confidence": 0.992,
      "time": 34.1039,
      "offset_ms": -1.8
@@ -1566,10 +1505,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "5 low-confidence hit(s): snare"
-   ],
    "start_time": 34.2843,
    "hits": [
     {
@@ -1591,15 +1526,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 102,
-     "confidence": 0.939,
-     "time": 34.638,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.369,
+     "confidence": 0.861,
      "time": 34.638,
      "offset_ms": -3.3
     },
@@ -1616,15 +1543,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 107,
-     "confidence": 0.967,
-     "time": 35.3578,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.351,
+     "confidence": 0.901,
      "time": 35.3578,
      "offset_ms": 2.5
     },
@@ -1645,26 +1564,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
-     "inst": "snare",
-     "velocity": 59,
-     "confidence": 0.093,
-     "time": 35.7119,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.979,
-     "time": 36.0718,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 61,
-     "confidence": 0.307,
+     "confidence": 0.921,
      "time": 36.0718,
      "offset_ms": 2.5
     },
@@ -1681,15 +1584,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.981,
-     "time": 36.7858,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.365,
+     "confidence": 0.909,
      "time": 36.7858,
      "offset_ms": 2.5
     }
@@ -1697,10 +1592,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "5 low-confidence hit(s): snare"
-   ],
    "start_time": 37.1403,
    "hits": [
     {
@@ -1723,15 +1614,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 102,
-     "confidence": 0.928,
-     "time": 37.494,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.376,
+     "confidence": 0.852,
      "time": 37.494,
      "offset_ms": -3.3
     },
@@ -1739,7 +1622,6 @@
      "pos": "1/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.751,
      "time": 37.8539,
      "offset_ms": -0.4
@@ -1748,15 +1630,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.959,
-     "time": 38.2139,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.284,
+     "confidence": 0.905,
      "time": 38.2139,
      "offset_ms": 2.5
     },
@@ -1777,26 +1651,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
-     "inst": "snare",
-     "velocity": 60,
-     "confidence": 0.115,
-     "time": 38.568,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.971,
-     "time": 38.9279,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.389,
+     "confidence": 0.897,
      "time": 38.9279,
      "offset_ms": 2.5
     },
@@ -1804,7 +1662,6 @@
      "pos": "3/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.593,
      "time": 39.282,
      "offset_ms": -0.4
@@ -1813,15 +1670,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.972,
-     "time": 39.6419,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 65,
-     "confidence": 0.409,
+     "confidence": 0.894,
      "time": 39.6419,
      "offset_ms": 2.5
     }
@@ -1829,10 +1678,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "5 low-confidence hit(s): snare"
-   ],
    "start_time": 39.9964,
    "hits": [
     {
@@ -1855,15 +1700,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 105,
-     "confidence": 0.926,
-     "time": 40.3559,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.272,
+     "confidence": 0.884,
      "time": 40.3559,
      "offset_ms": 2.5
     },
@@ -1871,7 +1708,6 @@
      "pos": "1/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.663,
      "time": 40.71,
      "offset_ms": -0.4
@@ -1880,15 +1716,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 107,
-     "confidence": 0.964,
-     "time": 41.0699,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 61,
-     "confidence": 0.281,
+     "confidence": 0.911,
      "time": 41.0699,
      "offset_ms": 2.5
     },
@@ -1912,15 +1740,7 @@
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 107,
-     "confidence": 0.97,
-     "time": 41.7839,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.316,
+     "confidence": 0.911,
      "time": 41.7839,
      "offset_ms": -0.4
     },
@@ -1937,15 +1757,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 107,
-     "confidence": 0.969,
-     "time": 42.4979,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 61,
-     "confidence": 0.265,
+     "confidence": 0.922,
      "time": 42.4979,
      "offset_ms": -0.4
     }
@@ -1967,7 +1779,6 @@
      "pos": "0",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.914,
      "time": 42.852,
      "offset_ms": -0.4
@@ -2576,6 +2387,7 @@
      "pos": "13/16",
      "inst": "snare",
      "velocity": 53,
+     "ghost": true,
      "confidence": 0.988,
      "time": 56.6041,
      "offset_ms": -4.7
@@ -2589,18 +2401,9 @@
     },
     {
      "pos": "7/8",
-     "inst": "snare",
-     "velocity": 51,
-     "ghost": true,
-     "confidence": 0.896,
-     "time": 56.784,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/8",
      "inst": "tom2",
      "velocity": 70,
-     "confidence": 0.998,
+     "confidence": 0.868,
      "time": 56.784,
      "offset_ms": -3.3
     },
@@ -2608,15 +2411,7 @@
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 108,
-     "confidence": 0.902,
-     "time": 56.9582,
-     "offset_ms": -7.6
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.321,
+     "confidence": 0.884,
      "time": 56.9582,
      "offset_ms": -7.6
     }
@@ -3003,10 +2798,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "2 low-confidence hit(s): kick, snare"
-   ],
    "start_time": 65.7125,
    "hits": [
     {
@@ -3131,35 +2922,17 @@
     },
     {
      "pos": "13/16",
-     "inst": "snare",
-     "velocity": 50,
-     "ghost": true,
-     "confidence": 0.928,
-     "time": 68.0341,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "13/16",
      "inst": "tom2",
      "velocity": 66,
-     "confidence": 0.988,
+     "confidence": 0.775,
      "time": 68.0341,
      "offset_ms": -0.4
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 50,
-     "ghost": true,
-     "confidence": 0.76,
-     "time": 68.2082,
-     "offset_ms": -6.2
     },
     {
      "pos": "7/8",
      "inst": "tom2",
      "velocity": 65,
-     "confidence": 0.998,
+     "confidence": 0.879,
      "time": 68.2082,
      "offset_ms": -6.2
     },
@@ -3168,14 +2941,6 @@
      "inst": "floor_tom",
      "velocity": 109,
      "confidence": 0.848,
-     "time": 68.3882,
-     "offset_ms": -6.2
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.152,
      "time": 68.3882,
      "offset_ms": -6.2
     }
@@ -4160,7 +3925,6 @@
      "pos": "3/4",
      "inst": "snare",
      "velocity": 95,
-     "accent": true,
      "confidence": 0.99,
      "time": 90.7142,
      "offset_ms": -0.4
@@ -4169,7 +3933,6 @@
      "pos": "13/16",
      "inst": "snare",
      "velocity": 97,
-     "accent": true,
      "confidence": 0.995,
      "time": 90.8941,
      "offset_ms": 1.1
@@ -4178,7 +3941,6 @@
      "pos": "7/8",
      "inst": "snare",
      "velocity": 95,
-     "accent": true,
      "confidence": 0.992,
      "time": 91.0741,
      "offset_ms": 2.5
@@ -4187,7 +3949,6 @@
      "pos": "15/16",
      "inst": "snare",
      "velocity": 96,
-     "accent": true,
      "confidence": 0.995,
      "time": 91.2482,
      "offset_ms": -1.8
@@ -4196,10 +3957,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "5 low-confidence hit(s): snare"
-   ],
    "start_time": 91.4286,
    "hits": [
     {
@@ -4222,15 +3979,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.989,
-     "time": 91.7823,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.482,
+     "confidence": 0.896,
      "time": 91.7823,
      "offset_ms": -3.3
     },
@@ -4247,15 +3996,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.987,
-     "time": 92.4963,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 66,
-     "confidence": 0.512,
+     "confidence": 0.889,
      "time": 92.4963,
      "offset_ms": -3.3
     },
@@ -4263,7 +4004,7 @@
      "pos": "1/2",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.943,
+     "confidence": 0.921,
      "time": 92.8562,
      "offset_ms": -0.4
     },
@@ -4276,26 +4017,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
-     "inst": "snare",
-     "velocity": 59,
-     "confidence": 0.164,
-     "time": 92.8562,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.988,
-     "time": 93.2103,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 67,
-     "confidence": 0.499,
+     "confidence": 0.9,
      "time": 93.2103,
      "offset_ms": -3.3
     },
@@ -4312,15 +4037,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.984,
-     "time": 93.9243,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 67,
-     "confidence": 0.488,
+     "confidence": 0.896,
      "time": 93.9243,
      "offset_ms": -3.3
     }
@@ -4330,7 +4047,7 @@
    "time": "4/4",
    "uncertain": true,
    "notes": [
-    "7 low-confidence hit(s): kick, snare"
+    "2 low-confidence hit(s): kick, snare"
    ],
    "start_time": 94.2846,
    "hits": [
@@ -4354,15 +4071,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.989,
-     "time": 94.6383,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.458,
+     "confidence": 0.903,
      "time": 94.6383,
      "offset_ms": -3.3
     },
@@ -4370,8 +4079,7 @@
      "pos": "1/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
-     "confidence": 0.456,
+     "confidence": 0.455,
      "time": 94.9983,
      "offset_ms": -0.4
     },
@@ -4379,15 +4087,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.974,
-     "time": 95.3524,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 66,
-     "confidence": 0.451,
+     "confidence": 0.89,
      "time": 95.3524,
      "offset_ms": -3.3
     },
@@ -4395,7 +4095,7 @@
      "pos": "1/2",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.942,
+     "confidence": 0.92,
      "time": 95.7123,
      "offset_ms": -0.4
     },
@@ -4408,26 +4108,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
-     "inst": "snare",
-     "velocity": 60,
-     "confidence": 0.164,
-     "time": 95.7123,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.99,
-     "time": 96.0722,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.357,
+     "confidence": 0.929,
      "time": 96.0722,
      "offset_ms": 2.5
     },
@@ -4435,7 +4119,6 @@
      "pos": "3/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.526,
      "time": 96.4263,
      "offset_ms": -0.4
@@ -4444,15 +4127,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.99,
-     "time": 96.7862,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.374,
+     "confidence": 0.924,
      "time": 96.7862,
      "offset_ms": 2.5
     }
@@ -4460,10 +4135,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "6 low-confidence hit(s): snare"
-   ],
    "start_time": 97.1407,
    "hits": [
     {
@@ -4486,15 +4157,7 @@
      "pos": "1/8",
      "inst": "floor_tom",
      "velocity": 100,
-     "confidence": 0.881,
-     "time": 97.4944,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/8",
-     "inst": "snare",
-     "velocity": 60,
-     "confidence": 0.296,
+     "confidence": 0.834,
      "time": 97.4944,
      "offset_ms": -3.3
     },
@@ -4502,7 +4165,6 @@
      "pos": "1/4",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.489,
      "time": 97.8543,
      "offset_ms": -0.4
@@ -4511,15 +4173,7 @@
      "pos": "3/8",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.967,
-     "time": 98.2084,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "3/8",
-     "inst": "snare",
-     "velocity": 61,
-     "confidence": 0.349,
+     "confidence": 0.897,
      "time": 98.2084,
      "offset_ms": -3.3
     },
@@ -4527,7 +4181,7 @@
      "pos": "1/2",
      "inst": "floor_tom",
      "velocity": 101,
-     "confidence": 0.888,
+     "confidence": 0.877,
      "time": 98.5683,
      "offset_ms": -0.4
     },
@@ -4540,26 +4194,10 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
-     "inst": "snare",
-     "velocity": 60,
-     "confidence": 0.159,
-     "time": 98.5683,
-     "offset_ms": -0.4
-    },
-    {
      "pos": "5/8",
      "inst": "floor_tom",
      "velocity": 108,
-     "confidence": 0.957,
-     "time": 98.9282,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "5/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.317,
+     "confidence": 0.901,
      "time": 98.9282,
      "offset_ms": 2.5
     },
@@ -4576,15 +4214,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.963,
-     "time": 99.6422,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "7/8",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.336,
+     "confidence": 0.904,
      "time": 99.6422,
      "offset_ms": 2.5
     }
@@ -4610,7 +4240,6 @@
      "pos": "0",
      "inst": "snare",
      "velocity": 110,
-     "accent": true,
      "confidence": 0.742,
      "time": 99.9963,
      "offset_ms": -0.4
@@ -4972,7 +4601,7 @@
     {
      "pos": "3/4",
      "inst": "ride",
-     "velocity": 85,
+     "velocity": 86,
      "confidence": 0.986,
      "time": 107.8563,
      "offset_ms": -0.4
@@ -5122,10 +4751,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "2 low-confidence hit(s): snare"
-   ],
    "start_time": 111.4268,
    "hits": [
     {
@@ -5237,6 +4862,7 @@
      "pos": "13/16",
      "inst": "snare",
      "velocity": 53,
+     "ghost": true,
      "confidence": 0.998,
      "time": 113.7484,
      "offset_ms": -4.7
@@ -5259,18 +4885,9 @@
     },
     {
      "pos": "7/8",
-     "inst": "snare",
-     "velocity": 46,
-     "ghost": true,
-     "confidence": 0.43,
-     "time": 113.9283,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/8",
      "inst": "tom2",
      "velocity": 69,
-     "confidence": 0.999,
+     "confidence": 0.935,
      "time": 113.9283,
      "offset_ms": -3.3
     },
@@ -5278,15 +4895,7 @@
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.95,
-     "time": 114.1025,
-     "offset_ms": -7.6
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.45,
+     "confidence": 0.889,
      "time": 114.1025,
      "offset_ms": -7.6
     }
@@ -5804,17 +5413,9 @@
     },
     {
      "pos": "7/8",
-     "inst": "snare",
-     "velocity": 48,
-     "ghost": true,
-     "confidence": 0.702,
-     "time": 125.3525,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/8",
      "inst": "tom2",
      "velocity": 68,
+     "confidence": 0.909,
      "time": 125.3525,
      "offset_ms": -3.3
     },
@@ -5822,15 +5423,7 @@
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.937,
-     "time": 125.5325,
-     "offset_ms": -1.8
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 63,
-     "confidence": 0.427,
+     "confidence": 0.889,
      "time": 125.5325,
      "offset_ms": -1.8
     }
@@ -6616,10 +6209,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "2 low-confidence hit(s): snare"
-   ],
    "start_time": 144.283,
    "hits": [
     {
@@ -6752,17 +6341,9 @@
     },
     {
      "pos": "7/8",
-     "inst": "snare",
-     "velocity": 46,
-     "ghost": true,
-     "confidence": 0.479,
-     "time": 146.7846,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/8",
      "inst": "tom2",
      "velocity": 69,
+     "confidence": 0.946,
      "time": 146.7846,
      "offset_ms": -3.3
     },
@@ -6770,15 +6351,7 @@
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 108,
-     "confidence": 0.935,
-     "time": 146.9587,
-     "offset_ms": -7.6
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 62,
-     "confidence": 0.368,
+     "confidence": 0.875,
      "time": 146.9587,
      "offset_ms": -7.6
     }
@@ -7274,6 +6847,7 @@
      "pos": "13/16",
      "inst": "snare",
      "velocity": 54,
+     "ghost": true,
      "confidence": 0.995,
      "time": 158.0346,
      "offset_ms": -0.4
@@ -7296,18 +6870,9 @@
     },
     {
      "pos": "7/8",
-     "inst": "snare",
-     "velocity": 49,
-     "ghost": true,
-     "confidence": 0.686,
-     "time": 158.2088,
-     "offset_ms": -6.2
-    },
-    {
-     "pos": "7/8",
      "inst": "tom2",
      "velocity": 70,
-     "confidence": 0.999,
+     "confidence": 0.893,
      "time": 158.2088,
      "offset_ms": -6.2
     },
@@ -7315,15 +6880,7 @@
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.919,
-     "time": 158.3887,
-     "offset_ms": -6.2
-    },
-    {
-     "pos": "15/16",
-     "inst": "snare",
-     "velocity": 64,
-     "confidence": 0.457,
+     "confidence": 0.858,
      "time": 158.3887,
      "offset_ms": -6.2
     }
@@ -7519,7 +7076,7 @@
      "pos": "3/8",
      "inst": "ride",
      "velocity": 95,
-     "confidence": 0.884,
+     "confidence": 0.885,
      "time": 162.4987,
      "offset_ms": -0.4
     },
@@ -7844,6 +7401,7 @@
      "pos": "3/8",
      "inst": "snare",
      "velocity": 54,
+     "ghost": true,
      "confidence": 0.954,
      "time": 168.2166,
      "offset_ms": -3.3

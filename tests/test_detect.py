@@ -64,3 +64,19 @@ def test_steady_groove_gives_the_tempo(tmp_path):
     grid = estimate_grid(det.hits, det.onset_env, det.duration, None, None, None, None)
     assert abs(grid.tempo / 104 - 1) < 0.02
     assert grid.time_sig == "4/4"
+
+
+@needs_fluidsynth
+@pytest.mark.skipif(__import__("shutil").which("ffmpeg") is None, reason="ffmpeg not installed")
+def test_m4a_input_is_decoded_with_ffmpeg(tmp_path):
+    # libsndfile can't read AAC; load_audio falls back to ffmpeg (librosa no longer does).
+    import subprocess
+    from drum_agent.audio.transcribe import load_audio
+    score = compile_spec({"tempo": 100, "sections": [{"bars": [{"sn": "x-x-"}]}]})
+    wav = tmp_path / "x.wav"
+    synthesize(score, wav, method="fluidsynth", kit_program=0, accompaniment=False, seed=1)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(wav), "-c:a", "aac", str(tmp_path / "x.m4a")], check=True)
+    assert abs(len(load_audio(tmp_path / "x.m4a")) - len(load_audio(wav))) < SR // 10
+    (tmp_path / "bad.m4a").write_text("not audio")
+    with pytest.raises(ValueError, match="bad.m4a"):
+        load_audio(tmp_path / "bad.m4a")

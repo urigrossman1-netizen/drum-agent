@@ -37,10 +37,35 @@ def load_audio(path: str | Path, start: float | None = None, end: float | None =
     if not path.exists():
         raise FileNotFoundError(path)
     duration = None if end is None else max(0.0, end - (start or 0.0))
-    y, _ = librosa.load(str(path), sr=SR, mono=True, offset=start or 0.0, duration=duration)
+    try:
+        y, _ = librosa.load(str(path), sr=SR, mono=True, offset=start or 0.0, duration=duration)
+    except Exception as exc:  # libsndfile can't read every container (e.g. AAC in .m4a)
+        y = _ffmpeg_decode(path, start, duration, exc)
     if y.size < SR:
         raise ValueError(f"{path.name}: less than one second of audio")
     return y
+
+
+def _ffmpeg_decode(path: Path, start: float | None, duration: float | None, cause: Exception) -> np.ndarray:
+    """Decode with ffmpeg when libsndfile can't (librosa no longer falls back by itself)."""
+    import shutil
+    import subprocess
+    exe = shutil.which("ffmpeg")
+    if exe is None:
+        raise ValueError(f"{path.name}: can't decode this format ({cause}). Install ffmpeg, or convert the file "
+                         f"to WAV or FLAC.") from cause
+    cmd = [exe, "-v", "error"]
+    if start:
+        cmd += ["-ss", str(start)]
+    cmd += ["-i", str(path)]
+    if duration is not None:
+        cmd += ["-t", str(duration)]
+    cmd += ["-f", "f32le", "-ac", "1", "-ar", str(SR), "-"]
+    proc = subprocess.run(cmd, capture_output=True, timeout=600)
+    if proc.returncode != 0 or not proc.stdout:
+        raise ValueError(f"{path.name}: ffmpeg couldn't decode it either: "
+                         f"{proc.stderr.decode(errors='replace')[-300:]}") from cause
+    return np.frombuffer(proc.stdout, dtype=np.float32).copy()
 
 
 def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untitled") -> Score:
