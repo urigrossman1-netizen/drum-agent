@@ -8,3 +8,4 @@ dist/
 /tmp/
 tests/_artifacts/
 examples/output/**/*.midi
+.claude/worktrees/

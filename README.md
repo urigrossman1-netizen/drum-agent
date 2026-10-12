@@ -1,0 +1,93 @@
+# Drum Agent
+
+Engraved drum sheet music from audio, MIDI or a written groove: real notation
+(LilyPond), editable MusicXML and MIDI, all generated from one structured
+score and checked against each other automatically.
+
+![Northbound, page 1](examples/output/03_full_song_northbound/03_full_song_northbound-page1.png)
+
+- **Engraving**: LilyPond 2.26, Weinberg/PAS drum-set layout (hands stems up,
+  feet stems down), Drum Key, boxed section labels, simile marks and repeats,
+  tuplets, flams, drags, rolls, ghost notes, accents, open/closed hi-hat, meter
+  and tempo changes, pickups. The spec is in
+  [docs/NOTATION_SPEC.md](docs/NOTATION_SPEC.md).
+- **Inputs**: audio you're allowed to transcribe, GM MIDI drum tracks, or YAML
+  chart specs.
+- **Honesty**: every chart says whether it's a full transcription, a
+  performance chart or a pattern study, and whether a human verified it.
+  Uncertain bars are marked "(?)". The report separates *rendering
+  correctness* (automatic) from *transcription confidence* (needs a listen).
+  Measured accuracy and known weaknesses: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+
+## Setup
+
+Requires Python 3.10+ and LilyPond 2.24 or newer (2.26 recommended).
+
+```bash
+pip install -e .            # add [test] for pytest + verovio
+scripts/install_lilypond.sh # official LilyPond 2.26 binary into /opt (or: apt-get install lilypond)
+python -m drum_agent doctor # checks everything
+```
+
+Optional: `ffmpeg` (MP3/M4A input), `fluidsynth` + `fluid-soundfont-gm`
+(synthesizing audio fixtures for tests and evaluation). If LilyPond lives
+somewhere else, set `DRUM_AGENT_LILYPOND=/path/to/lilypond`.
+
+## Use
+
+```bash
+# A chart you write (see .claude/skills/drum-chart/reference/chart-spec.md)
+python -m drum_agent render examples/specs/01_basic_rock_beat.yaml -o out/basic
+
+# A MIDI drum track (e-kit, DAW export)
+python -m drum_agent midi groove.mid --title "Groove" --rights own -o out/groove
+
+# An audio recording you own or have permission to transcribe
+python -m drum_agent transcribe song.wav --rights own --title "Song" --artist "Band" -o out/song
+#   hints when you know them: --bpm 96 --time-signature 6/8 --downbeat 1.23 --drums-only
+#   --sections "Intro:1,Verse:5,Chorus:13"
+
+# Without transcription rights: tempo, meter and form only, no notes
+python -m drum_agent analyze song.wav
+
+# Fix what you hear is wrong, then re-render
+python -m drum_agent edit out/song/song.json --relabel ride=hihat --bars 9-16 \
+    --delete 12:7/8:kick --add 12:3/8:snare:ghost --render out/song
+```
+
+Each run writes `<stem>.pdf`, `<stem>.png` (or `-pageN.png`), `<stem>.musicxml`,
+`<stem>.mid`, `<stem>.ly`, `<stem>.json` (the score) and `<stem>.report.md`.
+
+Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
+with a known chart), `verify` (re-check exported files), `doctor`.
+
+## With Claude Code
+
+The skill in `.claude/skills/drum-chart/` teaches Claude the whole workflow:
+choosing the chart type, the rights check, transcription hints, reading the
+report, checking every page against a QC checklist, correcting with `edit`,
+and delivering honestly. Ask for "a drum chart of ..." or run
+`/drum-chart <file or description>`.
+
+## Examples
+
+`examples/specs/` holds original charts from a single groove to a full song.
+`examples/output/` has their rendered PDFs, PNGs, MusicXML and MIDI, plus an
+audio transcription of the full song (`05_audio_transcription/`) made from a
+synthesized band recording.
+
+## Tests
+
+```bash
+python -m pytest -q                 # everything
+python -m pytest -q -m "not slow"   # skip audio end-to-end tests
+python scripts/eval_notation.py --jobs 4   # transcription accuracy, end to end
+python scripts/eval_detection.py           # stroke detection per instrument
+```
+
+## Documentation
+
+- [docs/NOTATION_SPEC.md](docs/NOTATION_SPEC.md): the notation contract
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it works
+- [docs/LIMITATIONS.md](docs/LIMITATIONS.md): measured accuracy and limits
+- [docs/AUDIT.md](docs/AUDIT.md): the starting point and the plan
