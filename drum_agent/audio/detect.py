@@ -106,6 +106,7 @@ KICK_UNDER_TOM = 0.4  # a "kick" quieter than this fraction of the tom ...
 KICK_UNDER_TOM_ABS = 0.6  # ... and quieter than this is tom bleed
 TOM_WITH_KICK_LOUD = 0.9  # a tom with a kick keeps its label when this loud
 TOM_VS_KICK = 0.75  # ... or (no crash sounding) at least this fraction of the kick
+SNARE_UNDER_TOM = 0.5  # a "snare" quieter than this fraction of a tom is tom bleed
 
 HARM_MARGIN = 1.0  # HPSS margin for the harmonic part that trains the accompaniment basis
 CHUNK_S = 30.0  # front end works in chunks so memory doesn't grow with song length
@@ -377,6 +378,11 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             for other in ("snare", "kick"):
                 if other in score and r_cls[c][k] < 0.6 * r_cls[other][k] * (region_ref[c] / region_ref[other]):
                     score.pop(c, None)
+            # The mirror case: a tom bleeds into the snare region. A "snare" much
+            # quieter than the tom it sounds with is that bleed (measured: 0.25-0.45x
+            # for lone toms; a real snare played with a tom is louder than the tom).
+            if c in score and "snare" in score and score["snare"][1] < SNARE_UNDER_TOM * score[c][1]:
+                score.pop("snare")
         # Two hands: at most two hand-played instruments can sound at one instant.
         hands = sorted((c for c in score if c not in FEET), key=lambda c: -score[c][2])
         for c in hands[2:]:
@@ -406,6 +412,7 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             h.flam = _has_grace(A[h.inst], f, last_frame.get(h.inst, -10**9), T)
             last_frame[h.inst] = f
     hits = _merge_flams(hits)
+    hits = _drop_flam_crashes(hits)
     _smooth_cymbals(hits)
     _dynamics(hits)
     pad_frames = int(round(PAD / FRAME))
@@ -417,6 +424,30 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
         activations={c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()},
         stats={"free_components": free, "templates": K0, "frames": int(T), "debug": debug},
     )
+
+
+def _drop_flam_crashes(hits: list[DrumHit]) -> list[DrumHit]:
+    """Remove "crashes" made by flams.
+
+    In the stacked frames, a flam's grace note sees the main stroke's attack
+    ahead of it and is explained by the crash templates (the only ones that keep
+    their level over the stacked span), and a flammed stroke itself can match a
+    crash too. Measured on synthesized songs: every such false crash sat on a
+    flam with no kick, while real crashes that start phrases sound with a kick.
+    So a crash without a kick is dropped when a snare/tom stroke follows it
+    within 12-60 ms (the grace position) or when it sounds with a flammed stroke.
+    """
+    drums = [h for h in hits if h.inst in FLAM_DRUMS]
+    kicks = [h.time for h in hits if h.inst == "kick"]
+    out = []
+    for h in hits:
+        if h.inst == "crash" and not any(abs(k - h.time) <= 0.015 for k in kicks):
+            follows = any(0.012 <= d.time - h.time <= 0.060 for d in drums)
+            flammed = any(d.flam and abs(d.time - h.time) <= 0.015 for d in drums)
+            if follows or flammed:
+                continue
+        out.append(h)
+    return out
 
 
 def _has_grace(a: np.ndarray, t: int, prev_t: int, T: int) -> bool:

@@ -37,7 +37,7 @@ CONDITIONS = {
     "room_band": ("fluidsynth", 8, True, 0, False),
     "jazz_band_h": ("fluidsynth", 32, True, 8, False),
 }
-DEFAULT_CHARTS = ["02", "03", "05", "06", "07", "10", "11", "northbound"]
+DEFAULT_CHARTS = ["02", "03", "05", "06", "07", "10", "11", "12", "13", "northbound"]
 DEFAULT_CONDITIONS = ["std_do", "jazz_do", "std_band", "jazz_band_h"]
 SEARCH = [ROOT / "tests" / "cases", ROOT / "tests" / "audio_cases", ROOT / "examples" / "specs"]
 

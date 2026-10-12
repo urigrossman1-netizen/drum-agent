@@ -10,37 +10,38 @@
   "input": "audio",
   "tempo_estimate": "83.35 BPM (quarter note)",
   "meter": "4/4 (confidence 1.0)",
-  "downbeat_confidence": 0.79,
+  "downbeat_confidence": 0.91,
   "feel": "straight",
-  "detected_onsets": 937,
+  "detected_onsets": 925,
   "instrument_counts": {
-   "kick": 250,
-   "snare": 242,
+   "snare": 250,
+   "kick": 247,
    "ride": 185,
    "hihat": 156,
    "floor_tom": 46,
-   "crash": 23,
    "hihat_open": 15,
-   "tom2": 7,
+   "tom2": 12,
+   "crash": 11,
    "tom1": 3
   },
-  "low_confidence_hits": 87,
+  "low_confidence_hits": 83,
   "rolls_notated": 0,
-  "mean_abs_offset_ms": 8.6,
+  "mean_abs_offset_ms": 1.6,
   "grid_counts": {
    "2": 197,
    "4": 31,
-   "1": 6,
-   "8": 2
+   "1": 7,
+   "8": 3
   },
   "sections": [
    "A: bar 1, 24 bars, hihat, 7 fill bar(s)",
    "B: bar 25, 20 bars, hihat, 7 fill bar(s)",
    "C: bar 45, 4 bars, hihat, 1 fill bar(s)",
-   "D: bar 49, 11 bars, ride, 3 fill bar(s)"
+   "D: bar 49, 12 bars, ride, 3 fill bar(s)"
   ],
   "notes": [
    "tempo ambiguous: 83 BPM chosen, 167 BPM also plausible (score 0.92 of best); pass --bpm if the chart reads at the wrong speed",
+   "bar 48: the downbeat shifts by 2 beat(s) (crashes moved from beat 1 to beat 3); a 2/4 bar was inserted (bars after it repeat earlier ones 0.93 vs 0.71). Verify by ear.",
    "Section letters are pattern-based; rename them with --sections once you know the song form.",
    "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed."
   ]
@@ -537,15 +538,7 @@
      "pos": "7/8",
      "inst": "floor_tom",
      "velocity": 106,
-     "confidence": 0.969,
-     "time": 11.0697,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "7/8",
-     "inst": "kick",
-     "velocity": 61,
-     "confidence": 0.584,
+     "confidence": 0.86,
      "time": 11.0697,
      "offset_ms": -0.4
     },
@@ -2472,10 +2465,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "2 low-confidence hit(s): kick, snare"
-   ],
    "start_time": 54.2824,
    "hits": [
     {
@@ -2532,7 +2521,7 @@
      "velocity": 88,
      "confidence": 0.99,
      "time": 55.356,
-     "offset_ms": -0.4
+     "offset_ms": -3.3
     },
     {
      "pos": "3/8",
@@ -2540,15 +2529,7 @@
      "velocity": 86,
      "confidence": 0.787,
      "time": 55.356,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "1/2",
-     "inst": "crash",
-     "velocity": 64,
-     "confidence": 0.99,
-     "time": 55.6753,
-     "offset_ms": -35.2
+     "offset_ms": -3.3
     },
     {
      "pos": "1/2",
@@ -2556,7 +2537,7 @@
      "velocity": 84,
      "confidence": 0.969,
      "time": 55.7159,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -2564,7 +2545,7 @@
      "velocity": 82,
      "confidence": 0.985,
      "time": 55.7159,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "9/16",
@@ -2572,7 +2553,7 @@
      "velocity": 92,
      "confidence": 0.99,
      "time": 55.8959,
-     "offset_ms": 8.3
+     "offset_ms": 1.1
     },
     {
      "pos": "11/16",
@@ -2580,15 +2561,7 @@
      "velocity": 103,
      "confidence": 0.998,
      "time": 56.25,
-     "offset_ms": 8.3
-    },
-    {
-     "pos": "3/4",
-     "inst": "crash",
-     "velocity": 91,
-     "confidence": 0.956,
-     "time": 56.3893,
-     "offset_ms": -29.4
+     "offset_ms": -1.8
     },
     {
      "pos": "3/4",
@@ -2597,7 +2570,7 @@
      "accent": true,
      "confidence": 0.984,
      "time": 56.4299,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
      "pos": "13/16",
@@ -2605,14 +2578,14 @@
      "velocity": 53,
      "confidence": 0.988,
      "time": 56.6041,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
      "pos": "13/16",
      "inst": "tom2",
      "velocity": 69,
      "time": 56.6041,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
      "pos": "7/8",
@@ -2621,7 +2594,7 @@
      "ghost": true,
      "confidence": 0.896,
      "time": 56.784,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
      "pos": "7/8",
@@ -2629,23 +2602,15 @@
      "velocity": 70,
      "confidence": 0.998,
      "time": 56.784,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 108,
-     "confidence": 0.934,
+     "confidence": 0.902,
      "time": 56.9582,
-     "offset_ms": -4.7
-    },
-    {
-     "pos": "15/16",
-     "inst": "kick",
-     "velocity": 58,
-     "confidence": 0.446,
-     "time": 56.9582,
-     "offset_ms": -4.7
+     "offset_ms": -7.6
     },
     {
      "pos": "15/16",
@@ -2653,7 +2618,7 @@
      "velocity": 63,
      "confidence": 0.321,
      "time": 56.9582,
-     "offset_ms": -4.7
+     "offset_ms": -7.6
     }
    ]
   },
@@ -3040,7 +3005,7 @@
    "time": "4/4",
    "uncertain": true,
    "notes": [
-    "3 low-confidence hit(s): kick, snare"
+    "2 low-confidence hit(s): kick, snare"
    ],
    "start_time": 65.7125,
    "hits": [
@@ -3098,22 +3063,14 @@
      "velocity": 80,
      "confidence": 0.967,
      "time": 66.786,
-     "offset_ms": 2.5
+     "offset_ms": -0.4
     },
     {
      "pos": "3/8",
      "inst": "ride",
      "confidence": 0.861,
      "time": 66.786,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "1/2",
-     "inst": "crash",
-     "velocity": 65,
-     "confidence": 0.997,
-     "time": 67.0995,
-     "offset_ms": -41.0
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -3121,7 +3078,7 @@
      "velocity": 82,
      "confidence": 0.963,
      "time": 67.1459,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -3129,7 +3086,7 @@
      "velocity": 85,
      "confidence": 0.987,
      "time": 67.1459,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "9/16",
@@ -3137,7 +3094,7 @@
      "velocity": 55,
      "confidence": 0.337,
      "time": 67.3201,
-     "offset_ms": 4.0
+     "offset_ms": -3.3
     },
     {
      "pos": "9/16",
@@ -3145,22 +3102,14 @@
      "velocity": 92,
      "confidence": 0.952,
      "time": 67.3201,
-     "offset_ms": 4.0
+     "offset_ms": -3.3
     },
     {
      "pos": "11/16",
      "inst": "snare",
      "confidence": 0.951,
      "time": 67.68,
-     "offset_ms": 12.7
-    },
-    {
-     "pos": "3/4",
-     "inst": "crash",
-     "velocity": 91,
-     "confidence": 0.915,
-     "time": 67.8193,
-     "offset_ms": -23.6
+     "offset_ms": 2.5
     },
     {
      "pos": "3/4",
@@ -3170,7 +3119,7 @@
      "flam": true,
      "confidence": 0.959,
      "time": 67.8541,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
      "pos": "13/16",
@@ -3178,16 +3127,24 @@
      "velocity": 64,
      "confidence": 0.704,
      "time": 68.0341,
-     "offset_ms": 8.3
+     "offset_ms": -0.4
     },
     {
      "pos": "13/16",
      "inst": "snare",
      "velocity": 50,
      "ghost": true,
-     "confidence": 0.289,
+     "confidence": 0.928,
      "time": 68.0341,
-     "offset_ms": 8.3
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2",
+     "velocity": 66,
+     "confidence": 0.988,
+     "time": 68.0341,
+     "offset_ms": -0.4
     },
     {
      "pos": "7/8",
@@ -3196,7 +3153,7 @@
      "ghost": true,
      "confidence": 0.76,
      "time": 68.2082,
-     "offset_ms": -0.4
+     "offset_ms": -6.2
     },
     {
      "pos": "7/8",
@@ -3204,23 +3161,15 @@
      "velocity": 65,
      "confidence": 0.998,
      "time": 68.2082,
-     "offset_ms": -0.4
+     "offset_ms": -6.2
     },
     {
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.858,
+     "confidence": 0.848,
      "time": 68.3882,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "15/16",
-     "inst": "kick",
-     "velocity": 64,
-     "confidence": 0.682,
-     "time": 68.3882,
-     "offset_ms": -3.3
+     "offset_ms": -6.2
     },
     {
      "pos": "15/16",
@@ -3228,7 +3177,7 @@
      "velocity": 63,
      "confidence": 0.152,
      "time": 68.3882,
-     "offset_ms": -3.3
+     "offset_ms": -6.2
     }
    ]
   },
@@ -5233,7 +5182,7 @@
      "velocity": 85,
      "confidence": 0.984,
      "time": 112.5003,
-     "offset_ms": 2.5
+     "offset_ms": -0.4
     },
     {
      "pos": "3/8",
@@ -5241,15 +5190,7 @@
      "velocity": 91,
      "confidence": 0.892,
      "time": 112.5003,
-     "offset_ms": 2.5
-    },
-    {
-     "pos": "1/2",
-     "inst": "crash",
-     "velocity": 66,
-     "confidence": 0.998,
-     "time": 112.8138,
-     "offset_ms": -41.0
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -5257,7 +5198,7 @@
      "velocity": 88,
      "confidence": 0.986,
      "time": 112.8602,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -5265,7 +5206,7 @@
      "velocity": 77,
      "confidence": 0.916,
      "time": 112.8602,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "9/16",
@@ -5273,7 +5214,7 @@
      "velocity": 100,
      "confidence": 0.999,
      "time": 113.0344,
-     "offset_ms": 2.5
+     "offset_ms": -4.7
     },
     {
      "pos": "11/16",
@@ -5281,15 +5222,7 @@
      "velocity": 99,
      "confidence": 0.998,
      "time": 113.3943,
-     "offset_ms": 8.3
-    },
-    {
-     "pos": "3/4",
-     "inst": "crash",
-     "velocity": 93,
-     "confidence": 0.956,
-     "time": 113.5336,
-     "offset_ms": -29.4
+     "offset_ms": -1.8
     },
     {
      "pos": "3/4",
@@ -5298,7 +5231,7 @@
      "accent": true,
      "confidence": 0.97,
      "time": 113.5742,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
      "pos": "13/16",
@@ -5306,7 +5239,7 @@
      "velocity": 53,
      "confidence": 0.998,
      "time": 113.7484,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
      "pos": "13/16",
@@ -5314,7 +5247,7 @@
      "velocity": 68,
      "confidence": 0.999,
      "time": 113.7484,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
      "pos": "7/8",
@@ -5322,16 +5255,24 @@
      "velocity": 60,
      "confidence": 0.543,
      "time": 113.9283,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
      "pos": "7/8",
      "inst": "snare",
      "velocity": 46,
      "ghost": true,
-     "confidence": 0.13,
+     "confidence": 0.43,
      "time": 113.9283,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2",
+     "velocity": 69,
+     "confidence": 0.999,
+     "time": 113.9283,
+     "offset_ms": -3.3
     },
     {
      "pos": "15/16",
@@ -5339,7 +5280,7 @@
      "velocity": 109,
      "confidence": 0.95,
      "time": 114.1025,
-     "offset_ms": -4.7
+     "offset_ms": -7.6
     },
     {
      "pos": "15/16",
@@ -5347,7 +5288,7 @@
      "velocity": 62,
      "confidence": 0.45,
      "time": 114.1025,
-     "offset_ms": -4.7
+     "offset_ms": -7.6
     }
    ]
   },
@@ -5729,10 +5670,6 @@
   },
   {
    "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "3 low-confidence hit(s): kick, snare"
-   ],
    "start_time": 122.8568,
    "hits": [
     {
@@ -5789,7 +5726,7 @@
      "velocity": 85,
      "confidence": 0.984,
      "time": 123.9245,
-     "offset_ms": -3.3
+     "offset_ms": -6.2
     },
     {
      "pos": "3/8",
@@ -5797,15 +5734,7 @@
      "velocity": 88,
      "confidence": 0.856,
      "time": 123.9245,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "1/2",
-     "inst": "crash",
-     "velocity": 65,
-     "confidence": 0.998,
-     "time": 124.2438,
-     "offset_ms": -41.0
+     "offset_ms": -6.2
     },
     {
      "pos": "1/2",
@@ -5813,7 +5742,7 @@
      "velocity": 87,
      "confidence": 0.982,
      "time": 124.2902,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "1/2",
@@ -5821,7 +5750,7 @@
      "velocity": 77,
      "confidence": 0.921,
      "time": 124.2902,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
      "pos": "9/16",
@@ -5829,7 +5758,7 @@
      "velocity": 100,
      "confidence": 0.999,
      "time": 124.4644,
-     "offset_ms": 4.0
+     "offset_ms": -3.3
     },
     {
      "pos": "11/16",
@@ -5837,15 +5766,7 @@
      "velocity": 100,
      "confidence": 0.997,
      "time": 124.8243,
-     "offset_ms": 12.7
-    },
-    {
-     "pos": "3/4",
-     "inst": "crash",
-     "velocity": 92,
-     "confidence": 0.919,
-     "time": 124.9636,
-     "offset_ms": -23.6
+     "offset_ms": 2.5
     },
     {
      "pos": "3/4",
@@ -5854,7 +5775,7 @@
      "accent": true,
      "confidence": 0.973,
      "time": 124.9984,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
      "pos": "13/16",
@@ -5863,7 +5784,7 @@
      "ghost": true,
      "confidence": 0.992,
      "time": 125.1784,
-     "offset_ms": 9.8
+     "offset_ms": 1.1
     },
     {
      "pos": "13/16",
@@ -5871,7 +5792,7 @@
      "velocity": 69,
      "confidence": 0.999,
      "time": 125.1784,
-     "offset_ms": 9.8
+     "offset_ms": 1.1
     },
     {
      "pos": "7/8",
@@ -5879,32 +5800,31 @@
      "velocity": 64,
      "confidence": 0.691,
      "time": 125.3525,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
      "pos": "7/8",
      "inst": "snare",
      "velocity": 48,
      "ghost": true,
-     "confidence": 0.211,
+     "confidence": 0.702,
      "time": 125.3525,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2",
+     "velocity": 68,
+     "time": 125.3525,
+     "offset_ms": -3.3
     },
     {
      "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 110,
-     "confidence": 0.965,
+     "confidence": 0.937,
      "time": 125.5325,
-     "offset_ms": 1.1
-    },
-    {
-     "pos": "15/16",
-     "inst": "kick",
-     "velocity": 53,
-     "confidence": 0.295,
-     "time": 125.5325,
-     "offset_ms": 1.1
+     "offset_ms": -1.8
     },
     {
      "pos": "15/16",
@@ -5912,7 +5832,7 @@
      "velocity": 63,
      "confidence": 0.427,
      "time": 125.5325,
-     "offset_ms": 1.1
+     "offset_ms": -1.8
     }
    ]
   },
@@ -6224,7 +6144,11 @@
    ]
   },
   {
-   "time": "4/4",
+   "time": "2/4",
+   "uncertain": true,
+   "notes": [
+    "short bar (2/4) inserted: the downbeat shifts here"
+   ],
    "start_time": 134.2868,
    "hits": [
     {
@@ -6308,9 +6232,16 @@
      "confidence": 0.967,
      "time": 135.5345,
      "offset_ms": -1.8
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "D",
+   "start_time": 135.7148,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "crash",
      "velocity": 80,
      "confidence": 0.973,
@@ -6318,7 +6249,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 68,
      "confidence": 0.685,
@@ -6326,7 +6257,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.976,
@@ -6334,7 +6265,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.535,
@@ -6342,7 +6273,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 83,
      "confidence": 0.971,
@@ -6350,7 +6281,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 82,
      "confidence": 0.966,
@@ -6358,7 +6289,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.976,
@@ -6366,22 +6297,15 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 94,
      "confidence": 0.891,
      "time": 136.7884,
      "offset_ms": 2.5
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "section": "D",
-   "start_time": 137.1429,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.964,
@@ -6389,7 +6313,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.924,
@@ -6397,7 +6321,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.963,
@@ -6405,7 +6329,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.887,
@@ -6413,7 +6337,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.979,
@@ -6421,7 +6345,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 89,
      "confidence": 0.983,
@@ -6429,15 +6353,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.907,
      "time": 138.2106,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 138.5709,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 78,
      "confidence": 0.948,
@@ -6445,7 +6375,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 98,
      "confidence": 0.957,
@@ -6453,7 +6383,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.976,
@@ -6461,7 +6391,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.896,
@@ -6469,7 +6399,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 83,
      "confidence": 0.982,
@@ -6477,7 +6407,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 86,
      "confidence": 0.983,
@@ -6485,7 +6415,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 81,
      "confidence": 0.972,
@@ -6493,21 +6423,15 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.891,
      "time": 139.6386,
      "offset_ms": -3.3
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 139.9989,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 81,
      "confidence": 0.972,
@@ -6515,7 +6439,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 98,
      "confidence": 0.914,
@@ -6523,7 +6447,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.962,
@@ -6531,7 +6455,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.876,
@@ -6539,7 +6463,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.982,
@@ -6547,7 +6471,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 87,
      "confidence": 0.961,
@@ -6555,15 +6479,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.88,
      "time": 141.0724,
      "offset_ms": 2.5
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 141.4269,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.957,
@@ -6571,7 +6501,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.928,
@@ -6579,7 +6509,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.975,
@@ -6587,7 +6517,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.892,
@@ -6595,7 +6525,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 83,
      "confidence": 0.972,
@@ -6603,7 +6533,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 87,
      "confidence": 0.987,
@@ -6611,7 +6541,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.978,
@@ -6619,21 +6549,15 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.917,
      "time": 142.5005,
      "offset_ms": 2.5
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 142.855,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 81,
      "confidence": 0.97,
@@ -6641,7 +6565,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.878,
@@ -6649,7 +6573,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.965,
@@ -6657,7 +6581,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.885,
@@ -6665,7 +6589,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.981,
@@ -6673,7 +6597,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 88,
      "confidence": 0.97,
@@ -6681,74 +6605,11 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.894,
      "time": 143.9285,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "1/2",
-     "inst": "kick",
-     "velocity": 85,
-     "confidence": 0.981,
-     "time": 144.2826,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "1/2",
-     "inst": "ride",
-     "velocity": 92,
-     "confidence": 0.928,
-     "time": 144.2826,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "5/8",
-     "inst": "kick",
-     "velocity": 87,
-     "confidence": 0.988,
-     "time": 144.6425,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "5/8",
-     "inst": "ride",
-     "velocity": 91,
-     "confidence": 0.896,
-     "time": 144.6425,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "3/4",
-     "inst": "ride",
-     "velocity": 86,
-     "confidence": 0.983,
-     "time": 145.0024,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "3/4",
-     "inst": "snare",
-     "velocity": 76,
-     "confidence": 0.875,
-     "time": 145.0024,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "7/8",
-     "inst": "kick",
-     "velocity": 85,
-     "confidence": 0.984,
-     "time": 145.3565,
-     "offset_ms": -0.4
-    },
-    {
-     "pos": "7/8",
-     "inst": "ride",
-     "confidence": 0.883,
-     "time": 145.3565,
      "offset_ms": -0.4
     }
    ]
@@ -6759,116 +6620,176 @@
    "notes": [
     "2 low-confidence hit(s): snare"
    ],
-   "start_time": 145.711,
+   "start_time": 144.283,
    "hits": [
     {
      "pos": "0",
-     "inst": "crash",
-     "velocity": 65,
-     "confidence": 0.993,
-     "time": 145.6758,
-     "offset_ms": -35.2
+     "inst": "kick",
+     "velocity": 85,
+     "confidence": 0.981,
+     "time": 144.2826,
+     "offset_ms": -0.4
     },
     {
      "pos": "0",
+     "inst": "ride",
+     "velocity": 92,
+     "confidence": 0.928,
+     "time": 144.2826,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick",
+     "velocity": 87,
+     "confidence": 0.988,
+     "time": 144.6425,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride",
+     "velocity": 91,
+     "confidence": 0.896,
+     "time": 144.6425,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride",
+     "velocity": 86,
+     "confidence": 0.983,
+     "time": 145.0024,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "velocity": 76,
+     "confidence": 0.875,
+     "time": 145.0024,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick",
+     "velocity": 85,
+     "confidence": 0.984,
+     "time": 145.3565,
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride",
+     "confidence": 0.883,
+     "time": 145.3565,
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 86,
      "confidence": 0.979,
      "time": 145.7164,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "snare",
      "velocity": 77,
      "confidence": 0.92,
      "time": 145.7164,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
-     "pos": "1/16",
+     "pos": "9/16",
      "inst": "snare",
      "velocity": 100,
      "confidence": 0.999,
      "time": 145.8906,
-     "offset_ms": 2.5
+     "offset_ms": -4.7
     },
     {
-     "pos": "3/16",
+     "pos": "11/16",
      "inst": "snare",
      "velocity": 100,
      "confidence": 0.998,
      "time": 146.2505,
-     "offset_ms": 8.3
+     "offset_ms": -1.8
     },
     {
-     "pos": "1/4",
-     "inst": "crash",
-     "velocity": 92,
-     "confidence": 0.947,
-     "time": 146.3898,
-     "offset_ms": -29.4
-    },
-    {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 110,
      "accent": true,
      "confidence": 0.974,
      "time": 146.4305,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
-     "pos": "5/16",
+     "pos": "13/16",
      "inst": "snare",
      "velocity": 54,
      "confidence": 0.996,
      "time": 146.6046,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
-     "pos": "5/16",
+     "pos": "13/16",
      "inst": "tom2",
      "velocity": 69,
      "confidence": 0.999,
      "time": 146.6046,
-     "offset_ms": 4.0
+     "offset_ms": -4.7
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "kick",
      "velocity": 64,
      "confidence": 0.684,
      "time": 146.7846,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "snare",
      "velocity": 46,
      "ghost": true,
-     "confidence": 0.144,
+     "confidence": 0.479,
      "time": 146.7846,
-     "offset_ms": 2.5
+     "offset_ms": -3.3
     },
     {
-     "pos": "7/16",
+     "pos": "7/8",
+     "inst": "tom2",
+     "velocity": 69,
+     "time": 146.7846,
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 108,
      "confidence": 0.935,
      "time": 146.9587,
-     "offset_ms": -4.7
+     "offset_ms": -7.6
     },
     {
-     "pos": "7/16",
+     "pos": "15/16",
      "inst": "snare",
      "velocity": 62,
      "confidence": 0.368,
      "time": 146.9587,
-     "offset_ms": -4.7
-    },
+     "offset_ms": -7.6
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 147.1449,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "crash",
      "velocity": 79,
      "confidence": 0.943,
@@ -6876,7 +6797,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 64,
      "confidence": 0.504,
@@ -6884,7 +6805,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 77,
      "confidence": 0.951,
@@ -6892,7 +6813,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 88,
      "confidence": 0.813,
@@ -6900,7 +6821,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 83,
      "confidence": 0.973,
@@ -6908,7 +6829,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 86,
      "confidence": 0.98,
@@ -6916,7 +6837,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.965,
@@ -6924,21 +6845,15 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 94,
      "confidence": 0.852,
      "time": 148.2126,
      "offset_ms": -3.3
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 148.5729,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.96,
@@ -6946,7 +6861,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 94,
      "confidence": 0.876,
@@ -6954,7 +6869,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.964,
@@ -6962,7 +6877,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.886,
@@ -6970,7 +6885,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 84,
      "confidence": 0.971,
@@ -6978,7 +6893,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 84,
      "confidence": 0.944,
@@ -6986,15 +6901,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 92,
      "confidence": 0.864,
      "time": 149.6406,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 150.0009,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 74,
      "confidence": 0.888,
@@ -7002,7 +6923,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 93,
      "confidence": 0.938,
@@ -7010,7 +6931,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.967,
@@ -7018,7 +6939,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 93,
      "confidence": 0.931,
@@ -7026,7 +6947,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 87,
      "confidence": 0.987,
@@ -7034,7 +6955,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 83,
      "confidence": 0.958,
@@ -7042,7 +6963,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.965,
@@ -7050,21 +6971,15 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.855,
      "time": 151.0686,
      "offset_ms": -3.3
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 151.4289,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.966,
@@ -7072,7 +6987,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.919,
@@ -7080,7 +6995,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.959,
@@ -7088,7 +7003,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.888,
@@ -7096,7 +7011,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.976,
@@ -7104,7 +7019,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 83,
      "confidence": 0.936,
@@ -7112,15 +7027,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 92,
      "confidence": 0.862,
      "time": 152.4967,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 152.857,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 77,
      "confidence": 0.928,
@@ -7128,14 +7049,14 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "confidence": 0.918,
      "time": 152.8566,
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 84,
      "confidence": 0.981,
@@ -7143,7 +7064,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.764,
@@ -7151,7 +7072,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 82,
      "confidence": 0.957,
@@ -7159,7 +7080,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 79,
      "confidence": 0.956,
@@ -7167,7 +7088,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 87,
      "confidence": 0.989,
@@ -7175,21 +7096,15 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.742,
      "time": 153.9305,
      "offset_ms": 2.5
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 154.285,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 88,
      "confidence": 0.991,
@@ -7197,7 +7112,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.759,
@@ -7205,7 +7120,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 88,
      "confidence": 0.99,
@@ -7213,7 +7128,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 85,
      "confidence": 0.807,
@@ -7221,7 +7136,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 79,
      "confidence": 0.951,
@@ -7229,7 +7144,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 84,
      "confidence": 0.964,
@@ -7237,15 +7152,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 87,
      "confidence": 0.765,
      "time": 155.3527,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 155.713,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 87,
      "confidence": 0.988,
@@ -7253,7 +7174,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 94,
      "confidence": 0.907,
@@ -7261,7 +7182,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 84,
      "confidence": 0.983,
@@ -7269,7 +7190,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 91,
      "confidence": 0.852,
@@ -7277,7 +7198,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 87,
      "confidence": 0.975,
@@ -7285,7 +7206,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 76,
      "confidence": 0.919,
@@ -7293,147 +7214,127 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 82,
      "confidence": 0.978,
      "time": 156.7866,
-     "offset_ms": 2.5
+     "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.864,
      "time": 156.7866,
-     "offset_ms": 2.5
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "4 low-confidence hit(s): kick, snare"
-   ],
-   "start_time": 157.141,
-   "hits": [
-    {
-     "pos": "0",
-     "inst": "crash",
-     "velocity": 65,
-     "confidence": 0.997,
-     "time": 157.1,
-     "offset_ms": -41.0
+     "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 86,
      "confidence": 0.981,
      "time": 157.1465,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "snare",
      "velocity": 77,
      "confidence": 0.935,
      "time": 157.1465,
-     "offset_ms": 5.4
+     "offset_ms": -0.4
     },
     {
-     "pos": "1/16",
+     "pos": "9/16",
      "inst": "snare",
      "velocity": 99,
      "confidence": 0.999,
      "time": 157.3206,
-     "offset_ms": 4.0
+     "offset_ms": -3.3
     },
     {
-     "pos": "3/16",
+     "pos": "11/16",
      "inst": "snare",
      "velocity": 99,
      "confidence": 0.998,
      "time": 157.6805,
-     "offset_ms": 12.7
+     "offset_ms": 2.5
     },
     {
-     "pos": "1/4",
-     "inst": "crash",
-     "velocity": 93,
-     "confidence": 0.937,
-     "time": 157.8198,
-     "offset_ms": -23.6
-    },
-    {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 110,
      "accent": true,
      "confidence": 0.977,
      "time": 157.8547,
-     "offset_ms": 11.2
+     "offset_ms": -0.4
     },
     {
-     "pos": "5/16",
+     "pos": "13/16",
      "inst": "snare",
      "velocity": 54,
      "confidence": 0.995,
      "time": 158.0346,
-     "offset_ms": 8.3
+     "offset_ms": -0.4
     },
     {
-     "pos": "5/16",
+     "pos": "13/16",
      "inst": "tom2",
      "velocity": 69,
      "confidence": 0.999,
      "time": 158.0346,
-     "offset_ms": 8.3
+     "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "kick",
      "velocity": 62,
      "confidence": 0.602,
      "time": 158.2088,
-     "offset_ms": -0.4
+     "offset_ms": -6.2
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "snare",
      "velocity": 49,
      "ghost": true,
-     "confidence": 0.206,
+     "confidence": 0.686,
      "time": 158.2088,
-     "offset_ms": -0.4
+     "offset_ms": -6.2
     },
     {
-     "pos": "7/16",
+     "pos": "7/8",
+     "inst": "tom2",
+     "velocity": 70,
+     "confidence": 0.999,
+     "time": 158.2088,
+     "offset_ms": -6.2
+    },
+    {
+     "pos": "15/16",
      "inst": "floor_tom",
      "velocity": 109,
-     "confidence": 0.941,
+     "confidence": 0.919,
      "time": 158.3887,
-     "offset_ms": -3.3
+     "offset_ms": -6.2
     },
     {
-     "pos": "7/16",
-     "inst": "kick",
-     "velocity": 55,
-     "confidence": 0.368,
-     "time": 158.3887,
-     "offset_ms": -3.3
-    },
-    {
-     "pos": "7/16",
+     "pos": "15/16",
      "inst": "snare",
      "velocity": 64,
      "confidence": 0.457,
      "time": 158.3887,
-     "offset_ms": -3.3
-    },
+     "offset_ms": -6.2
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 158.5749,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "crash",
      "velocity": 87,
      "confidence": 0.982,
@@ -7441,7 +7342,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 62,
      "confidence": 0.348,
@@ -7449,7 +7350,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 88,
      "confidence": 0.99,
@@ -7457,7 +7358,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 89,
      "confidence": 0.686,
@@ -7465,7 +7366,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 84,
      "confidence": 0.978,
@@ -7473,7 +7374,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 85,
      "confidence": 0.998,
@@ -7481,7 +7382,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 87,
      "confidence": 0.99,
@@ -7489,21 +7390,15 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 96,
      "confidence": 0.798,
      "time": 159.6426,
      "offset_ms": -0.4
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 159.9971,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 84,
      "confidence": 0.982,
@@ -7511,7 +7406,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.892,
@@ -7519,7 +7414,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 84,
      "confidence": 0.982,
@@ -7527,7 +7422,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 93,
      "confidence": 0.871,
@@ -7535,7 +7430,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.983,
@@ -7543,7 +7438,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 86,
      "confidence": 0.985,
@@ -7551,15 +7446,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.872,
      "time": 161.0706,
      "offset_ms": 2.5
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 161.4251,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 84,
      "confidence": 0.98,
@@ -7567,7 +7468,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.874,
@@ -7575,7 +7476,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 89,
      "confidence": 0.992,
@@ -7583,7 +7484,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 93,
      "confidence": 0.899,
@@ -7591,7 +7492,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.984,
@@ -7599,7 +7500,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 84,
      "confidence": 0.994,
@@ -7607,7 +7508,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 86,
      "confidence": 0.987,
@@ -7615,21 +7516,15 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.884,
      "time": 162.4987,
      "offset_ms": -0.4
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "start_time": 162.8532,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 85,
      "confidence": 0.985,
@@ -7637,7 +7532,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "velocity": 95,
      "confidence": 0.866,
@@ -7645,7 +7540,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 83,
      "confidence": 0.98,
@@ -7653,7 +7548,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 98,
      "confidence": 0.894,
@@ -7661,7 +7556,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 86,
      "confidence": 0.979,
@@ -7669,7 +7564,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 86,
      "confidence": 0.977,
@@ -7677,15 +7572,21 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 97,
      "confidence": 0.861,
      "time": 163.9267,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "start_time": 164.287,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "kick",
      "velocity": 68,
      "confidence": 0.733,
@@ -7693,7 +7594,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "ride",
      "velocity": 91,
      "confidence": 0.911,
@@ -7701,7 +7602,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "kick",
      "velocity": 77,
      "confidence": 0.936,
@@ -7709,7 +7610,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "ride",
      "velocity": 92,
      "confidence": 0.888,
@@ -7717,7 +7618,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "ride",
      "velocity": 76,
      "confidence": 0.948,
@@ -7725,7 +7626,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 75,
      "accent": true,
@@ -7734,7 +7635,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "kick",
      "velocity": 79,
      "confidence": 0.96,
@@ -7742,25 +7643,14 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "ride",
      "confidence": 0.871,
      "time": 165.3547,
      "offset_ms": -3.3
-    }
-   ]
-  },
-  {
-   "time": "4/4",
-   "uncertain": true,
-   "notes": [
-    "4 low-confidence hit(s): kick, tom1",
-    "timing does not fit a clear subdivision"
-   ],
-   "start_time": 165.715,
-   "hits": [
+    },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "kick",
      "velocity": 85,
      "confidence": 0.986,
@@ -7768,14 +7658,14 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "0",
+     "pos": "1/2",
      "inst": "ride",
      "confidence": 0.86,
      "time": 165.7146,
      "offset_ms": -0.4
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "kick",
      "velocity": 80,
      "confidence": 0.966,
@@ -7783,7 +7673,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/8",
+     "pos": "5/8",
      "inst": "ride",
      "velocity": 89,
      "confidence": 0.903,
@@ -7791,7 +7681,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "ride",
      "velocity": 77,
      "confidence": 0.956,
@@ -7799,7 +7689,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "1/4",
+     "pos": "3/4",
      "inst": "snare",
      "velocity": 83,
      "accent": true,
@@ -7808,15 +7698,25 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/8",
+     "pos": "7/8",
      "inst": "ride",
      "velocity": 82,
      "confidence": 0.823,
      "time": 166.7827,
      "offset_ms": -3.3
-    },
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "uncertain": true,
+   "notes": [
+    "6 low-confidence hit(s): kick, tom1"
+   ],
+   "start_time": 167.143,
+   "hits": [
     {
-     "pos": "1/2",
+     "pos": "0",
      "inst": "snare",
      "velocity": 80,
      "accent": true,
@@ -7825,7 +7725,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "17/32",
+     "pos": "1/32",
      "inst": "snare",
      "velocity": 49,
      "ghost": true,
@@ -7834,7 +7734,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "9/16",
+     "pos": "1/16",
      "inst": "snare",
      "velocity": 54,
      "confidence": 0.907,
@@ -7842,7 +7742,7 @@
      "offset_ms": 5.4
     },
     {
-     "pos": "19/32",
+     "pos": "3/32",
      "inst": "snare",
      "velocity": 52,
      "ghost": true,
@@ -7851,7 +7751,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "snare",
      "velocity": 47,
      "ghost": true,
@@ -7860,7 +7760,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "5/8",
+     "pos": "1/8",
      "inst": "tom1",
      "velocity": 42,
      "confidence": 0.299,
@@ -7868,7 +7768,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "21/32",
+     "pos": "5/32",
      "inst": "snare",
      "velocity": 56,
      "confidence": 0.95,
@@ -7876,7 +7776,7 @@
      "offset_ms": 2.5
     },
     {
-     "pos": "11/16",
+     "pos": "3/16",
      "inst": "snare",
      "velocity": 57,
      "confidence": 0.937,
@@ -7884,7 +7784,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "23/32",
+     "pos": "7/32",
      "inst": "snare",
      "velocity": 57,
      "confidence": 0.931,
@@ -7892,7 +7792,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "kick",
      "velocity": 54,
      "confidence": 0.284,
@@ -7900,7 +7800,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "3/4",
+     "pos": "1/4",
      "inst": "snare",
      "velocity": 52,
      "ghost": true,
@@ -7909,7 +7809,7 @@
      "offset_ms": -0.4
     },
     {
-     "pos": "25/32",
+     "pos": "9/32",
      "inst": "snare",
      "velocity": 55,
      "confidence": 0.961,
@@ -7917,7 +7817,7 @@
      "offset_ms": -2.6
     },
     {
-     "pos": "13/16",
+     "pos": "5/16",
      "inst": "kick",
      "velocity": 53,
      "confidence": 0.289,
@@ -7925,7 +7825,7 @@
      "offset_ms": 1.1
     },
     {
-     "pos": "13/16",
+     "pos": "5/16",
      "inst": "snare",
      "velocity": 56,
      "confidence": 0.917,
@@ -7933,7 +7833,7 @@
      "offset_ms": 1.1
     },
     {
-     "pos": "27/32",
+     "pos": "11/32",
      "inst": "snare",
      "velocity": 57,
      "confidence": 0.978,
@@ -7941,7 +7841,7 @@
      "offset_ms": -1.1
     },
     {
-     "pos": "7/8",
+     "pos": "3/8",
      "inst": "snare",
      "velocity": 54,
      "confidence": 0.954,
@@ -7949,7 +7849,7 @@
      "offset_ms": -3.3
     },
     {
-     "pos": "29/32",
+     "pos": "13/32",
      "inst": "snare",
      "velocity": 60,
      "confidence": 0.99,
@@ -7957,7 +7857,7 @@
      "offset_ms": 0.3
     },
     {
-     "pos": "15/16",
+     "pos": "7/16",
      "inst": "snare",
      "velocity": 58,
      "confidence": 0.958,
@@ -7965,28 +7865,109 @@
      "offset_ms": -1.8
     },
     {
-     "pos": "31/32",
-     "inst": "crash",
-     "velocity": 77,
-     "confidence": 0.967,
-     "time": 169.2905,
-     "offset_ms": 802.9
+     "pos": "15/32",
+     "inst": "snare",
+     "velocity": 58,
+     "confidence": 0.975,
+     "time": 168.4836,
+     "offset_ms": -4.0
     },
     {
-     "pos": "31/32",
+     "pos": "1/2",
+     "inst": "snare",
+     "velocity": 55,
+     "confidence": 0.975,
+     "time": 168.5765,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "17/32",
+     "inst": "snare",
+     "velocity": 60,
+     "confidence": 0.958,
+     "time": 168.6636,
+     "offset_ms": -2.6
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare",
+     "velocity": 52,
+     "ghost": true,
+     "confidence": 0.984,
+     "time": 168.7564,
+     "offset_ms": 1.1
+    },
+    {
+     "pos": "19/32",
+     "inst": "snare",
+     "velocity": 59,
+     "confidence": 0.976,
+     "time": 168.8435,
+     "offset_ms": -1.1
+    },
+    {
+     "pos": "5/8",
+     "inst": "snare",
+     "velocity": 59,
+     "confidence": 0.984,
+     "time": 168.9306,
+     "offset_ms": -3.3
+    },
+    {
+     "pos": "21/32",
      "inst": "kick",
-     "velocity": 62,
-     "confidence": 0.492,
-     "time": 169.2905,
-     "offset_ms": 802.9
+     "velocity": 54,
+     "confidence": 0.31,
+     "time": 169.0235,
+     "offset_ms": 0.3
     },
     {
-     "pos": "31/32",
+     "pos": "21/32",
      "inst": "snare",
      "velocity": 62,
      "confidence": 0.984,
      "time": 169.0235,
-     "offset_ms": 535.9
+     "offset_ms": 0.3
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare",
+     "velocity": 56,
+     "confidence": 0.995,
+     "time": 169.1105,
+     "offset_ms": -1.8
+    },
+    {
+     "pos": "23/32",
+     "inst": "kick",
+     "velocity": 55,
+     "confidence": 0.347,
+     "time": 169.2034,
+     "offset_ms": 1.8
+    },
+    {
+     "pos": "23/32",
+     "inst": "snare",
+     "velocity": 62,
+     "confidence": 0.997,
+     "time": 169.2034,
+     "offset_ms": 1.8
+    },
+    {
+     "pos": "3/4",
+     "inst": "crash",
+     "velocity": 77,
+     "confidence": 0.967,
+     "time": 169.2905,
+     "offset_ms": -0.4
+    },
+    {
+     "pos": "3/4",
+     "inst": "kick",
+     "velocity": 62,
+     "confidence": 0.492,
+     "time": 169.2905,
+     "offset_ms": -0.4
     }
    ]
   }

@@ -146,7 +146,7 @@ globalMusic = {
   s1 |
   \break s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
   \repeat percent 2 { s1 | }
-  s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
+  s1 |
   \break s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
   \repeat percent 2 { s1 | }
   s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" \bar "||" |
@@ -167,15 +167,18 @@ globalMusic = {
   s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
   \break s1 |
   \repeat percent 2 { s1 | }
-  s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" \bar "||" |
-  \break \repeat percent 3 { \sectionLabel "C" s1 | }
   s1 \bar "||" |
-  \break \repeat percent 3 { \sectionLabel "D" s1 | }
-  s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
-  \break \repeat percent 3 { s1 | }
+  \break \repeat percent 3 { \sectionLabel "C" s1 | }
+  \time 2/4 s1*1/2^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" \bar "||" |
+  \break \time 4/4 \sectionLabel "D" s1 |
+  \repeat percent 2 { s1 | }
   s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" |
   \break s1 |
+  \repeat percent 2 { s1 | }
+  \break s1 |
   s1 |
+  s1 |
+  \break s1 |
   s1^\markup \small \with-color #(rgb-color 0.35 0.35 0.35) "(?)" \bar "|." |
 }
 
@@ -198,10 +201,10 @@ upMusic = \drummode {
   snare4-> snare4-> snare16[ snare16 snare16 snare16] snare16->[ snare16-> snare16-> snare16->] |
   crash8[ ride8 <snare ride>8 <\parenthesize snare ride>8] ride8[ ride8 <snare ride>8 ride8] |
   \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  ride8[ ride8 <snare ride>8 ride8] <snare crash>16[ snare8 snare16] <snare crash>16->[ <snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] snare16->[ <snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
   crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
   \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  ride8[ ride8 <snare ride>8 ride8] <snare crash>16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } <snare crash>16->[ \parenthesize snare16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } snare16->[ <\parenthesize snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
   crash8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihatopen8] |
   hihatclosed8[ hihat8] <snare hihat>8[ hihat16 \parenthesize snare16] hihat8[ hihat8 <snare hihat>8 hihatopen8] |
   hihatclosed8[ hihat8] <snare hihat>8[ hihat16 \parenthesize snare16] hihat8[ hihat8 <snare hihat>8 hihatopen8] |
@@ -216,26 +219,29 @@ upMusic = \drummode {
   snare4-> snare4-> snare16[ snare16 snare16 snare16] snare16->[ snare16-> snare16-> snare16->] |
   crash8[ ride8 <snare ride>8 <\parenthesize snare ride>8] ride8[ ride8 <snare ride>8 ride8] |
   \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  ride8[ ride8 <snare ride>8 ride8] <snare crash>16[ snare8 snare16] <snare crash>16->[ <snare tomtwo>16 \parenthesize snare16 <floortom snare>16] |
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] snare16->[ <snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
   crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
   \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  ride8[ ride8 <snare ride>8 ride8] <snare crash>16[ snare8 snare16] <snare crash>16->[ <\parenthesize snare tomtwo>16 \parenthesize snare16 <floortom snare>16] |
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] snare16->[ <\parenthesize snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
   \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] <snare hihat>8[ hihat8 hihat8 hihat8] | }
-  snare16[ snare16 snare16 snare16] snare16->[ snare16 snare16-> snare16] crash8[ ride8 <snare ride>8 ride8] |
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  <snare crash>16[ snare8 snare16] <snare crash>16->[ <snare tomtwo>16 \parenthesize snare16 <floortom snare>16] crash8[ ride8 <snare ride>8 ride8] |
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  <snare crash>16[ snare8 snare16] <snare crash>16->[ <snare tomtwo>16 \parenthesize snare16 <floortom snare>16] crash8[ ride8 <snare ride>8 ride8] |
+  snare16[ snare16 snare16 snare16] snare16->[ snare16 snare16-> snare16] |
+  crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
+  \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] snare16->[ <snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
+  crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
+  \repeat percent 2 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
+  ride8[ ride8 <snare ride>8 ride8] snare16[ snare8 snare16] snare16->[ <snare tomtwo>16 <\parenthesize snare tomtwo>16 <floortom snare>16] |
+  crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
   ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
-  ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8-> ride8] |
-  ride8[ ride8 <snare ride>8-> ride8] snare32->[ \parenthesize snare32 snare32 \parenthesize snare32 <\parenthesize snare tomone>32 snare32 snare32 snare32] \parenthesize snare32[ snare32 snare32 snare32 snare32 snare32 snare32 <snare crash>32] |
+  ride8[ ride8 <snare ride>8-> ride8] ride8[ ride8 <snare ride>8-> ride8] |
+  snare32->[ \parenthesize snare32 snare32 \parenthesize snare32 <\parenthesize snare tomone>32 snare32 snare32 snare32] \parenthesize snare32[ snare32 snare32 snare32 snare32 snare32 snare32 snare32] snare32[ snare32 \parenthesize snare32 snare32 snare32 snare32 snare32 snare32] crash4 |
 }
 
 downMusic = \drummode {
   \autoBeamOff
   kick4 r8 kick8 kick4 r4 |
   \repeat percent 2 { kick4 r8 kick8 kick4 r4 | }
-  kick4 r8 kick8 kick4 r8 kick8 |
+  kick4 r8 kick8 kick4 r4 |
   kick4 r8 kick8 kick8[ kick8] r4 |
   kick4 r8 kick8 kick8[ kick8] r4 |
   kick4 r8 kick8 kick8[ kick8] r4 |
@@ -250,10 +256,10 @@ downMusic = \drummode {
   kick4 kick4 kick4 kick4 |
   kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
   \repeat percent 2 { kick8[ kick8] r8 kick8 kick8[ kick8] r4 | }
-  kick8[ kick8] r8 kick8 kick4 r8 r16 kick16 |
+  kick8[ kick8] r8 kick8 kick4 r4 |
   kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
   \repeat percent 2 { kick8[ kick8] r8 kick8 kick8[ kick8] r4 | }
-  kick8[ kick8] r8 kick8 kick16[ kick8.] r16 kick8[ kick16] |
+  kick8[ kick8] r8 kick8 kick16[ kick8.] r16 kick8. |
   kick4 r8 kick8 kick8[ kick8] r4 |
   kick4 r8 kick8 kick8[ kick8] r4 |
   kick4 r8 kick8 kick8[ kick8] r4 |
@@ -271,16 +277,19 @@ downMusic = \drummode {
   kick8[ kick8] r8 kick8 kick4 r8 kick8 |
   kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
   \repeat percent 2 { kick8[ kick8] r8 kick8 kick8[ kick8] r4 | }
-  kick8[ kick8] r8 kick8 kick4 r8 kick16[ kick16] |
+  kick8[ kick8] r8 kick8 kick4 r8 kick8 |
   \repeat percent 3 { kick4 r8 kick8 r8 kick8 r4 | }
-  kick4 kick4 kick8[ kick8] r8 kick8 |
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r8 kick8 | }
-  kick4 r8 kick8 kick8[ kick8] r8 kick8 |
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r8 kick8 | }
-  kick4 r8 kick16[ kick16] kick8[ kick8] r8 kick8 |
-  kick8[ kick8] r4 kick8[ kick8] r8 kick8 |
-  kick8[ kick8] r4 kick8[ kick8] r8 kick8 |
-  kick8[ kick8] r4 r4 kick16[ kick8 r32 kick32] |
+  kick4 kick4 |
+  kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
+  \repeat percent 2 { kick8[ kick8] r8 kick8 kick8[ kick8] r4 | }
+  kick8[ kick8] r8 kick8 kick4 r8 kick8 |
+  kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
+  \repeat percent 2 { kick8[ kick8] r8 kick8 kick8[ kick8] r4 | }
+  kick8[ kick8] r8 kick8 kick4 r8 kick8 |
+  kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
+  kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
+  kick8[ kick8] r8 kick8 kick8[ kick8] r4 |
+  r4 kick16[ kick8.] r8 r32 kick16[ kick32] kick4 |
 }
 
 drumMusic = \new DrumStaff <<
@@ -317,6 +326,7 @@ drumMusic = \new DrumStaff <<
 \score {
   \removeWithTag #'graces \unfoldRepeats \drumMusic
   \midi {
+    \tempo 4 = 84
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }
   }
 }

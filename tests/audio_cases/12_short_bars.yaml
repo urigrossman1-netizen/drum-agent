@@ -1,0 +1,48 @@
+# Audio diagnostic chart (original): short bars inside a 4/4 song (a 2/4 bar
+# before the chorus, a 3/4 bar before the outro). Every later downbeat depends
+# on finding them.
+title: "Audio case 12: Short Bars"
+artist: Drum Agent regression suite (original)
+chart_type: full_transcription
+rights: original
+tempo: 112
+patterns:
+  verse_cr:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  verse:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  push:
+    sn: "x-x-xxxx"
+    bd: "x---x---"
+  chorus_cr:
+    cr: "x---------------"
+    rd: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  chorus:
+    rd: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  turn:
+    sn: "x-x-x-xxxxxx"
+    bd: "x-------x---"
+sections:
+  - label: Verse
+    bars: [verse_cr, "verse*3", verse_cr, "verse*3"]
+  - label: Push
+    time: 2/4
+    bars: [push]
+  - label: Chorus
+    time: 4/4
+    bars: [chorus_cr, "chorus*3", chorus_cr, "chorus*3"]
+  - label: Turn
+    time: 3/4
+    bars: [turn]
+  - label: Outro
+    time: 4/4
+    bars: [verse_cr, "verse*3", verse_cr, "verse*2", {cr: "x---", bd: "x---"}]

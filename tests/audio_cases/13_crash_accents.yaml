@@ -1,0 +1,27 @@
+# Audio diagnostic chart (original): no meter change, but the last section
+# accents beat 3 with crashes. The short-bar detector must leave it alone.
+title: "Audio case 13: Crash Accents on Beat 3"
+artist: Drum Agent regression suite (original)
+chart_type: full_transcription
+rights: original
+tempo: 104
+patterns:
+  groove_cr:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+  groove:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+  accent3:
+    cr: "--------x-------"
+    hh: "x-x-x-x---x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+sections:
+  - label: A
+    bars: [groove_cr, "groove*3", groove_cr, "groove*3"]
+  - label: B
+    bars: [groove_cr, accent3, groove, accent3, groove, accent3, groove, accent3, {cr: "x---", bd: "x---"}]

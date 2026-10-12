@@ -89,6 +89,10 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         if refined is not None:
             beat_slice, bars, meter_notes = refined
             res = quantize(onsets, beat_slice, bars, qopts)
+    # A short bar (e.g. one 2/4 bar ending a section) shifts every later downbeat;
+    # crashes that move off beat 1 for good show where.
+    beat_slice, bars, res, shift_notes = _realign_downbeats(onsets, beat_slice, bars, res, qopts)
+    meter_notes += shift_notes
     measures = res.measures
     rolls = _notate_rolls(measures)
     while len(measures) > 1 and not measures[-1].hits:
@@ -185,6 +189,114 @@ def _notate_rolls(measures) -> int:
                         count += 1
                 i = j + 1
     return count
+
+
+def _crash_phases(bars: list[BarDef], measures) -> list[tuple[int, int]]:
+    """(bar, beat index) of every crash on a beat, in bars of one simple meter."""
+    out = []
+    for i, (b, m) in enumerate(zip(bars, measures)):
+        ts = b.time_sig
+        if ts.is_compound or ts.is_irregular or b.beats != len(ts.beats()):
+            continue
+        beat_len = ts.beats()[0][1]
+        for h in m.hits:
+            q = h.pos / beat_len
+            if h.inst == "crash" and q.denominator == 1:
+                out.append((i, int(q)))
+    return sorted(out)
+
+
+def _find_downbeat_shift(bars: list[BarDef], measures, after_bar: int = -1) -> tuple[int, int] | None:
+    """First bar (after `after_bar`) from which crashes sit on beat p+1 instead of beat 1.
+
+    Crash phases are grouped into runs; single off-phase crashes (accents) are
+    ignored. A shift is a run of at least two downbeat crashes followed by a run
+    of at least two crashes on another beat. Each change is reported on its own,
+    so two short bars in a song are found one after the other.
+    """
+    runs: list[list] = []  # [phase, [bar, ...]]
+    for i, ph in _crash_phases(bars, measures):
+        if runs and runs[-1][0] == ph:
+            runs[-1][1].append(i)
+        else:
+            runs.append([ph, [i]])
+    merged: list[list] = []
+    for ph, bs in (r for r in runs if len(r[1]) >= 2):
+        if merged and merged[-1][0] == ph:
+            merged[-1][1] += bs
+        else:
+            merged.append([ph, list(bs)])
+    for (ph0, _), (ph1, bs1) in zip(merged, merged[1:]):
+        i = bs1[0]
+        if ph0 == 0 and ph1 != 0 and i > after_bar:
+            ts = bars[i].time_sig
+            if all(b.time_sig == ts and b.beats == len(ts.beats()) for b in bars[i:]):
+                return i, ph1
+    return None
+
+
+def _repetition_score(measures, start: int, earlier: int) -> float:
+    """Mean best match (Jaccard on (position, instrument)) of bars from `start` with bars before `earlier`."""
+    def key(m):
+        return {(h.pos, h.inst) for h in m.hits}
+    ref = [key(m) for m in measures[:earlier] if len(m.hits) >= 3]
+    scores = []
+    for m in measures[start:]:
+        k = key(m)
+        if len(k) >= 3 and ref:
+            scores.append(max(len(k & r) / len(k | r) for r in ref))
+    return sum(scores) / len(scores) if scores else 0.0
+
+
+REPEAT_STRONG = 0.6  # mean best-match of bars with earlier bars that counts as "clearly repeating"
+
+
+def _realign_downbeats(onsets, beats: list[float], bars: list[BarDef], res, qopts):
+    """Insert a short bar where the downbeat shifts, if that explains the music better.
+
+    The change is kept only if the bars after it repeat earlier material more
+    closely than before (a section that merely accents beat 3 doesn't), and the
+    inserted bar is flagged for a listen.
+    """
+    notes: list[str] = []
+    after_bar = -1
+    for _ in range(4):  # at most a few short bars per song
+        found = _find_downbeat_shift(bars, res.measures, after_bar)
+        if found is None:
+            break
+        b, p = found
+        ts = bars[b].time_sig
+        start = bars[b].first_beat
+        bpb = len(ts.beats())
+        short = TimeSig(p, ts.den)
+        new_bars = bars[:b] + [BarDef(start, short, p)]
+        new_bars += [BarDef(start + p + j * bpb, ts, bpb) for j in range(len(bars) - b)]
+        need = new_bars[-1].first_beat + new_bars[-1].beats + 1
+        new_beats = list(beats)
+        while len(new_beats) < need:
+            new_beats.append(new_beats[-1] + (new_beats[-1] - new_beats[-2]))
+        res2 = quantize(onsets, new_beats, new_bars, qopts)
+        before = _repetition_score(res.measures, b, b)
+        after = _repetition_score(res2.measures, b + 1, b)
+        # Keep the barring only when it already explains strong repetition of
+        # earlier bars better (e.g. crash accents on beat 3 over the same groove).
+        # New material that repeats nothing earlier either way leaves the crashes
+        # as the evidence.
+        if (before >= REPEAT_STRONG and after < before + 0.05) or after < before - 0.05:
+            notes.append(f"crashes move to beat {p + 1} from bar {b + 1}, but a short bar there doesn't make the "
+                         f"music repeat better ({after:.2f} vs {before:.2f}); barring kept. Check the downbeats "
+                         f"from bar {b + 1} by ear.")
+            after_bar = b
+            continue
+        bars, beats, res = new_bars, new_beats, res2
+        after_bar = b + 1
+        m = res.measures[b]
+        m.uncertain = True
+        m.notes.append(f"short bar ({short}) inserted: the downbeat shifts here")
+        notes.append(f"bar {b + 1}: the downbeat shifts by {p} beat(s) (crashes moved from beat 1 to beat {p + 1}); "
+                     f"a {short} bar was inserted (bars after it repeat earlier ones {after:.2f} vs {before:.2f}). "
+                     f"Verify by ear.")
+    return beats, bars, res, notes
 
 
 def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measures, ts: TimeSig):

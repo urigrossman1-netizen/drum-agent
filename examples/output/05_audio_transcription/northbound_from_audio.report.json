@@ -2,18 +2,18 @@
  "title": "Northbound (transcribed from audio)",
  "chart_type": "full_transcription",
  "status": "unverified_auto",
- "bars": 59,
- "events": 927,
+ "bars": 60,
+ "events": 925,
  "files": {
-  "json": "examples/output/05_audio_transcription/northbound_from_audio.json",
+  "json": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.json",
   "ly": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.ly",
   "pdf": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.pdf",
   "png1": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio-page1.png",
   "png2": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio-page2.png",
   "engraved_midi": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.midi",
-  "musicxml": "examples/output/05_audio_transcription/northbound_from_audio.musicxml",
-  "midi": "examples/output/05_audio_transcription/northbound_from_audio.mid",
-  "report": "examples/output/05_audio_transcription/northbound_from_audio.report.md"
+  "musicxml": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.musicxml",
+  "midi": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.mid",
+  "report": "/home/user/drum-agent/examples/output/05_audio_transcription/northbound_from_audio.report.md"
  },
  "rendering_ok": true,
  "lilypond_version": "2.26.0",
@@ -21,20 +21,50 @@
   {
    "name": "engraved score (LilyPond MIDI)",
    "ok": true,
-   "expected": 927,
-   "found": 927
+   "expected": 925,
+   "found": 925
+  },
+  {
+   "name": "engraved score tempo map",
+   "ok": true,
+   "expected": 60,
+   "found": 60
   },
   {
    "name": "MusicXML",
    "ok": true,
-   "expected": 927,
-   "found": 927
+   "expected": 925,
+   "found": 925
+  },
+  {
+   "name": "MusicXML articulations",
+   "ok": true,
+   "expected": 87,
+   "found": 87
+  },
+  {
+   "name": "MusicXML meters",
+   "ok": true,
+   "expected": 60,
+   "found": 60
   },
   {
    "name": "MIDI",
    "ok": true,
-   "expected": 928,
-   "found": 928
+   "expected": 926,
+   "found": 926
+  },
+  {
+   "name": "MIDI tempo map",
+   "ok": true,
+   "expected": 60,
+   "found": 60
+  },
+  {
+   "name": "MIDI barlines",
+   "ok": true,
+   "expected": 60,
+   "found": 60
   }
  ],
  "musicxml_errors": [],
@@ -49,7 +79,6 @@
   14,
   15,
   17,
-  20,
   21,
   24,
   25,
@@ -64,10 +93,9 @@
   35,
   36,
   40,
-  44,
+  48,
   52,
-  56,
-  59
+  60
  ],
  "uncertain_score_bars": [
   4,
@@ -80,7 +108,6 @@
   14,
   15,
   17,
-  20,
   21,
   24,
   25,
@@ -95,10 +122,9 @@
   35,
   36,
   40,
-  44,
+  48,
   52,
-  56,
-  59
+  60
  ],
  "warnings": [],
  "layout_notes": [],
@@ -106,37 +132,38 @@
   "input": "audio",
   "tempo_estimate": "83.35 BPM (quarter note)",
   "meter": "4/4 (confidence 1.0)",
-  "downbeat_confidence": 0.79,
+  "downbeat_confidence": 0.91,
   "feel": "straight",
-  "detected_onsets": 937,
+  "detected_onsets": 925,
   "instrument_counts": {
-   "kick": 250,
-   "snare": 242,
+   "snare": 250,
+   "kick": 247,
    "ride": 185,
    "hihat": 156,
    "floor_tom": 46,
-   "crash": 23,
    "hihat_open": 15,
-   "tom2": 7,
+   "tom2": 12,
+   "crash": 11,
    "tom1": 3
   },
-  "low_confidence_hits": 87,
+  "low_confidence_hits": 83,
   "rolls_notated": 0,
-  "mean_abs_offset_ms": 8.6,
+  "mean_abs_offset_ms": 1.6,
   "grid_counts": {
    "2": 197,
    "4": 31,
-   "1": 6,
-   "8": 2
+   "1": 7,
+   "8": 3
   },
   "sections": [
    "A: bar 1, 24 bars, hihat, 7 fill bar(s)",
    "B: bar 25, 20 bars, hihat, 7 fill bar(s)",
    "C: bar 45, 4 bars, hihat, 1 fill bar(s)",
-   "D: bar 49, 11 bars, ride, 3 fill bar(s)"
+   "D: bar 49, 12 bars, ride, 3 fill bar(s)"
   ],
   "notes": [
    "tempo ambiguous: 83 BPM chosen, 167 BPM also plausible (score 0.92 of best); pass --bpm if the chart reads at the wrong speed",
+   "bar 48: the downbeat shifts by 2 beat(s) (crashes moved from beat 1 to beat 3); a 2/4 bar was inserted (bars after it repeat earlier ones 0.93 vs 0.71). Verify by ear.",
    "Section letters are pattern-based; rename them with --sections once you know the song form.",
    "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed."
   ]
