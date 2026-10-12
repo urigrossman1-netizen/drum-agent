@@ -96,6 +96,17 @@ _THRESH = {
 }
 
 
+# Kick vs tom at one instant (loudness relative to the recording's typical stroke of
+# each class). Measured on synthesized charts with known content, standard and
+# held-out kits, with and without a band: a lone tom bleeds into the kick band at
+# up to ~0.4 of the tom's loudness (absolute <= ~0.45), real kicks under toms stay
+# above ~0.5; a false tom on a crash + kick downbeat is ~0.6 of the kick's
+# loudness, real toms with a kick 0.8 and up.
+KICK_UNDER_TOM = 0.4  # a "kick" quieter than this fraction of the tom ...
+KICK_UNDER_TOM_ABS = 0.6  # ... and quieter than this is tom bleed
+TOM_WITH_KICK_LOUD = 0.9  # a tom with a kick keeps its label when this loud
+TOM_VS_KICK = 0.75  # ... or (no crash sounding) at least this fraction of the kick
+
 HARM_MARGIN = 1.0  # HPSS margin for the harmonic part that trains the accompaniment basis
 CHUNK_S = 30.0  # front end works in chunks so memory doesn't grow with song length
 OVERLAP_S = 1.0
@@ -347,11 +358,22 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             if v[1] < 0.7 * toms[0][1][1]:
                 score.pop(c)
         for c in [c for c in score if c in TOMS]:
+            if "kick" in score and score["kick"][1] < KICK_UNDER_TOM * score[c][1] \
+                    and score["kick"][1] < KICK_UNDER_TOM_ABS:
+                # A tom's low fundamental bleeds into the kick band; a "kick" much
+                # quieter than the tom it sounds with is that bleed, not a stroke.
+                score.pop("kick")
             # A crash + kick downbeat partly matches the floor-tom template; a tom that
-            # coincides with a kick must show strong evidence of its own.
-            if "kick" in score and (score[c][1] < 0.9 or score[c][0] < 0.5):
-                score.pop(c)
-                continue
+            # coincides with a kick must show evidence of its own: loud in absolute
+            # terms, or about as loud as the kick.
+            if "kick" in score:
+                t_share, t_loud = score[c][0], score[c][1]
+                own = t_loud >= TOM_WITH_KICK_LOUD
+                if "crash" not in score:  # a crash's low partials feed the tom templates
+                    own = own or t_loud >= TOM_VS_KICK * score["kick"][1]
+                if t_share < 0.5 or not own:
+                    score.pop(c)
+                    continue
             for other in ("snare", "kick"):
                 if other in score and r_cls[c][k] < 0.6 * r_cls[other][k] * (region_ref[c] / region_ref[other]):
                     score.pop(c, None)
