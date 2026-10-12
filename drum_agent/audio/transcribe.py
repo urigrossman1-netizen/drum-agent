@@ -206,7 +206,7 @@ def _crash_phases(bars: list[BarDef], measures) -> list[tuple[int, int]]:
     return sorted(out)
 
 
-def _find_downbeat_shift(bars: list[BarDef], measures, after_bar: int = -1) -> tuple[int, int] | None:
+def _find_downbeat_shift(bars: list[BarDef], measures, after_bar: int = -1) -> tuple[int, int, int] | None:
     """First bar (after `after_bar`) from which crashes sit on beat p+1 instead of beat 1.
 
     Crash phases are grouped into runs; single off-phase crashes (accents) are
@@ -226,22 +226,24 @@ def _find_downbeat_shift(bars: list[BarDef], measures, after_bar: int = -1) -> t
             merged[-1][1] += bs
         else:
             merged.append([ph, list(bs)])
-    for (ph0, _), (ph1, bs1) in zip(merged, merged[1:]):
+    for k, ((ph0, _), (ph1, bs1)) in enumerate(zip(merged, merged[1:])):
         i = bs1[0]
         if ph0 == 0 and ph1 != 0 and i > after_bar:
             ts = bars[i].time_sig
             if all(b.time_sig == ts and b.beats == len(ts.beats()) for b in bars[i:]):
-                return i, ph1
+                # The shift governs the bars up to the next change of crash phase.
+                end = merged[k + 2][1][0] if k + 2 < len(merged) else len(bars)
+                return i, ph1, end
     return None
 
 
-def _repetition_score(measures, start: int, earlier: int) -> float:
-    """Mean best match (Jaccard on (position, instrument)) of bars from `start` with bars before `earlier`."""
+def _repetition_score(measures, start: int, earlier: int, stop: int | None = None) -> float:
+    """Mean best match (Jaccard on (position, instrument)) of bars start..stop-1 with bars before `earlier`."""
     def key(m):
         return {(h.pos, h.inst) for h in m.hits}
     ref = [key(m) for m in measures[:earlier] if len(m.hits) >= 3]
     scores = []
-    for m in measures[start:]:
+    for m in measures[start:stop]:
         k = key(m)
         if len(k) >= 3 and ref:
             scores.append(max(len(k & r) / len(k | r) for r in ref))
@@ -265,7 +267,7 @@ def _realign_downbeats(onsets, beats: list[float], bars: list[BarDef], res, qopt
         found = _find_downbeat_shift(bars, res.measures, after_bar)
         if found is None:
             break
-        b, p = found
+        b, p, end = found
         ts = bars[b].time_sig
         start = bars[b].first_beat
         bpb = len(ts.beats())
@@ -277,8 +279,8 @@ def _realign_downbeats(onsets, beats: list[float], bars: list[BarDef], res, qopt
         while len(new_beats) < need:
             new_beats.append(new_beats[-1] + (new_beats[-1] - new_beats[-2]))
         res2 = quantize(onsets, new_beats, new_bars, qopts)
-        before = _repetition_score(res.measures, b, b)
-        after = _repetition_score(res2.measures, b + 1, b)
+        before = _repetition_score(res.measures, b, b, end)
+        after = _repetition_score(res2.measures, b + 1, b, end + 1)
         # Keep the barring only when it already explains strong repetition of
         # earlier bars better (e.g. crash accents on beat 3 over the same groove).
         # New material that repeats nothing earlier either way leaves the crashes

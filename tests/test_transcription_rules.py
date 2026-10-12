@@ -48,12 +48,12 @@ def bars_with_crashes(crash_at: dict[int, F], n: int = 24):
 
 def test_shift_found_where_crashes_move_to_beat_three():
     bars, ms = bars_with_crashes({0: F(0), 4: F(0), 8: F(0), 12: F(1, 2), 16: F(1, 2), 20: F(1, 2)})
-    assert _find_downbeat_shift(bars, ms) == (12, 2)
+    assert _find_downbeat_shift(bars, ms) == (12, 2, 24)
 
 
 def test_two_shifts_are_found_one_after_the_other():
     bars, ms = bars_with_crashes({0: F(0), 4: F(0), 8: F(1, 2), 12: F(1, 2), 16: F(1, 4), 20: F(1, 4)})
-    assert _find_downbeat_shift(bars, ms) == (8, 2)
+    assert _find_downbeat_shift(bars, ms) == (8, 2, 16)  # governs bars 8-15
     # The next change (beat 3 -> beat 2) is only judged after bar 8 is re-barred and
     # re-quantized, when the outro's crashes sit off beat 1 of the corrected barring.
     assert _find_downbeat_shift(bars, ms, after_bar=8) is None
