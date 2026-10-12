@@ -62,3 +62,12 @@ def test_cli_transcribe_without_rights_fails(tmp_path, capsys):
     rc = main(["transcribe", str(tmp_path / "x.wav"), "-o", str(tmp_path)])
     assert rc == 1
     assert "rights" in capsys.readouterr().err
+
+
+@needs_lilypond
+def test_relative_output_directory(tmp_path, monkeypatch):
+    # LilyPond runs inside the output directory; a relative path must still work.
+    monkeypatch.chdir(tmp_path)
+    res = render('\\version "2.24.0"\n\\score { \\drums { sn4 sn4 sn4 sn4 } \\layout {} \\midi {} }',
+                 "out/rel", "x")
+    assert res.pdf.exists() and res.pdf.is_absolute()

@@ -1,0 +1,260 @@
+{
+ "schema": 1,
+ "title": "Basic Rock Beat",
+ "artist": "Drum Agent examples (original)",
+ "transcriber": "Drum Agent",
+ "rights": "original",
+ "chart_type": "pattern_study",
+ "status": "verified",
+ "measures": [
+  {
+   "time": "4/4",
+   "tempo": 100.0,
+   "section": "Groove",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "15/16",
+     "inst": "snare",
+     "ghost": true
+    }
+   ]
+  }
+ ]
+}

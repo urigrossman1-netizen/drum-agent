@@ -55,6 +55,7 @@ def _print_report(report, out: Path) -> int:
         print(f"  MusicXML schema errors: {report.musicxml_errors[:5]}")
     if report.uncertain_bars:
         print(f"  bars to verify by ear (printed numbers): {report.uncertain_bars}")
+        print(f"  ... as score.json bar numbers (for `drum-agent edit`): {report.uncertain_score_bars}")
     for w in report.warnings:
         print(f"  warning: {w}")
     return 0 if report.rendering_ok else 2
@@ -176,6 +177,51 @@ def cmd_verify(args) -> int:
     return 0 if ok else 2
 
 
+def cmd_edit(args) -> int:
+    """Apply corrections to a score.json; optionally re-render."""
+    from . import edit as E
+    from .charts import load_any
+    kit = _kit(args)
+    score = load_any(args.score, kit)
+    log = []
+    for spec in args.relabel or []:
+        n = E.relabel(score, spec, args.bars, kit)
+        log.append(f"relabel {spec} in bars {args.bars or 'all'}: {n} hits")
+    for spec in args.delete or []:
+        E.delete(score, spec, kit)
+        log.append(f"deleted {spec}")
+    for spec in args.add or []:
+        E.add(score, spec, kit)
+        log.append(f"added {spec}")
+    for spec in args.set or []:
+        E.set_flags(score, spec, kit)
+        log.append(f"set {spec}")
+    if args.sections:
+        E.set_sections(score, args.sections)
+        log.append(f"sections {args.sections}")
+    for spec in args.tempo or []:
+        E.set_tempo(score, spec)
+        log.append(f"tempo {spec}")
+    if args.verified is not None:
+        n = E.mark_verified(score, args.verified or None)
+        log.append(f"marked {n} flagged bar(s) verified")
+    for name in ("title", "artist", "transcriber", "chart_type", "status"):
+        if getattr(args, name, None):
+            setattr(score, name, getattr(args, name))
+            log.append(f"{name} = {getattr(args, name)}")
+    score.validate(kit)
+    out = Path(args.output or args.score)
+    score.save(out)
+    for line in log:
+        print(line)
+    print(f"saved {out}")
+    if args.render:
+        from .pipeline import ExportOptions, export_all
+        report = export_all(score, args.render, out.stem, kit, ExportOptions())
+        return _print_report(report, Path(args.render))
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from .doctor import run_doctor
     return run_doctor()
@@ -254,6 +300,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--midi")
     p.add_argument("--ly-midi", help="MIDI written by LilyPond from the engraved .ly")
     p.set_defaults(func=cmd_verify)
+
+    p = sub.add_parser("edit", help="correct a score.json (relabel, add, delete, sections, verify)")
+    p.add_argument("score", help="IR score .json (as written by transcribe/midi/render)")
+    p.add_argument("--relabel", action="append", help="FROM=TO, e.g. ride=hihat (use --bars to limit)")
+    p.add_argument("--bars", help="bar range for --relabel, e.g. 9-16 (1-based performance bars)")
+    p.add_argument("--delete", action="append", help="BAR:POS:INST, e.g. 12:7/8:kick")
+    p.add_argument("--add", action="append", help="BAR:POS:INST[:flags], e.g. 12:3/8:snare:ghost")
+    p.add_argument("--set", action="append", help="BAR:POS:INST:flags (replaces flags), e.g. 5:1/4:snare:accent")
+    p.add_argument("--sections", help='"Intro:1,Verse:5,Chorus:13"')
+    p.add_argument("--tempo", action="append", help="BAR:BPM, e.g. 29:100")
+    p.add_argument("--verified", nargs="?", const="", default=None,
+                   help="clear review flags (optionally only BARS, e.g. 9-16) after checking by ear")
+    p.add_argument("--title")
+    p.add_argument("--artist")
+    p.add_argument("--transcriber")
+    p.add_argument("--chart-type", dest="chart_type", choices=["full_transcription", "performance_chart", "pattern_study"])
+    p.add_argument("--status", choices=["verified", "unverified_auto", "draft"])
+    p.add_argument("-o", "--output", help="write to this .json instead of overwriting")
+    p.add_argument("--render", metavar="OUT_DIR", help="re-render all formats after editing")
+    p.add_argument("--kit", help="JSON kit override file")
+    p.set_defaults(func=cmd_edit)
 
     p = sub.add_parser("doctor", help="check dependencies")
     p.set_defaults(func=cmd_doctor)

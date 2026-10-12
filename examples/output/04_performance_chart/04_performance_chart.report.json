@@ -1,0 +1,47 @@
+{
+ "title": "Late Train (gig chart)",
+ "chart_type": "performance_chart",
+ "status": "verified",
+ "bars": 33,
+ "events": 432,
+ "files": {
+  "json": "examples/output/04_performance_chart/04_performance_chart.json",
+  "ly": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.ly",
+  "pdf": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.pdf",
+  "png1": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.png",
+  "engraved_midi": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.midi",
+  "musicxml": "examples/output/04_performance_chart/04_performance_chart.musicxml",
+  "midi": "examples/output/04_performance_chart/04_performance_chart.mid",
+  "report": "examples/output/04_performance_chart/04_performance_chart.report.md"
+ },
+ "rendering_ok": true,
+ "lilypond_version": "2.26.0",
+ "comparisons": [
+  {
+   "name": "engraved score (LilyPond MIDI)",
+   "ok": true,
+   "expected": 432,
+   "found": 432
+  },
+  {
+   "name": "MusicXML",
+   "ok": true,
+   "expected": 432,
+   "found": 432
+  },
+  {
+   "name": "MIDI",
+   "ok": true,
+   "expected": 432,
+   "found": 432
+  }
+ ],
+ "musicxml_errors": [],
+ "uncertain_bars": [],
+ "uncertain_score_bars": [],
+ "warnings": [],
+ "layout_notes": [
+  "Fitted onto 1 page(s) instead of 2 (the last page held only a sliver); vertical spacing slightly compressed."
+ ],
+ "analysis": {}
+}

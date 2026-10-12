@@ -99,8 +99,10 @@ def header(score: Score) -> str:
     return "\n".join(lines)
 
 
-def paper(paper_size: str, staff_size: float, ragged_last: bool) -> str:
+def paper(paper_size: str, staff_size: float, ragged_last: bool, page_count: int | None = None) -> str:
     footer = "  ragged-last = ##t\n" if ragged_last else ""
+    if page_count:
+        footer += f"  page-count = {int(page_count)}\n"
     return (
         f"#(set-global-staff-size {staff_size})\n"
         "\\paper {\n"
@@ -436,7 +438,7 @@ def _short_last_line(score: Score, plan: LayoutPlan) -> bool:
 
 def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = None,
                 paper_size: str = "letter", staff_size: float = 20, with_legend: bool = True,
-                repeats: str = "auto", bars_per_line: float = 4.0) -> str:
+                repeats: str = "auto", bars_per_line: float = 4.0, page_count: int | None = None) -> str:
     score.validate(kit)
     if plan is None:
         plan = plan_layout(score, repeats=repeats, bars_per_line=bars_per_line)
@@ -445,7 +447,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     parts = [
         preamble(kit),
         header(score),
-        paper(paper_size, staff_size, _short_last_line(score, plan)),
+        paper(paper_size, staff_size, _short_last_line(score, plan), page_count),
         layout_block(),
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",
         f"upMusic = \\drummode {{\n  \\autoBeamOff\n  {up}\n}}",

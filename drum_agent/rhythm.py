@@ -147,7 +147,11 @@ def plan_segments(ts: TimeSig, points: list[Fraction], offset: Fraction) -> list
                 and any(h[0] == start and h[1] == 2 * length for h in halves)):
             span = 2 * length
             pts = [p for p in points if start <= p < start + span]
-            if (pts and _fits(pts, start, span, 3) and not _fits(pts, start, span, 2)
+            # Only a real quarter-triplet figure (strokes on both inner triplet
+            # points): a lone stroke that happens to sit on that grid, like the
+            # "let" of 3 in a shuffle, reads better as 8th triplets per beat.
+            inner = {start + span / 3, start + 2 * span / 3} <= set(pts)
+            if (inner and _fits(pts, start, span, 3) and not _fits(pts, start, span, 2)
                     and not _fits(pts, start, span, 4)):
                 segs.append(_make_segment(start, span, 3, (3, 2)))
                 i += 2
@@ -387,6 +391,27 @@ def _merge_roll_ties(tokens: list[Token], ts: TimeSig, segments: list[Segment],
                        segment=group[0].segment)
         idx = tokens.index(group[0])
         tokens = tokens[:idx] + [merged] + tokens[idx + len(group):]
+    # A roll from beat 1 over three beats of a simple meter is one dotted half
+    # (dotted values starting on the downbeat hide no beat a reader needs).
+    if not ts.is_compound and not ts.is_irregular:
+        beat_ends = {s + l for s, l in ts.beats()}
+        run = []
+        for t in tokens:
+            if (t.kind == "note" and t.is_roll and t.tuplet is None and t.pos == sum(x.dur for x in run)
+                    and (not run or (run[-1].tie_start and t.tie_stop
+                                     and [h.key() for h in t.hits] == [h.key() for h in run[0].hits]))):
+                run.append(t)
+            else:
+                break
+        for k in range(len(run), 1, -1):
+            length = sum(t.dur for t in run[:k])
+            rv = representable(length)
+            if rv is not None and rv[1] == 1 and length in beat_ends:
+                merged = Token("note", Fraction(0), length, rv[0], rv[1], hits=run[0].hits,
+                               tie_start=run[k - 1].tie_start, tie_stop=run[0].tie_stop,
+                               segment=run[0].segment)
+                tokens = [merged] + tokens[k:]
+                break
     return tokens
 
 

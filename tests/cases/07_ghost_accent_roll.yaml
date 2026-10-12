@@ -23,6 +23,9 @@ patterns:
   drags:
     sn: "d---x---d---X---"
     bd: "x---x---x---x---"
+  tied_roll:
+    sn: "x---r~~~~~~~x---"
+    bd: "x-------x-------"
 sections:
   - label: A
-    bars: [ghosts, accents, flams, rolls, long_roll, drags]
+    bars: [ghosts, accents, flams, rolls, long_roll, drags, tied_roll]

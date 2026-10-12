@@ -147,6 +147,11 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
     for pname, pat in patterns.items():
         if not isinstance(pat, dict):
             raise ChartSpecError(f"pattern {pname!r} must map instruments to strings")
+        misplaced = sorted(set(pat) & _BAR_KEYS)
+        if misplaced:
+            raise ChartSpecError(
+                f"pattern {pname!r} contains {misplaced}; patterns hold instrument lines only. "
+                f"Set these on the section or on the bar entry, e.g. {{pattern: {pname}, {misplaced[0]}: ...}}")
     ts = TimeSig.parse(str(spec.get("time", "4/4")), spec.get("beat_groups"))
     tempo = parse_tempo(spec.get("tempo", 120))
     measures: list[Measure] = []

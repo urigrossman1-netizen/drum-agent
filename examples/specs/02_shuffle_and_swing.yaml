@@ -1,0 +1,41 @@
+# Triplet-based feels: a half-time shuffle written out in triplets, then a
+# jazz ride pattern written in straight 8ths under a "Swing" marking.
+title: Shuffle and Swing
+artist: Drum Agent examples (original)
+transcriber: Drum Agent
+chart_type: pattern_study
+rights: original
+tempo: 76
+patterns:
+  shuffle:
+    hh: "x-xx-xx-xx-x"
+    sn: "-g--g-Xg--g-"
+    bd: "x----x--x---"
+  shuffle_open:
+    hh: "x-xx-xx-xo-x"
+    sn: "-g--g-Xg--g-"
+    bd: "x----x--x-x-"
+  shuffle_fill:
+    hh: "x-x|x-x|---|---"
+    sn: "-g-|-gX|xxx|X--"
+    t1: "---|---|---|-xx"
+    bd: "x--|---|x--|---"
+  swing:
+    rd: "x-xxx-xx"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  swing_comp:
+    rd: "x-xxx-xx"
+    sn: "-----g-x"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  swing_end:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Half-time shuffle
+    bars: [shuffle, shuffle, shuffle_open, shuffle_fill]
+  - label: Jazz swing
+    tempo: 160
+    tempo_text: Swing
+    bars: [swing, swing_comp, swing, swing_comp, swing, swing_comp, swing, swing_end]

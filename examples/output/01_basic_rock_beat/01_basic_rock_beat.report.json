@@ -1,0 +1,44 @@
+{
+ "title": "Basic Rock Beat",
+ "chart_type": "pattern_study",
+ "status": "verified",
+ "bars": 4,
+ "events": 56,
+ "files": {
+  "json": "examples/output/01_basic_rock_beat/01_basic_rock_beat.json",
+  "ly": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.ly",
+  "pdf": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.pdf",
+  "png1": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.png",
+  "engraved_midi": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.midi",
+  "musicxml": "examples/output/01_basic_rock_beat/01_basic_rock_beat.musicxml",
+  "midi": "examples/output/01_basic_rock_beat/01_basic_rock_beat.mid",
+  "report": "examples/output/01_basic_rock_beat/01_basic_rock_beat.report.md"
+ },
+ "rendering_ok": true,
+ "lilypond_version": "2.26.0",
+ "comparisons": [
+  {
+   "name": "engraved score (LilyPond MIDI)",
+   "ok": true,
+   "expected": 56,
+   "found": 56
+  },
+  {
+   "name": "MusicXML",
+   "ok": true,
+   "expected": 56,
+   "found": 56
+  },
+  {
+   "name": "MIDI",
+   "ok": true,
+   "expected": 56,
+   "found": 56
+  }
+ ],
+ "musicxml_errors": [],
+ "uncertain_bars": [],
+ "uncertain_score_bars": [],
+ "warnings": [],
+ "analysis": {}
+}

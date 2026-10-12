@@ -1,0 +1,3795 @@
+{
+ "schema": 1,
+ "title": "Northbound",
+ "artist": "Drum Agent examples (original song)",
+ "transcriber": "Drum Agent",
+ "rights": "original",
+ "chart_type": "full_transcription",
+ "status": "verified",
+ "measures": [
+  {
+   "time": "4/4",
+   "tempo": 84.0,
+   "section": "Intro",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "tom1"
+    },
+    {
+     "pos": "11/16",
+     "inst": "tom1"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "13/16",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Verse 1",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "13/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "snare"
+    },
+    {
+     "pos": "15/16",
+     "inst": "snare"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Pre-Chorus",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "1/4",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "15/16",
+     "inst": "snare",
+     "accent": true
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Chorus",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Verse 2",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat_open"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare",
+     "ghost": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "13/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "snare"
+    },
+    {
+     "pos": "15/16",
+     "inst": "snare"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Pre-Chorus",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "3/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "floor_tom"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "1/4",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/8",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "15/16",
+     "inst": "snare",
+     "accent": true
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Chorus",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Bridge",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "hihat"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "hihat"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare"
+    },
+    {
+     "pos": "5/8",
+     "inst": "hihat"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/4",
+     "inst": "hihat"
+    },
+    {
+     "pos": "7/8",
+     "inst": "hihat"
+    }
+   ]
+  },
+  {
+   "time": "2/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "snare"
+    },
+    {
+     "pos": "1/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "1/8",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "1/4",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "5/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "snare",
+     "accent": true
+    },
+    {
+     "pos": "7/16",
+     "inst": "snare"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Chorus",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "snare",
+     "flam": true
+    },
+    {
+     "pos": "9/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "11/16",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare",
+     "accent": true,
+     "flam": true
+    },
+    {
+     "pos": "13/16",
+     "inst": "tom2"
+    },
+    {
+     "pos": "7/8",
+     "inst": "tom2"
+    },
+    {
+     "pos": "15/16",
+     "inst": "floor_tom"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "section": "Outro",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "crash"
+    },
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "kick"
+    },
+    {
+     "pos": "0",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "3/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "3/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "1/2",
+     "inst": "kick"
+    },
+    {
+     "pos": "1/2",
+     "inst": "ride"
+    },
+    {
+     "pos": "5/8",
+     "inst": "kick"
+    },
+    {
+     "pos": "5/8",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "ride"
+    },
+    {
+     "pos": "3/4",
+     "inst": "snare"
+    },
+    {
+     "pos": "7/8",
+     "inst": "ride"
+    }
+   ]
+  },
+  {
+   "time": "4/4",
+   "hits": [
+    {
+     "pos": "0",
+     "inst": "snare",
+     "roll": "3/4"
+    },
+    {
+     "pos": "3/4",
+     "inst": "crash"
+    },
+    {
+     "pos": "3/4",
+     "inst": "kick"
+    }
+   ]
+  }
+ ]
+}

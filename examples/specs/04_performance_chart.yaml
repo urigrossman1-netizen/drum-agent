@@ -1,0 +1,46 @@
+# A performance chart: grooves plus the roadmap, the way a sub reads a gig
+# chart. It is labelled as such and doesn't claim to be a transcription.
+title: Late Train (gig chart)
+artist: Drum Agent examples (original)
+transcriber: Drum Agent
+chart_type: performance_chart
+rights: original
+tempo: 118
+patterns:
+  verse:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  verse_cr:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  setup:
+    hh: "x-x-x-x-x-x-----"
+    sn: "----x-------x-xx"
+    bd: "x-------x-------"
+  chorus:
+    rd: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  chorus_cr:
+    cr: "x---------------"
+    rd: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x-----x-x-----"
+  hits:
+    cr: "x-----x---------"
+    sn: "x-----x---------"
+    bd: "x-----x---------"
+sections:
+  - label: Verse
+    bars: [verse_cr, "verse*6", setup]
+  - label: Chorus
+    bars: [chorus_cr, "chorus*6", setup]
+  - label: Verse
+    bars: [verse_cr, "verse*6", setup]
+  - label: Chorus
+    bars: [chorus_cr, "chorus*6", setup]
+  - label: Ending
+    bars: [hits]

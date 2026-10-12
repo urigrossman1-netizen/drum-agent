@@ -41,6 +41,9 @@ def test_errors_are_explicit():
         one_bar({"sn": "o---"})  # open only valid on the hi-hat line
     with pytest.raises(ChartSpecError):
         compile_spec({"sections": [{"bars": ["nope"]}]})
+    with pytest.raises(ChartSpecError, match="instrument lines only"):
+        compile_spec({"patterns": {"turn": {"time": "2/4", "sn": "xxxx"}},
+                      "sections": [{"bars": ["turn"]}]})
 
 
 def test_tempo_units():

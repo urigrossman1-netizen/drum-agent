@@ -1,0 +1,44 @@
+{
+ "title": "Shuffle and Swing",
+ "chart_type": "pattern_study",
+ "status": "verified",
+ "bars": 12,
+ "events": 156,
+ "files": {
+  "json": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.json",
+  "ly": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.ly",
+  "pdf": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.pdf",
+  "png1": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.png",
+  "engraved_midi": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.midi",
+  "musicxml": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.musicxml",
+  "midi": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.mid",
+  "report": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.report.md"
+ },
+ "rendering_ok": true,
+ "lilypond_version": "2.26.0",
+ "comparisons": [
+  {
+   "name": "engraved score (LilyPond MIDI)",
+   "ok": true,
+   "expected": 156,
+   "found": 156
+  },
+  {
+   "name": "MusicXML",
+   "ok": true,
+   "expected": 156,
+   "found": 156
+  },
+  {
+   "name": "MIDI",
+   "ok": true,
+   "expected": 156,
+   "found": 156
+  }
+ ],
+ "musicxml_errors": [],
+ "uncertain_bars": [],
+ "uncertain_score_bars": [],
+ "warnings": [],
+ "analysis": {}
+}

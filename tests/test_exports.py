@@ -111,6 +111,8 @@ def test_case07_articulations(rendered):
     ly = _ly(report)
     assert "\\parenthesize" in ly and "\\acciaccatura" in ly and ":32" in ly and "~" in ly
     assert "snare2:32" in ly  # half-bar roll as one half note
+    assert "snare2.:32" in ly  # three-beat roll from the downbeat: one dotted half
+    assert "snare4:32~" in ly  # a roll across the middle of the bar stays tied
 
 
 def test_case08_tuplets_and_rests(rendered):

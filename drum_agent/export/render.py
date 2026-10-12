@@ -91,7 +91,8 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     ver, ver_str = lilypond_version(exe)
     if ver < MIN_VERSION:
         raise RenderError(f"LilyPond {ver_str} is too old; 2.24 or newer is required")
-    out_dir = Path(out_dir)
+    # Absolute: LilyPond runs with cwd=out_dir, so a relative -o path would be doubled.
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     ly_path = out_dir / f"{stem}.ly"
     ly_path.write_text(ly_source)
@@ -110,7 +111,9 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     warnings = [line.strip() for line in log.splitlines() if "warning:" in line or "error:" in line]
     fatal = [w for w in warnings if "error:" in w or any(f in w.lower() for f in _FATAL_WARNINGS)]
     if proc.returncode != 0 or fatal:
-        raise RenderError(f"LilyPond failed (exit {proc.returncode}): {fatal[:5] or 'see log'}", log)
+        (out_dir / f"{stem}.log").write_text(log)
+        raise RenderError(f"LilyPond failed (exit {proc.returncode}): {fatal[:5] or 'see log'} "
+                          f"(full log: {out_dir / (stem + '.log')})", log)
     pdf = out_dir / f"{stem}.pdf"
     if not pdf.exists() or pdf.stat().st_size < 1000:
         raise RenderError("LilyPond reported success but produced no usable PDF", log)

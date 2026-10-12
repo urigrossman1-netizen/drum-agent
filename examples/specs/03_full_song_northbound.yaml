@@ -1,0 +1,95 @@
+# A complete original song chart in the style of a drum book page: boxed
+# sections, crashes, fills, repeated choruses, a 2/4 bar and a roll ending.
+title: Northbound
+artist: Drum Agent examples (original song)
+transcriber: Drum Agent
+chart_type: full_transcription
+rights: original
+tempo: 84
+patterns:
+  groove_cr:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+  groove:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-------"
+  intro_fill:
+    hh: "x-x-x-x---------"
+    sn: "----x---xx------"
+    t1: "----------xx----"
+    ft: "------------xxxx"
+    bd: "x-----x-x-------"
+  verse_cr:
+    cr: "x---------------"
+    hh: "--x-x-x-x-x-x-o-"
+    sn: "----x--g----x---"
+    bd: "x-----x-x-x-----"
+  verse:
+    hh: "x-x-x-x-x-x-x-o-"
+    sn: "----x--g----x---"
+    bd: "x-----x-x-x-----"
+  verse_fill:
+    hh: "x-x-x-x-x-------"
+    sn: "----x--g----xxxx"
+    bd: "x-----x-x-------"
+  pre:
+    ft: "x-x-x-x-x-x-x-x-"
+    sn: "----X-------X---"
+    bd: "x-------x-------"
+  pre_fill:
+    sn: "X---X---xxxxXXXX"
+    bd: "x---x---x---x---"
+  chorus_cr:
+    cr: "x---------------"
+    rd: "--x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x---x-x-x-----"
+  chorus:
+    rd: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-x---x-x-x-----"
+  chorus_fill:
+    rd: "x-x-x-x---------"
+    sn: "----x---fx-xF---"
+    t2: "-------------xx-"
+    ft: "---------------x"
+    bd: "x-x---x-x-------"
+  bridge:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "--------x-------"
+    bd: "x-----x---x-----"
+  bridge_turn:
+    sn: "xxxxXxXx"
+    bd: "x---x---"
+  ending:
+    cr: "------------x---"
+    sn: "r~~~~~~~~~~~----"
+    bd: "------------x---"
+sections:
+  - label: Intro
+    bars: [groove_cr, groove, groove, intro_fill]
+  - label: Verse 1
+    bars: [verse_cr, "verse*6", verse_fill]
+  - label: Pre-Chorus
+    bars: ["pre*3", pre_fill]
+  - label: Chorus
+    repeat: 2
+    bars: [chorus_cr, chorus, chorus, chorus_fill]
+  - label: Verse 2
+    bars: [verse_cr, "verse*6", verse_fill]
+  - label: Pre-Chorus
+    bars: ["pre*3", pre_fill]
+  - label: Chorus
+    repeat: 2
+    bars: [chorus_cr, chorus, chorus, chorus_fill]
+  - label: Bridge
+    bars: ["bridge*3", {pattern: bridge_turn, time: 2/4}]
+  - label: Chorus
+    time: 4/4
+    repeat: 2
+    bars: [chorus_cr, chorus, chorus, chorus_fill]
+  - label: Outro
+    bars: [chorus_cr, chorus, chorus, ending]

@@ -129,6 +129,18 @@ def test_quarter_note_triplets_span_half_bar():
     assert v[0].value == F(1, 4) and v[0].dur == F(1, 6)
 
 
+def test_lone_stroke_on_quarter_triplet_grid_uses_eighth_triplets():
+    # Kick on the "let" of 3 in a shuffle: 8th triplets, not a quarter-note triplet.
+    v = spell_measure(bar({"bd": "x--|---|--x|---"})).voices[2]
+    assert values(v) == "x4 r4 r4 x8 r4"
+    assert all(t.tuplet in (None, (3, 2)) for t in v)
+    assert v[2].tuplet == (3, 2) and v[2].value == F(1, 4) and v[2].dur == F(1, 6)
+    # Both inner points present: a genuine quarter-note-triplet figure.
+    v = spell_measure(bar({"bd": "x--|---|--x|-x-"})).voices[2]
+    assert values(v) == "x4 r4 r4 x4 x4"
+    assert v[2].tuplet_start and v[4].tuplet_stop
+
+
 def test_compound_two_even_strokes_are_dotted_eighths():
     # Spec grid order for compound beats is 1, 3, 6, 2, 4, 12: dotted 8ths before duplets.
     v = spell_measure(bar({"sn": "xx|x"}, time="6/8")).voices[1]
@@ -202,6 +214,16 @@ def test_roll_across_middle_stays_tied():
     v = spell_measure(bar({"sn": "x---r~~~~~~~x---"})).voices[1]
     assert values(v) == "x4 x4 x4 x4"
     assert v[1].tie_start and v[2].tie_stop and not v[2].tie_start
+
+
+def test_roll_from_downbeat_over_three_beats_is_dotted_half():
+    m = bar({"sn": "r~~~~~~~~~~~x---"})
+    v = spell_measure(m).voices[1]
+    assert values(v) == "x2. x4"
+    assert v[0].is_roll and v[0].dots == 1 and not v[0].tie_start
+    check_tokens(v, m)
+    # Not from the downbeat: stays a tied quarter + half (no beat 3 hidden).
+    assert values(spell_measure(bar({"sn": "x---r~~~~~~~~~~~"})).voices[1]) == "x4 x4 x2"
 
 
 def test_roll_overlapping_stroke_is_an_error():

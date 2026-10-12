@@ -1,0 +1,53 @@
+# Notation quick reference
+
+Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py`.
+
+## Staff and voices
+- Five-line staff, percussion clef. Positions are given as treble-clef pitches.
+- **Voice 1 (stems up): hands.** Cymbals, hi-hat with sticks, snare, toms.
+- **Voice 2 (stems down): feet.** Bass drum(s), hi-hat pedal.
+- A silent voice gets a whole-bar rest; if both are silent, one rest.
+
+## Instrument map (chart-spec names in brackets)
+| Instrument | Position | Head | Voice |
+|---|---|---|---|
+| China [cn] | C6 | x | up |
+| Crash 2 [cr2] / Splash [spl] | B5 | x / circled x | up |
+| Crash [cr] | A5 (ledger line) | x | up |
+| Hi-hat [hh], open [o on hh line], half-open [h] | G5 | x (+ o / ⊘ above) | up |
+| Ride [rd], ride bell [rb] | F5 (top line) | x / diamond | up |
+| Tom 1 [t1], cowbell [cb] | E5 | normal / triangle | up |
+| Tom 2 [t2] | D5 | normal | up |
+| Snare [sn], cross-stick [cs], rimshot [rs] | C5 | normal / x / slashed | up |
+| Floor tom [ft], floor tom 2 [ft2] | A4, G4 | normal | up |
+| Bass drum [bd], bass drum 2 [bd2] | F4, E4 | normal | down |
+| Hi-hat foot [hf], foot splash [hhs] | D4 | x (+ o below) | down |
+
+## Articulations
+| Mark | Meaning | Chart-spec symbol |
+|---|---|---|
+| > | accent | `X` or `>` |
+| ( ) around head | ghost note | `g` |
+| small slashed grace + slur | flam | `f` (`F` = accented flam) |
+| two small 16th graces | drag (ruff) | `d` |
+| 3 tremolo strokes (fewer with beams) | roll | `r` then `~` to extend |
+| o above hi-hat | open | `o` on the hh line |
+| + above hi-hat | closed (only after an open one) | automatic |
+| "choke" | cymbal choke | `c` |
+
+## Rhythm rules the engraver applies
+- Each beat gets the simplest grid that holds its strokes: 8ths, 16ths, 32nds,
+  triplets (3:2), sextuplets (6:4); compound beats use 8ths/16ths, duplets 2:3.
+- A note lasts until the next stroke in its voice or the end of the beat. Drum
+  notes are never tied, except rolls.
+- Rests follow bar > half bar > beat. No half rest across the middle of 4/4.
+- Beams group by beat. In 4/4, two beats of plain 8ths beam as one group of four.
+- Exactly identical bars become simile marks (counted), and identical phrases
+  become repeat barlines with "×N". Fills and flagged bars are always written out.
+- Sections start a new system unless very short; lines are balanced (6 bars →
+  3 + 3).
+
+## Headers
+The chart-type line is always printed: Full Drum Transcription / Performance
+Chart: grooves and roadmap, not a note-for-note transcription / Pattern Study,
+plus "Automatic transcription, unverified" when applicable.

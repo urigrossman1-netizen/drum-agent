@@ -7,3 +7,4 @@ dist/
 /out/
 /tmp/
 tests/_artifacts/
+examples/output/**/*.midi

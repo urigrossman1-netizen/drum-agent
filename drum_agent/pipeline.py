@@ -10,6 +10,8 @@ only a listening check can settle.
 from __future__ import annotations
 
 import json
+import re
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -39,7 +41,9 @@ class ExportReport:
     comparisons: list[Comparison] = field(default_factory=list)
     musicxml_errors: list[str] = field(default_factory=list)
     uncertain_bars: list[int] = field(default_factory=list)  # printed bar numbers
+    uncertain_score_bars: list[int] = field(default_factory=list)  # 1-based bar numbers in score.json (for `edit`)
     lilypond_version: str = ""
+    notes: list[str] = field(default_factory=list)  # layout decisions worth knowing, not problems
 
     @property
     def rendering_ok(self) -> bool:
@@ -64,6 +68,7 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     report.warnings += score.validate(kit)
     plan = plan_layout(score, repeats=opts.repeats, bars_per_line=opts.bars_per_line)
     report.uncertain_bars = [plan.printed_numbers[i] for i, m in enumerate(score.measures) if m.uncertain]
+    report.uncertain_score_bars = [i + 1 for i, m in enumerate(score.measures) if m.uncertain]
 
     if "json" in opts.formats:
         p = out / f"{stem}.json"
@@ -75,7 +80,16 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
         ly = to_lilypond(score, kit, plan, paper_size=opts.paper, staff_size=opts.staff_size,
                          with_legend=opts.legend)
         if "pdf" in opts.formats:
-            res = render(ly, out, stem, png=opts.png)
+            res = render(ly, out, stem, png=True)
+            fitted = _fit_fewer_pages(score, kit, plan, opts, res, out, stem)
+            if fitted is not None:
+                res = fitted
+                report.notes.append(f"Fitted onto {len(res.pngs)} page(s) instead of {len(res.pngs) + 1} "
+                                    "(the last page held only a sliver); vertical spacing slightly compressed.")
+            if not opts.png:
+                for p in res.pngs:
+                    p.unlink()
+                res.pngs = []
             report.files.update({"ly": res.ly, "pdf": res.pdf})
             for k, png in enumerate(res.pngs, 1):
                 report.files[f"png{k}"] = png
@@ -116,6 +130,65 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     return report
 
 
+# A last page whose content ends above this fraction of the page height holds
+# only a system or two; try to pull it onto the previous page.
+LIGHT_LAST_PAGE = 0.30
+# Accept the fitted version only if LilyPond had to squeeze this little
+# (staff-spaces in total); more than that crowds the systems.
+MAX_COMPRESSION = 6.0
+
+
+def _page_fill(png: Path) -> float | None:
+    """Fraction of the page height down to the lowest ink (None if Pillow is missing)."""
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        return None
+    ink = np.asarray(Image.open(png).convert("L")) < 128
+    rows = np.nonzero(ink.any(axis=1))[0]
+    return float(rows[-1] + 1) / ink.shape[0] if len(rows) else 0.0
+
+
+def _compression(warnings: list[str]) -> float:
+    total = 0.0
+    for w in warnings:
+        m = re.search(r"compressing over-full page by ([\d.]+) staff-spaces", w)
+        if m:
+            total += float(m.group(1))
+    return total
+
+
+def _fit_fewer_pages(score, kit, plan, opts, res, out: Path, stem: str):
+    """Avoid a near-empty last page by asking LilyPond for one page fewer.
+
+    The attempt is rendered in a scratch directory and only replaces the
+    original when it really has fewer pages and needed little compression.
+    """
+    from .export.lilypond import to_lilypond
+    from .export.render import RenderError, render
+
+    n = len(res.pngs)
+    if n < 2:
+        return None
+    fill = _page_fill(res.pngs[-1])
+    if fill is None or fill > LIGHT_LAST_PAGE:
+        return None
+    ly = to_lilypond(score, kit, plan, paper_size=opts.paper, staff_size=opts.staff_size,
+                     with_legend=opts.legend, page_count=n - 1)
+    with tempfile.TemporaryDirectory(dir=out) as td:
+        try:
+            trial = render(ly, td, stem, png=True)
+        except RenderError:
+            return None
+        if len(trial.pngs) != n - 1 or _compression(trial.warnings) > MAX_COMPRESSION:
+            return None
+    fitted = render(ly, out, stem, png=True)
+    fitted.warnings = [w for w in fitted.warnings
+                       if "compressing over-full page" not in w and "has been compressed" not in w]
+    return fitted
+
+
 def report_json(score: Score, report: ExportReport) -> dict:
     return {
         "title": score.title,
@@ -130,7 +203,9 @@ def report_json(score: Score, report: ExportReport) -> dict:
                         for c in report.comparisons],
         "musicxml_errors": report.musicxml_errors,
         "uncertain_bars": report.uncertain_bars,
+        "uncertain_score_bars": report.uncertain_score_bars,
         "warnings": report.warnings,
+        "layout_notes": report.notes,
         "analysis": score.analysis,
     }
 
@@ -163,13 +238,23 @@ def render_report(score: Score, report: ExportReport) -> str:
         lines.append("* This chart was produced automatically. A valid PDF does **not** mean the notes are right; "
                      "listen along before relying on it.")
     if report.uncertain_bars:
-        lines.append(f"* Bars needing verification (printed bar numbers, marked (?) in the PDF): "
-                     f"{', '.join(str(b) for b in report.uncertain_bars)}")
+        pairs = ", ".join(f"{p} ({s})" for p, s in zip(report.uncertain_bars, report.uncertain_score_bars))
+        lines.append(f"* Bars needing verification, marked (?) in the PDF: {pairs}")
+        lines.append("  (printed bar number, then the score.json bar number that `drum-agent edit` uses)")
+        reasons = []
+        for i, m in enumerate(score.measures):
+            if m.uncertain and m.notes:
+                reasons.append(f"  * score bar {i + 1}: {'; '.join(m.notes)}")
+        lines += reasons[:40]
     a = score.analysis or {}
     for key in ("tempo_estimate", "meter", "feel", "detected_onsets", "instrument_counts",
                 "low_confidence_hits", "dropped_hits", "sections", "notes"):
         if key in a:
             lines.append(f"* {key.replace('_', ' ')}: {a[key]}")
+    if report.notes:
+        lines.append("")
+        lines.append("## Layout notes")
+        lines += [f"* {n}" for n in report.notes]
     if report.warnings:
         lines.append("")
         lines.append("## Warnings")

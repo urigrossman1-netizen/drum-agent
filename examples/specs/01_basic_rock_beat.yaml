@@ -1,0 +1,27 @@
+# Simplest useful chart: one groove and three variations (pattern study).
+title: Basic Rock Beat
+artist: Drum Agent examples (original)
+transcriber: Drum Agent
+chart_type: pattern_study
+rights: original
+tempo: 100
+patterns:
+  beat:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-------"
+  var1:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+  var2:
+    hh: "x-x-x-x-x-x-x-o-"
+    sn: "----x-------x---"
+    bd: "x-----x-x-x-----"
+  var3:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x--g-g--x--g"
+    bd: "x-----x-x-x-----"
+sections:
+  - label: Groove
+    bars: [beat, var1, var2, var3]
