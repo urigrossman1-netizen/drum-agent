@@ -106,6 +106,7 @@ KICK_UNDER_TOM = 0.4  # a "kick" quieter than this fraction of the tom ...
 KICK_UNDER_TOM_ABS = 0.6  # ... and quieter than this is tom bleed
 TOM_WITH_KICK_LOUD = 0.9  # a tom with a kick keeps its label when this loud
 TOM_VS_KICK = 0.75  # ... or (no crash sounding) at least this fraction of the kick
+ABS_FLOOR = 1e-3  # -60 dBFS: onsets quieter than this are noise
 SNARE_UNDER_TOM = 0.5  # a "snare" quieter than this fraction of a tom is tom bleed
 
 HARM_MARGIN = 1.0  # HPSS margin for the harmonic part that trains the accompaniment basis
@@ -226,7 +227,10 @@ def _peaks(env: np.ndarray, delta: float, wait: int = 4) -> np.ndarray:
     import librosa
     if env.max() <= 0:
         return np.array([], dtype=int)
-    e = env / (np.percentile(env, 99) + 1e-9)
+    # The 99th percentile is a typical stroke in music; in sparse audio (a lone hit,
+    # long silences) it is near silence, so it is floored at a tenth of the maximum
+    # to keep noise from being scaled up into onsets.
+    e = env / (max(float(np.percentile(env, 99)), 0.1 * float(env.max())) + 1e-9)
     return librosa.util.peak_pick(e, pre_max=2, post_max=2, pre_avg=12, post_avg=6, delta=delta, wait=wait)
 
 
@@ -236,7 +240,8 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
     y = np.asarray(y, dtype=np.float32)
     if y.size == 0 or np.max(np.abs(y)) < 1e-5:
         return Detection([], np.zeros(1, dtype=np.float32), 0, len(y) / SR)
-    y = y / (np.max(np.abs(y)) + 1e-9) * 0.9
+    gain = 0.9 / (float(np.max(np.abs(y))) + 1e-9)  # analysis works on a peak-normalized signal
+    y = y * gain
     duration = len(y) / SR
     # Lead-in silence: a stroke at t=0 would otherwise be analysed with half-empty
     # STFT windows and no pre-onset baseline (it was being missed or mislabelled).
@@ -265,6 +270,13 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
     flux = _superflux(V_plain)
     delta = 0.06 / max(opts.sensitivity, 0.1)
     cand = _peaks(flux, delta)
+    # Everything after this is relative to the recording itself, so near-silence
+    # needs an absolute floor: an onset where the signal stays below -60 dBFS
+    # (with the analysis padding) is noise, not a stroke.
+    if len(cand):
+        hop_peak = np.array([np.abs(y[i * HOP:(i + 1) * HOP + HOP]).max() if i * HOP < len(y) else 0.0
+                             for i in range(int(cand.max()) + 6)])
+        cand = np.array([t for t in cand if hop_peak[max(0, t - 2):t + 6].max() >= ABS_FLOOR * gain], dtype=int)
     T = V.shape[1]
     centers = np.tile(band_centers(), len(STACK))
 
@@ -285,7 +297,10 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
 
     r_cls = {c: np.array([rise(E_cls[c], t) for t in cand]) for c in classes}
     r_tot = {c: np.array([rise(E_tot[c], t) for t in cand]) for c in classes}
-    region_ref = {c: max(float(np.percentile(r_tot[c], 90)) if len(cand) else 0.0, 1e-9) for c in classes}
+    # A class's typical stroke: the 90th percentile of its region's rises, floored
+    # at a tenth of the largest so a few strokes among noise candidates still set it.
+    region_ref = {c: max(float(np.percentile(r_tot[c], 90)) if len(cand) else 0.0,
+                         0.1 * float(r_tot[c].max()) if len(cand) else 0.0, 1e-9) for c in classes}
 
     sens = max(opts.sensitivity, 0.1)
     # Per-recording loudness floors: where a class's candidate strokes split into a

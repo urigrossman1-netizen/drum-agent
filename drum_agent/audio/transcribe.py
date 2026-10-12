@@ -259,6 +259,7 @@ def _realign_downbeats(onsets, beats: list[float], bars: list[BarDef], res, qopt
     inserted bar is flagged for a listen.
     """
     notes: list[str] = []
+    inserted: list[tuple[int, TimeSig]] = []
     after_bar = -1
     for _ in range(4):  # at most a few short bars per song
         found = _find_downbeat_shift(bars, res.measures, after_bar)
@@ -290,12 +291,15 @@ def _realign_downbeats(onsets, beats: list[float], bars: list[BarDef], res, qopt
             continue
         bars, beats, res = new_bars, new_beats, res2
         after_bar = b + 1
-        m = res.measures[b]
-        m.uncertain = True
-        m.notes.append(f"short bar ({short}) inserted: the downbeat shifts here")
+        inserted.append((b, short))
         notes.append(f"bar {b + 1}: the downbeat shifts by {p} beat(s) (crashes moved from beat 1 to beat {p + 1}); "
                      f"a {short} bar was inserted (bars after it repeat earlier ones {after:.2f} vs {before:.2f}). "
                      f"Verify by ear.")
+    # Flag every inserted bar (each re-quantization builds fresh measures).
+    for b, short in inserted:
+        m = res.measures[b]
+        m.uncertain = True
+        m.notes.append(f"short bar ({short}) inserted: the downbeat shifts here")
     return beats, bars, res, notes
 
 
