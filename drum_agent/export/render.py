@@ -24,7 +24,8 @@ _CANDIDATES = (
 
 # Warnings that mean the engraving is wrong, not merely cosmetic.
 _FATAL_WARNINGS = (
-    "barcheck failed",
+    "bar check failed",  # LilyPond >= 2.20 spelling
+    "barcheck failed",  # older spelling
     "programming error",
     "unterminated",
     "beam was started but never ended",

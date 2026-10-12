@@ -42,7 +42,10 @@ def _ref(spec: str, score: Score, kit: Kit) -> tuple[int, Fraction, str, list[st
     parts = spec.split(":")
     if len(parts) < 3:
         raise EditError(f"hit reference {spec!r} must be BAR:POS:INST[:flag,...]")
-    bar = int(parts[0]) - 1
+    try:
+        bar = int(parts[0]) - 1
+    except ValueError:
+        raise EditError(f"hit reference {spec!r}: BAR must be a number") from None
     if not 0 <= bar < len(score.measures):
         raise EditError(f"bar {parts[0]} does not exist (1-{len(score.measures)})")
     pos = frac(parts[1])
@@ -55,22 +58,25 @@ def _ref(spec: str, score: Score, kit: Kit) -> tuple[int, Fraction, str, list[st
 
 
 def relabel(score: Score, mapping: str, bars: str | None = None, kit: Kit = DEFAULT_KIT) -> int:
-    """"ride=hihat" in the given bars. Returns the number of hits changed."""
+    """"ride=hihat" in the given bars. Returns the number of hits changed.
+
+    All collisions are checked first, so a failing relabel changes nothing.
+    """
     if "=" not in mapping:
         raise EditError("relabel needs FROM=TO, e.g. ride=hihat")
     src, dst = (kit.resolve(x) for x in mapping.split("=", 1))
-    count = 0
+    targets = []
     for i in parse_bars(bars, len(score.measures)):
         m = score.measures[i]
-        taken = {(h.pos, h.inst) for h in m.hits}
+        taken = {h.pos for h in m.hits if h.inst == dst}
         for h in m.hits:
             if h.inst == src:
-                if (h.pos, dst) in taken:
+                if h.pos in taken:
                     raise EditError(f"bar {i + 1}: {dst} already at {h.pos}; delete one first")
-                h.inst = dst
-                taken.add((h.pos, dst))
-                count += 1
-    return count
+                targets.append(h)
+    for h in targets:
+        h.inst = dst
+    return len(targets)
 
 
 def delete(score: Score, spec: str, kit: Kit = DEFAULT_KIT) -> None:
@@ -115,25 +121,41 @@ def _apply_flags(h: Hit, flags: list[str]) -> None:
     h.confidence = 1.0  # a human put it here
 
 
-def set_sections(score: Score, spec: str) -> None:
-    """"Intro:1,Verse 1:5,Chorus:13" (label:first bar). Replaces all labels."""
-    for m in score.measures:
-        m.section = None
+def parse_sections(spec: str, n_bars: int) -> dict[int, str]:
+    """"Intro:1,Verse 1:5,Chorus:13" -> {0: "Intro", 4: "Verse 1", 12: "Chorus"} (0-based bars)."""
+    out: dict[int, str] = {}
     for part in spec.split(","):
         label, _, bar = part.rpartition(":")
-        idx = int(bar) - 1
-        if not label.strip() or not 0 <= idx < len(score.measures):
-            raise EditError(f"bad section entry {part!r}")
-        score.measures[idx].section = label.strip()
+        try:
+            idx = int(bar) - 1
+        except ValueError:
+            idx = -1
+        if not label.strip() or not 0 <= idx < n_bars:
+            raise EditError(f"bad section entry {part!r}: use LABEL:BAR with BAR in 1-{n_bars}, "
+                            f"e.g. \"Intro:1,Verse:5\"")
+        out[idx] = label.strip()
+    return out
+
+
+def set_sections(score: Score, spec: str) -> None:
+    """"Intro:1,Verse 1:5,Chorus:13" (label:first bar). Replaces all labels."""
+    labels = parse_sections(spec, len(score.measures))  # validate everything first
+    for i, m in enumerate(score.measures):
+        m.section = labels.get(i)
 
 
 def set_tempo(score: Score, spec: str) -> None:
     """"BAR:BPM" (quarter notes per minute), e.g. "1:96" or "29:100"."""
     bar, _, bpm = spec.partition(":")
-    idx = int(bar) - 1
+    try:
+        idx, value = int(bar) - 1, float(bpm)
+    except ValueError:
+        raise EditError(f"bad tempo {spec!r}: use BAR:BPM, e.g. 29:100") from None
     if not 0 <= idx < len(score.measures):
         raise EditError(f"bar {bar} does not exist")
-    score.measures[idx].tempo = float(bpm)
+    if not 20 <= value <= 400:
+        raise EditError(f"tempo {value:g} is outside 20-400 quarter notes per minute")
+    score.measures[idx].tempo = value
 
 
 def mark_verified(score: Score, bars: str | None) -> int:

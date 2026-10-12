@@ -15,7 +15,7 @@ import pytest
 from PIL import Image
 
 from conftest import CASES, needs_lilypond
-from drum_agent.charts import load_any
+from drum_agent.charts import compile_spec, load_any
 from drum_agent.pipeline import ExportOptions, export_all
 
 pytestmark = needs_lilypond
@@ -39,7 +39,9 @@ def test_case_renders_cleanly_and_formats_agree(rendered, case):
     assert not lily_warnings, lily_warnings
     assert not report.musicxml_errors
     names = {c.name: c for c in report.comparisons}
-    assert set(names) == {"engraved score (LilyPond MIDI)", "MusicXML", "MIDI"}
+    assert set(names) == {"engraved score (LilyPond MIDI)", "engraved score tempo map",
+                          "MusicXML", "MusicXML articulations", "MusicXML meters",
+                          "MIDI", "MIDI tempo map", "MIDI barlines"}
     assert names["MusicXML"].expected == len(score.event_list()) > 0
 
 
@@ -150,3 +152,12 @@ def test_case10_arrangement(rendered):
     ly = _ly(report)
     assert "\\partial 4" in ly and "\\repeat volta 2" in ly and "\\repeat percent" in ly
     assert len(score.measures) == 30  # pickup + 4 + 8 + 8 + 4 + 5
+
+
+@needs_lilypond
+def test_irregular_meter_bar_with_a_silent_voice(tmp_path):
+    # A whole-bar rest in 7/8 has no single note value; it must still engrave.
+    score = compile_spec({"title": "7/8 silent feet", "sections": [{"time": "7/8", "beat_groups": "2+2+3",
+                                                                    "bars": [{"rd": "x-x-x-x"}, {"bd": "x---x--"}]}]})
+    report = export_all(score, tmp_path, "s78")
+    assert report.rendering_ok

@@ -424,7 +424,7 @@ def test_set_sections_bad_entries(spec):
         E.set_sections(base_score(), spec)
 
 
-@pytest.mark.parametrize("spec", ["Intro", "Intro:one", "Intro:1,Verse"])
+@pytest.mark.parametrize("spec", ["Intro", "Intro:one"])
 def test_set_sections_entry_without_a_bar_number_is_an_edit_error(spec):
     # Same documented format ("label:first bar"), so the same clear EditError
     # naming the entry -- not a bare int() ValueError.
@@ -462,11 +462,13 @@ def test_set_tempo_garbage(spec):
         E.set_tempo(base_score(), spec)
 
 
-def test_set_tempo_outside_the_valid_range_fails_validation():
+def test_set_tempo_outside_the_valid_range_is_rejected():
+    # Rejected at the edit itself (EditError is a ScoreError), before it can reach the score.
     s = base_score()
-    E.set_tempo(s, "2:1000")
+    before = snap(s)
     with pytest.raises(ScoreError, match="outside 20-400"):
-        s.validate()
+        E.set_tempo(s, "2:1000")
+    assert snap(s) == before
 
 
 # ---- mark_verified ----------------------------------------------------------

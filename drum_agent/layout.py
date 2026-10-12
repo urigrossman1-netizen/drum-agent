@@ -112,6 +112,11 @@ def _units(score: Score, idxs: list[int], mode: str) -> list[tuple]:
                     continue  # one bar repeated: simile marks read better
                 if any(ms[x].uncertain for x in phrase):
                     continue
+                # Every pass replays the phrase's marks. A tempo, feel or section mark
+                # after its first bar would be re-applied on each pass although the
+                # music (the IR) changes only once, so such a phrase is written out.
+                if any(ms[x].tempo is not None or ms[x].tempo_text or ms[x].section for x in phrase[1:]):
+                    continue
                 r = 1
                 while p + (r + 1) * k <= len(idxs):
                     copy = idxs[p + r * k:p + (r + 1) * k]
@@ -315,3 +320,17 @@ def _number(plan: LayoutPlan, score: Score) -> None:
             continue
         number += 1
         i += 1
+
+
+def same_meter(a: Measure, b: Measure) -> bool:
+    return str(a.time_sig) == str(b.time_sig) and a.time_sig.groups() == b.time_sig.groups()
+
+
+def volta_restates_meter(score: Score, plan: LayoutPlan, i: int) -> bool:
+    """A repeat whose phrase ends in another meter restates the meter at its start,
+    so the second pass doesn't inherit the meter of the phrase's last bar."""
+    bars = plan.bars
+    for j in range(i, len(bars)):
+        if bars[j].volta_end:
+            return not same_meter(score.measures[bars[i].index], score.measures[bars[j].index])
+    return False

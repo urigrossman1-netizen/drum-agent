@@ -61,6 +61,43 @@ def parse_tempo(value: Any) -> float:
     return float(bpm) * float(base / Fraction(1, 4))
 
 
+# Slots per beat the engraver can spell (rhythm.py): simple beats take 8ths, 16ths,
+# 32nds, triplets and sextuplets; dotted (compound) beats take 8ths, 16ths, duplets
+# and quadruplets.
+_SIMPLE_SLOTS = (1, 2, 3, 4, 6, 8, 12)
+_COMPOUND_SLOTS = (1, 2, 3, 4, 6, 12)
+
+
+def _beat_slots(blen: Fraction) -> tuple[int, ...]:
+    return _COMPOUND_SLOTS if (blen / Fraction(3, 8)).denominator == 1 and blen.numerator % 3 == 0 else _SIMPLE_SLOTS
+
+
+def _check_grid(text: str, slots: list[tuple[Fraction, Fraction, str]], ts: TimeSig, offset: Fraction,
+                bar: Fraction) -> None:
+    """Every beat must hold a whole, supported number of characters, so a
+    miscounted line fails here with a clear message instead of as an odd tuplet."""
+    beats = [(st - offset, ln) for st, ln in ts.beats() if st >= offset]
+    for start, blen in beats:
+        in_beat = [step for pos, step, _ in slots if start <= pos < start + blen]
+        aligned = any(pos == start for pos, _, _ in slots)
+        n = len(in_beat)
+        if not aligned or n == 0 or sum(in_beat) != blen or n not in _beat_slots(blen):
+            if "|" in text:
+                k = beats.index((start, blen)) + 1
+                raise ChartSpecError(f"beat {k} has {n} characters; a beat can hold "
+                                     f"{', '.join(map(str, _beat_slots(blen)))}")
+            good = [k for k in range(1, 97) if _fits_uniform(k, beats, bar)]
+            raise ChartSpecError(
+                f"{len(text)} characters don't divide this {ts} bar into a supported grid; use "
+                f"{', '.join(map(str, good))} characters, or separate the beats with '|'")
+
+
+def _fits_uniform(k: int, beats: list[tuple[Fraction, Fraction]], bar: Fraction) -> bool:
+    step = bar / k
+    return all((start / step).denominator == 1 and (blen / step).denominator == 1
+               and int(blen / step) in _beat_slots(blen) for start, blen in beats)
+
+
 def parse_pattern_line(text: str, ts: TimeSig, length: Fraction | None = None) -> list[tuple[Fraction, str, Fraction | None]]:
     """Parse one instrument line into (position, symbol, roll length) tuples."""
     s = re.sub(r"\s+", "", text)
@@ -84,6 +121,7 @@ def parse_pattern_line(text: str, ts: TimeSig, length: Fraction | None = None) -
             return []
         step = bar / len(s)
         slots = [(i * step, step, ch) for i, ch in enumerate(s)]
+    _check_grid(s, slots, ts, offset, bar)
     out: list[tuple[Fraction, str, Fraction | None]] = []
     i = 0
     while i < len(slots):
@@ -114,7 +152,11 @@ def _hits_from_pattern(pattern: dict[str, str], ts: TimeSig, length: Fraction | 
     hits: list[Hit] = []
     for name, line in pattern.items():
         inst = kit.resolve(name)
-        for pos, ch, roll in parse_pattern_line(str(line), ts, length):
+        try:
+            parsed = parse_pattern_line(str(line), ts, length)
+        except ChartSpecError as exc:
+            raise ChartSpecError(f"{name} line {str(line)!r}: {exc}") from None
+        for pos, ch, roll in parsed:
             this = inst
             h = Hit(pos=pos, inst=inst)
             if ch in "X>":
@@ -210,8 +252,13 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
                 raise ChartSpecError(f"bar entries must be pattern names or mappings, got {entry!r}")
             if not measures and pickup is not None and length is None:
                 length = Fraction(str(pickup))
-            m = Measure(time_sig=bar_ts, length=length,
-                        hits=_hits_from_pattern(pat, bar_ts, length, kit))
+            try:
+                bar_hits = _hits_from_pattern(pat, bar_ts, length, kit)
+            except ChartSpecError as exc:
+                what = f"pattern {entry!r}" if isinstance(entry, str) else (
+                    f"pattern {entry['pattern']!r}" if "pattern" in entry else "inline bar")
+                raise ChartSpecError(f"section {label!r}, bar {bi + 1} ({what}, {bar_ts}): {exc}") from None
+            m = Measure(time_sig=bar_ts, length=length, hits=bar_hits)
             if bi == 0 and label:
                 m.section = label
             if pending_tempo is not None:
@@ -235,7 +282,7 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
         artist=spec.get("artist"),
         transcriber=spec.get("transcriber"),
         chart_type=chart_type,
-        status=spec.get("status", "verified"),
+        status=spec.get("status", "entered"),
         rights=spec.get("rights"),
         source=spec.get("source"),
         swing=bool(spec.get("swing", False)),

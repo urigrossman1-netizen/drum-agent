@@ -10,7 +10,7 @@ from __future__ import annotations
 from fractions import Fraction
 
 from ..kit import DEFAULT_KIT, Kit
-from ..layout import LayoutPlan, PrintedBar, plan_layout
+from ..layout import LayoutPlan, PrintedBar, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
 from ..rhythm import SpelledMeasure, Token, check_tokens, spell_measure
 
@@ -170,6 +170,12 @@ def _tempo_mark(m: Measure, score: Score, index: int) -> str | None:
     return f"\\tempo {ly_string(text)} {mark}" if text else f"\\tempo {mark}"
 
 
+def _midi_tempo(bpm: float) -> str:
+    """Initial tempo for the verification MIDI score (bar 1 may carry no mark).
+    LilyPond tempo marks are whole numbers, like the printed marks."""
+    return str(int(round(bpm)))
+
+
 def representable_unit(unit: Fraction) -> bool:
     return (1 / unit).denominator == 1
 
@@ -191,22 +197,16 @@ class _Writer:
         self.score = score
         self.kit = kit
         self.plan = plan
-        self.hh_open = False  # hi-hat state for "+" marks, in printed order
+        self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
+        self.bar_index = 0  # bar being written (set by music_streams)
         self.shared_rest = False
 
     # -- tokens ------------------------------------------------------------
     def _hit_name(self, h: Hit) -> str:
         name = self.kit[h.inst].ly_name
-        if h.inst == "hihat" and self.hh_open:
+        if h.inst == "hihat" and (self.bar_index, h.pos) in self.hh_marks:
             name = CLOSED_HH
         return name
-
-    def _update_hh(self, hits: list[Hit]) -> None:
-        insts = {h.inst for h in hits}
-        if insts & {"hihat_open", "hihat_half"}:
-            self.hh_open = True
-        elif insts & {"hihat", "hihat_pedal"}:
-            self.hh_open = False
 
     def _note_body(self, h: Hit) -> str:
         name = self._hit_name(h)
@@ -219,13 +219,13 @@ class _Writer:
         return "".join(parts)
 
     def token(self, t: Token, voice: int) -> str:
-        dur = duration(t.value, t.dots)
         if t.kind == "measure_rest":
             rest = f"R1*{t.dur.numerator}/{t.dur.denominator}" if t.dur != 1 else "R1"
             if self.shared_rest:
                 # Both voices silent: one rest at its normal height, not raised for voice 1.
                 rest = "\\once \\override MultiMeasureRest.direction = #CENTER " + rest
             return rest
+        dur = duration(t.value, t.dots)  # a whole-bar rest (e.g. 7/8) has no single note value
         if t.kind == "rest":
             return f"r{dur}"
         hits = t.hits
@@ -255,8 +255,6 @@ class _Writer:
             body += "^\\markup \\small \\italic \"choke\""
         if t.tie_start:
             body += "~"
-        if not t.tie_stop:
-            self._update_hh(hits)
         return graces + body
 
     def voice_bar(self, tokens: list[Token], voice: int, measure: Measure) -> str:
@@ -280,12 +278,12 @@ class _Writer:
 
     # -- bars ----------------------------------------------------------------
     def global_bar(self, pb: PrintedBar, idx: int, prev: Measure | None,
-                   end_bar: str | None = None) -> str:
+                   end_bar: str | None = None, restate_time: bool = False) -> str:
         m = self.score.measures[idx]
         items: list[str] = []
         if pb.line_break and prev is not None:
             items.append("\\break")
-        if prev is None or str(prev.time_sig) != str(m.time_sig) or prev.time_sig.groups() != m.time_sig.groups():
+        if prev is None or restate_time or not same_meter(prev, m):
             items.append(_time_command(m))
         if prev is None and m.is_pickup:
             items.append(f"\\partial {_partial(m.actual_length)}")
@@ -351,7 +349,9 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             end_bar = None if last_in_group.volta_end else "|."
         elif score.measures[after.index].section and not last_in_group.volta_end and not after.volta_start:
             end_bar = "||"
-        gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None)
+        restate = pb.volta_start and volta_restates_meter(score, plan, i)
+        gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None, restate_time=restate)
+        w.bar_index = idx
         w.shared_rest = sm.shared_rest
         up = w.voice_bar(sm.voices[1], 1, m)
         w.shared_rest = False
@@ -468,6 +468,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         "\\score {\n"
         "  \\removeWithTag #'graces \\unfoldRepeats \\drumMusic\n"
         "  \\midi {\n"
+        f"    \\tempo 4 = {_midi_tempo(score.initial_tempo)}\n"
         "    \\context { \\DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }\n"
         "  }\n"
         "}"

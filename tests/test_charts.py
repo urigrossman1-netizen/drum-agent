@@ -59,3 +59,13 @@ def test_time_and_tempo_changes_persist():
         {"tempo": 100, "time": "4/4", "bars": [{"sn": "x---"}]}]})
     assert [str(m.time_sig) for m in s.measures] == ["4/4", "7/8", "7/8", "4/4"]
     assert [m.tempo for m in s.measures] == [90, None, None, 100]
+
+
+def test_miscounted_lines_fail_with_a_clear_message():
+    with pytest.raises(ChartSpecError, match=r"section 'V', bar 2 \(pattern 'verse', 4/4\): sn line .*17 characters.*16"):
+        compile_spec({"patterns": {"verse": {"sn": "x---x---x---x----"}},
+                      "sections": [{"label": "V", "bars": [{"sn": "x---"}, "verse"]}]})
+    with pytest.raises(ChartSpecError, match="beat 1 has 5 characters"):
+        one_bar({"sn": "xxxxx|x|x|x"})
+    with pytest.raises(ChartSpecError, match="use 2, 4, 6, 8, 12, 24"):
+        one_bar({"sn": "xxxxxxxxxx"}, time="6/8")

@@ -62,7 +62,7 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     from .export.render import render
 
     opts = options or ExportOptions()
-    out = Path(out_dir)
+    out = Path(out_dir).resolve()  # report every file with the same, absolute, kind of path
     out.mkdir(parents=True, exist_ok=True)
     report = ExportReport()
     report.warnings += score.validate(kit)
@@ -210,11 +210,30 @@ def report_json(score: Score, report: ExportReport) -> dict:
     }
 
 
+STATUS_REPORT = {
+    "verified": "Verified by a human",
+    "entered": "Entered as a chart spec (written by hand or from a description)",
+    "unverified_auto": "Automatic transcription, unverified",
+    "unverified_import": "Imported from MIDI, unverified",
+    "draft": "Draft",
+}
+CONFIDENCE_TEXT = {
+    "verified": "A human checked this chart against the recording.",
+    "entered": "Written as a chart spec: nothing was detected automatically, and nobody has checked it "
+               "against a recording. It shows what was written, not necessarily what is played.",
+    "unverified_import": "The strokes come from the MIDI file, but the barlines (pickup, meter changes) and the "
+                         "quantization were worked out automatically. Check that downbeats, crashes and meter "
+                         "changes sit where they belong before relying on it.",
+    "unverified_auto": "This chart was produced automatically. A valid PDF does **not** mean the notes are right; "
+                       "listen along before relying on it.",
+    "draft": "Draft: not finished or not checked.",
+}
+
+
 def render_report(score: Score, report: ExportReport) -> str:
     lines = [f"# Drum chart report: {score.title}", ""]
     lines.append(f"* Chart type: **{CHART_TYPES[score.chart_type]}**")
-    status = STATUSES.get(score.status) or "Verified by a human"
-    lines.append(f"* Status: **{status}**")
+    lines.append(f"* Status: **{STATUS_REPORT.get(score.status, score.status)}**")
     if score.rights:
         lines.append(f"* Rights basis: {score.rights}")
     if score.source:
@@ -232,22 +251,18 @@ def render_report(score: Score, report: ExportReport) -> str:
             lines.append(f"  * {e}")
     lines.append("")
     lines.append("## Transcription confidence")
-    if score.status == "verified":
-        lines.append("* Chart entered or verified by a human; no automatic detection involved.")
-    else:
-        lines.append("* This chart was produced automatically. A valid PDF does **not** mean the notes are right; "
-                     "listen along before relying on it.")
+    lines.append("* " + CONFIDENCE_TEXT.get(score.status, CONFIDENCE_TEXT["unverified_auto"]))
     if report.uncertain_bars:
         pairs = ", ".join(f"{p} ({s})" for p, s in zip(report.uncertain_bars, report.uncertain_score_bars))
         lines.append(f"* Bars needing verification, marked (?) in the PDF: {pairs}")
-        lines.append("  (printed bar number, then the score.json bar number that `drum-agent edit` uses)")
+        lines.append("  (printed bar number, then the score.json bar number that `python -m drum_agent edit` uses)")
         reasons = []
         for i, m in enumerate(score.measures):
             if m.uncertain and m.notes:
                 reasons.append(f"  * score bar {i + 1}: {'; '.join(m.notes)}")
         lines += reasons[:40]
     a = score.analysis or {}
-    for key in ("tempo_estimate", "meter", "feel", "detected_onsets", "instrument_counts",
+    for key in ("tempo_estimate", "meter", "feel", "pickup", "detected_onsets", "instrument_counts",
                 "low_confidence_hits", "dropped_hits", "sections", "notes"):
         if key in a:
             lines.append(f"* {key.replace('_', ' ')}: {a[key]}")

@@ -17,7 +17,7 @@ from fractions import Fraction
 
 from .. import __version__
 from ..kit import DEFAULT_KIT, Kit, position_to_pitch
-from ..layout import LayoutPlan, plan_layout
+from ..layout import LayoutPlan, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
 from ..rhythm import Token, check_tokens, spell_measure
 
@@ -49,13 +49,23 @@ def _divisions(score: Score) -> int:
     return div
 
 
+# kit articulation -> (MusicXML <technical> element, placement)
+_TECHNICAL = {
+    "open": ("open", "above"),
+    "open-down": ("open", "below"),
+    "halfopen": ("half-muted", "above"),
+    "stopped": ("stopped", "above"),
+}
+
+
 class _XmlWriter:
     def __init__(self, score: Score, kit: Kit, plan: LayoutPlan):
         self.score = score
         self.kit = kit
         self.plan = plan
         self.div = _divisions(score)
-        self.hh_open = False
+        self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
+        self.bar_index = 0
 
     def ticks(self, dur: Fraction) -> int:
         t = dur * 4 * self.div
@@ -132,7 +142,6 @@ class _XmlWriter:
                 self._tuplet_notations(n, t)
             return
         has_grace = False if t.tie_stop else self._grace_notes(measure_el, t.hits, voice)
-        closed = "hihat" in {h.inst for h in t.hits} and self.hh_open
         for ci, h in enumerate(t.hits):
             n = _sub(measure_el, "note")
             if ci > 0:
@@ -166,28 +175,21 @@ class _XmlWriter:
             if h.roll is not None:
                 orn = _sub(nots, "ornaments")
                 _sub(orn, "tremolo", str(max(1, 3 - t.beam_levels)), type="single")
-            tech_kind = None
+            tech = None
             if not t.tie_stop:
-                if h.inst == "hihat_open":
-                    tech_kind = "open"
-                elif h.inst == "hihat_half":
-                    tech_kind = "half-muted"
-                elif h.inst == "hihat" and closed:
-                    tech_kind = "stopped"
-            if tech_kind:
-                tech = _sub(nots, "technical")
-                _sub(tech, tech_kind, placement="above")
+                # The kit's articulation field drives the mark, as in LilyPond's drum style.
+                art_kind = self.kit[h.inst].articulation
+                if h.inst == "hihat" and (self.bar_index, h.pos) in self.hh_marks:
+                    art_kind = "stopped"
+                tech = _TECHNICAL.get(art_kind) if art_kind else None
+            if tech:
+                tech_el = _sub(nots, "technical")
+                _sub(tech_el, tech[0], placement=tech[1])
             if h.accent and not t.tie_stop:
                 art = _sub(nots, "articulations")
                 _sub(art, "accent", placement="above" if voice == 1 else "below")
             if len(nots):
                 n.append(nots)
-        if not t.tie_stop:
-            insts = {h.inst for h in t.hits}
-            if insts & {"hihat_open", "hihat_half"}:
-                self.hh_open = True
-            elif insts & {"hihat", "hihat_pedal"}:
-                self.hh_open = False
 
     def _time_mod(self, n: ET.Element, t: Token) -> None:
         if t.tuplet:
@@ -304,6 +306,7 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     in_percent = False
     for bi, pb in enumerate(bars):
         m = score.measures[pb.index]
+        w.bar_index = pb.index
         number = plan.printed_numbers.get(pb.index, bi + 1)
         mel = _sub(part, "measure", number=str(number))
         if m.is_pickup and prev is None:
@@ -320,7 +323,8 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
             _sub(attrs, "divisions", str(w.div))
             key = _sub(attrs, "key")
             _sub(key, "fifths", "0")
-        if prev is None or str(prev.time_sig) != str(m.time_sig):
+        restate = pb.volta_start and volta_restates_meter(score, plan, bi)
+        if prev is None or restate or not same_meter(prev, m):
             tm = _sub(attrs, "time")
             _sub(tm, "beats", str(m.time_sig.num))
             _sub(tm, "beat-type", str(m.time_sig.den))

@@ -48,8 +48,13 @@ def test_broken_lilypond_source_reports_log(tmp_path):
 
 @needs_lilypond
 def test_barcheck_failure_is_fatal(tmp_path):
-    with pytest.raises(RenderError, match="barcheck"):
-        render('\\version "2.24.0"\n\\drums { sn4 sn4 sn4 | sn4 }', tmp_path, "bc")
+    # Complete source (with \\midi), so the only possible failure is the bar check.
+    # Assert on the reported warning, not the whole message (which contains paths).
+    out = tmp_path / "plain"
+    with pytest.raises(RenderError) as exc:
+        render('\\version "2.24.0"\n\\score { \\drums { sn4 sn4 sn4 | sn4 } \\layout {} \\midi {} }', out, "x")
+    first_line = str(exc.value).splitlines()[0]
+    assert "bar check failed" in first_line
 
 
 def test_rights_gate():

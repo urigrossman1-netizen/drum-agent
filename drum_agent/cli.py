@@ -5,11 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 from . import __version__
 from .kit import DEFAULT_KIT, Kit
-from .model import RIGHTS
+from .model import RIGHTS, STATUSES
 
 
 def _kit(args) -> Kit:
@@ -55,7 +56,7 @@ def _print_report(report, out: Path) -> int:
         print(f"  MusicXML schema errors: {report.musicxml_errors[:5]}")
     if report.uncertain_bars:
         print(f"  bars to verify by ear (printed numbers): {report.uncertain_bars}")
-        print(f"  ... as score.json bar numbers (for `drum-agent edit`): {report.uncertain_score_bars}")
+        print(f"  ... as score.json bar numbers (for `edit`): {report.uncertain_score_bars}")
     for w in report.warnings:
         print(f"  warning: {w}")
     return 0 if report.rendering_ok else 2
@@ -79,8 +80,18 @@ def cmd_midi(args) -> int:
     from .quantize import QuantizeOptions
     kit = _kit(args)
     opts = QuantizeOptions(feel=args.feel, allow_32nds=not args.no_32nds)
+    pickup = args.pickup
+    if pickup != "auto":
+        try:
+            pickup = Fraction(pickup)
+        except (ValueError, ZeroDivisionError):
+            raise SystemExit(f"--pickup {args.pickup!r}: use a length in whole notes like 1/4, 0, or auto") from None
     score, rep = read_midi(args.input, channel=(args.channel - 1) if args.channel else None,
-                           options=opts, title=args.title)
+                           options=opts, title=args.title, pickup=pickup)
+    if rep.pickup:
+        print(f"pickup: {rep.pickup} whole note(s) ({rep.pickup_reason})")
+    for w in rep.warnings:
+        print(f"warning: {w}", file=sys.stderr)
     if args.artist:
         score.artist = args.artist
     if args.transcriber:
@@ -98,14 +109,11 @@ def _apply_sections(score, spec: str | None) -> None:
     """--sections "Intro:1,Verse 1:5,Chorus:13" (label:first bar, 1-based performance bars)."""
     if not spec:
         return
-    for m in score.measures:
-        m.section = None
-    for part in spec.split(","):
-        label, _, bar = part.rpartition(":")
-        idx = int(bar) - 1
-        if not label or not 0 <= idx < len(score.measures):
-            raise SystemExit(f"bad --sections entry {part!r}")
-        score.measures[idx].section = label.strip()
+    from .edit import EditError, set_sections
+    try:
+        set_sections(score, spec)
+    except EditError as exc:
+        raise SystemExit(f"--sections: {exc}") from None
 
 
 def cmd_transcribe(args) -> int:
@@ -164,9 +172,22 @@ def cmd_verify(args) -> int:
     from .charts import load_any
     from .verify import validate_musicxml, verify_exports
     score = load_any(args.score)
-    comps = verify_exports(score, Path(args.ly_midi) if args.ly_midi else None,
-                           Path(args.musicxml) if args.musicxml else None,
-                           Path(args.midi) if args.midi else None)
+    files = {"ly_midi": args.ly_midi, "musicxml": args.musicxml, "midi": args.midi}
+    if not any(files.values()):
+        # Default: the files written next to the score with the same stem.
+        base = Path(args.score)
+        guess = {"ly_midi": base.with_suffix(".midi"), "musicxml": base.with_suffix(".musicxml"),
+                 "midi": base.with_suffix(".mid")}
+        files = {k: str(p) for k, p in guess.items() if p.exists()}
+        if not files:
+            print(f"nothing to verify: no {base.stem}.midi/.musicxml/.mid next to {base}; "
+                  f"pass --musicxml/--midi/--ly-midi", file=sys.stderr)
+            return 2
+        print("verifying", ", ".join(sorted(files.values())))
+    comps = verify_exports(score, Path(files["ly_midi"]) if files.get("ly_midi") else None,
+                           Path(files["musicxml"]) if files.get("musicxml") else None,
+                           Path(files["midi"]) if files.get("midi") else None)
+    args.musicxml = files.get("musicxml")
     ok = True
     for c in comps:
         print(c.summary())
@@ -248,7 +269,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--rights", choices=sorted(RIGHTS), default=None)
     p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
     p.add_argument("--no-32nds", action="store_true")
-    p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
+    p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar); '
+                   "default: the file's markers")
+    p.add_argument("--pickup", default="auto",
+                   help='anacrusis length in whole notes ("1/4" = one beat in 4/4), "0" for none, '
+                        'or "auto" (default: inferred from the file\'s meter changes and markers)')
     _add_export_args(p)
     p.set_defaults(func=cmd_midi)
 
@@ -295,7 +320,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tolerance", type=float, default=0.05, help="seconds")
     p.set_defaults(func=cmd_evaluate)
 
-    p = sub.add_parser("verify", help="check exported files against a score")
+    p = sub.add_parser("verify", help="check exported files against a score (default: the files next to it)")
     p.add_argument("score")
     p.add_argument("--musicxml")
     p.add_argument("--midi")
@@ -317,7 +342,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--artist")
     p.add_argument("--transcriber")
     p.add_argument("--chart-type", dest="chart_type", choices=["full_transcription", "performance_chart", "pattern_study"])
-    p.add_argument("--status", choices=["verified", "unverified_auto", "draft"])
+    p.add_argument("--status", choices=sorted(STATUSES))
     p.add_argument("-o", "--output", help="write to this .json instead of overwriting")
     p.add_argument("--render", metavar="OUT_DIR", help="re-render all formats after editing")
     p.add_argument("--kit", help="JSON kit override file")

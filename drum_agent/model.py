@@ -25,9 +25,11 @@ CHART_TYPES = {
     "pattern_study": "Pattern Study",
 }
 
-STATUSES = {
-    "verified": None,
+STATUSES = {  # status -> text printed under the title (None: nothing printed)
+    "verified": None,  # a human checked it against the recording
+    "entered": None,  # written as a chart spec (by hand or from a description); nothing detected
     "unverified_auto": "Automatic transcription, unverified",
+    "unverified_import": "Imported from MIDI, unverified",
     "draft": "Draft",
 }
 
@@ -278,9 +280,10 @@ class Score:
     # ---- derived helpers -------------------------------------------------
     @property
     def initial_tempo(self) -> float:
-        for m in self.measures:
-            if m.tempo is not None:
-                return m.tempo
+        """Tempo of bar 1. Without a mark it is 120 (what validate() warns about,
+        what our MIDI writes and what the LilyPond MIDI score is told)."""
+        if self.measures and self.measures[0].tempo is not None:
+            return self.measures[0].tempo
         return 120.0
 
     def tempo_at(self, index: int) -> float:
@@ -308,6 +311,30 @@ class Score:
             out.append(t)
             t += float(m.actual_length) * 4 * 60.0 / tempo
         return out
+
+    def hihat_close_marks(self) -> set[tuple[int, Fraction]]:
+        """(bar index, position) of closed hi-hat strokes that get a "+".
+
+        The "+" goes on the first closed stick stroke after an open or half-open
+        one. The state is followed in time order over both voices (a pedal stroke
+        closes the hat as well), in performance order; for repeated material that
+        is the first pass, which is what the printed bars show.
+        """
+        marks: set[tuple[int, Fraction]] = set()
+        is_open = False
+        for i, m in enumerate(self.measures):
+            at: dict[Fraction, set[str]] = {}
+            for h in m.hits:
+                at.setdefault(h.pos, set()).add(h.inst)
+            for pos in sorted(at):
+                insts = at[pos]
+                if "hihat" in insts and is_open:
+                    marks.add((i, pos))
+                if insts & {"hihat_open", "hihat_half"}:
+                    is_open = True
+                elif insts & {"hihat", "hihat_pedal"}:
+                    is_open = False
+        return marks
 
     def iter_hits(self) -> Iterator[tuple[int, Measure, Hit]]:
         for i, m in enumerate(self.measures):
