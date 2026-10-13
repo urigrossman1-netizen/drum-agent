@@ -1,18 +1,18 @@
 {
  "title": "Late Train (gig chart)",
  "chart_type": "performance_chart",
- "status": "verified",
+ "status": "entered",
  "bars": 33,
  "events": 432,
  "files": {
-  "json": "examples/output/04_performance_chart/04_performance_chart.json",
+  "json": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.json",
   "ly": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.ly",
   "pdf": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.pdf",
   "png1": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.png",
   "engraved_midi": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.midi",
-  "musicxml": "examples/output/04_performance_chart/04_performance_chart.musicxml",
-  "midi": "examples/output/04_performance_chart/04_performance_chart.mid",
-  "report": "examples/output/04_performance_chart/04_performance_chart.report.md"
+  "musicxml": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.musicxml",
+  "midi": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.mid",
+  "report": "/home/user/drum-agent/examples/output/04_performance_chart/04_performance_chart.report.md"
  },
  "rendering_ok": true,
  "lilypond_version": "2.26.0",
@@ -24,24 +24,52 @@
    "found": 432
   },
   {
+   "name": "engraved score tempo map",
+   "ok": true,
+   "expected": 33,
+   "found": 33
+  },
+  {
    "name": "MusicXML",
    "ok": true,
    "expected": 432,
    "found": 432
   },
   {
+   "name": "MusicXML articulations",
+   "ok": true,
+   "expected": 0,
+   "found": 0
+  },
+  {
+   "name": "MusicXML meters",
+   "ok": true,
+   "expected": 33,
+   "found": 33
+  },
+  {
    "name": "MIDI",
    "ok": true,
    "expected": 432,
    "found": 432
+  },
+  {
+   "name": "MIDI tempo map",
+   "ok": true,
+   "expected": 33,
+   "found": 33
+  },
+  {
+   "name": "MIDI barlines",
+   "ok": true,
+   "expected": 33,
+   "found": 33
   }
  ],
  "musicxml_errors": [],
  "uncertain_bars": [],
  "uncertain_score_bars": [],
  "warnings": [],
- "layout_notes": [
-  "Fitted onto 1 page(s) instead of 2 (the last page held only a sliver); vertical spacing slightly compressed."
- ],
+ "layout_notes": [],
  "analysis": {}
 }

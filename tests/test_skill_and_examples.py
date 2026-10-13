@@ -137,7 +137,7 @@ def test_example_engraves_and_all_checks_pass(spec, tmp_path):
         assert len(pages) == 2
     if spec.stem.startswith("04_performance"):
         assert load_any(spec).chart_type == "performance_chart"
-        assert len(pages) == 1 and any("Fitted onto 1 page" in n for n in report.notes)
+        assert len(pages) == 1  # the one-bar Ending joins the last line instead of a page of its own
 
 
 # --- page fitting helpers --------------------------------------------------------
@@ -157,3 +157,15 @@ def test_page_fill_measures_the_lowest_ink(tmp_path):
     assert _page_fill(tmp_path / "p.png") == pytest.approx(0.25)
     Image.new("L", (100, 200), 255).save(tmp_path / "blank.png")
     assert _page_fill(tmp_path / "blank.png") == 0.0
+
+
+@needs_lilypond
+def test_a_sliver_of_a_last_page_is_pulled_back(tmp_path):
+    from drum_agent.charts import compile_spec
+    from drum_agent.pipeline import ExportOptions
+    groove = {"hh": "x-x-x-x-", "sn": "--x---x-", "bd": "x---x---"}
+    score = compile_spec({"title": "Fit", "tempo": 100, "sections": [{"bars": [groove] * 44}]})
+    report = export_all(score, tmp_path, "s", options=ExportOptions(repeats="none"))
+    assert [k for k in report.files if k.startswith("png")] == ["png1"]
+    assert any("Fitted onto 1 page" in n for n in report.notes)
+    assert not [w for w in report.warnings if w.startswith("LilyPond")]

@@ -139,6 +139,9 @@ def layout_block() -> str:
         "    \\override TupletBracket.bracket-visibility = ##t\n"
         "    \\override PercentRepeatCounter.font-size = #-2\n"
         "    countPercentRepeats = ##t\n"
+        "    skipBars = ##t\n"
+        "    \\override MultiMeasureRest.expand-limit = #1\n"
+        "    \\override MultiMeasureRest.minimum-length = #22\n"
         "  }\n"
         "  \\context {\n"
         "    \\DrumStaff\n"
@@ -157,15 +160,12 @@ def _tempo_mark(m: Measure, score: Score, index: int) -> str | None:
         return None
     tempo = m.tempo if m.tempo is not None else score.tempo_at(index)
     text = m.tempo_text
-    unit = m.time_sig.beat_unit
-    if m.time_sig.is_compound:
-        bpm = tempo * 2 / 3
-        unit_str = "4."
+    unit, dotted = m.time_sig.metronome_unit()
+    if unit is None:
+        bpm, unit_str = tempo, "4"
     else:
-        bpm = tempo * float(Fraction(1, 4) / unit)
-        unit_str = duration(unit) if representable_unit(unit) else "4"
-        if not representable_unit(unit):
-            bpm = tempo
+        bpm = tempo * float(Fraction(1, 4) / (unit * 3 / 2 if dotted else unit))
+        unit_str = duration(unit, 1 if dotted else 0)
     mark = f"{unit_str} = {int(round(bpm))}"
     return f"\\tempo {ly_string(text)} {mark}" if text else f"\\tempo {mark}"
 
@@ -180,6 +180,7 @@ def representable_unit(unit: Fraction) -> bool:
     return (1 / unit).denominator == 1
 
 
+
 def _time_command(m: Measure) -> str:
     ts = m.time_sig
     if ts.is_irregular:
@@ -190,6 +191,10 @@ def _time_command(m: Measure) -> str:
 
 def _skip(length: Fraction) -> str:
     return f"s1*{length.numerator}/{length.denominator}" if length != 1 else "s1"
+
+
+def _mm_rest(length: Fraction) -> str:
+    return f"R1*{length.numerator}/{length.denominator}" if length != 1 else "R1"
 
 
 class _Writer:
@@ -278,7 +283,8 @@ class _Writer:
 
     # -- bars ----------------------------------------------------------------
     def global_bar(self, pb: PrintedBar, idx: int, prev: Measure | None,
-                   end_bar: str | None = None, restate_time: bool = False, grace_skip: str = "") -> str:
+                   end_bar: str | None = None, restate_time: bool = False, grace_skip: str = "",
+                   length: Fraction | None = None) -> str:
         m = self.score.measures[idx]
         items: list[str] = []
         if pb.line_break and prev is not None:
@@ -292,7 +298,7 @@ class _Writer:
             items.append(tempo)
         if m.section:
             items.append(f"\\sectionLabel {ly_string(m.section)}")
-        skip = _skip(m.actual_length)
+        skip = _skip(length if length is not None else m.actual_length)
         if grace_skip:  # keep this bar's barline, meter and line break ahead of a downbeat flam/drag
             skip = f"\\tag #'graces \\grace {{ {grace_skip} }} " + skip
         if m.uncertain:
@@ -359,7 +365,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             for out in (g_out, up_out, down_out):
                 out.append(f"\\repeat volta {pb.volta_times} {{")
             open_volta = True
-        run = pb.percent_run if pb.percent_run > 1 else 1
+        run = pb.percent_run if pb.percent_run > 1 else (pb.rest_run if pb.rest_run > 1 else 1)
         idx = pb.index
         m = score.measures[idx]
         sm = spelled_bar(idx)
@@ -371,6 +377,22 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         elif score.measures[after.index].section and not last_in_group.volta_end and not after.volta_start:
             end_bar = "||"
         restate = pb.volta_start and volta_restates_meter(score, plan, i)
+        if pb.rest_run > 1:
+            # Tacet bars: one multi-bar rest (compressed by skipBars) in voice 1.
+            total = m.actual_length * run
+            gbar = w.global_bar(pb, idx, prev, end_bar, restate_time=restate, length=total)
+            if last_in_group.volta_end:
+                gbar += f" \\textEndMark \\markup \\bold \"×{last_in_group.volta_times}\""
+            g_out.append(gbar + " |")
+            up_out.append(f"\\once \\override MultiMeasureRest.direction = #CENTER {_mm_rest(total)} |")
+            down_out.append(_skip(total) + " |")
+            i += run
+            prev = m
+            if last_in_group.volta_end and open_volta:
+                for out in (g_out, up_out, down_out):
+                    out.append("}")
+                open_volta = False
+            continue
         g_up = downbeat_grace_skip(sm.voices[1])
         g_down = "" if sm.shared_rest else downbeat_grace_skip(sm.voices[2])
         grace = max(g_up, g_down, key=lambda g: sum(Fraction(1, int(d[1:])) for d in g.split()))
@@ -421,6 +443,15 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     return "\n  ".join(g_out), "\n  ".join(up_out), "\n  ".join(down_out)
 
 
+# A chart using only these reads without a key (open and half-open hi-hat are the
+# hi-hat with an "o" or a slashed "o" above it); anything else prints the Drum Key.
+NO_KEY_NEEDED = frozenset({"kick", "snare", "hihat", "hihat_open", "hihat_half"})
+
+
+def needs_drum_key(score: Score) -> bool:
+    return any(i not in NO_KEY_NEEDED for i in score.instruments_used())
+
+
 def legend(score: Score, kit: Kit) -> str:
     used = score.instruments_used()
     if not used:
@@ -433,7 +464,7 @@ def legend(score: Score, kit: Kit) -> str:
         body = ins.ly_name
         if ins.notehead == "slashed":
             body = f"\\tweak NoteHead.stencil #rimshot-head {body}"
-        notes.append(f"{body}4 s4")
+        notes.append(f"{body}4 s4 \\bar \"\"")  # a possible line break: a big kit's key wraps
         labels.append(f"{ly_string(ins.name)}2")
     return (
         "\\markup \\bold \"Drum Key\"\n"
@@ -448,7 +479,7 @@ def legend(score: Score, kit: Kit) -> str:
         "      \\override StaffSymbol.staff-space = #0.8\n"
         "      fontSize = #-2\n"
         "    } \\drummode { \\cadenzaOn " + " ".join(notes) + " \\cadenzaOff }\n"
-        "    \\new Lyrics \\with { \\override LyricText.font-size = #-3 "
+        "    \\new Lyrics \\with { \\override LyricText.font-size = #-3 \\override LyricSpace.minimum-distance = #1.5 "
         "\\override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } "
         "\\lyricmode { " + " ".join(labels) + " }\n"
         "  >>\n"
@@ -487,7 +518,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         "  \\new DrumVoice = \"down\" \\with { \\hide PercentRepeat \\hide PercentRepeatCounter } { \\voiceTwo \\downMusic }\n"
         ">>",
     ]
-    if with_legend and len(score.instruments_used()) > 3:
+    if with_legend and needs_drum_key(score):
         parts.append(legend(score, kit))
     if has_uncertain:
         parts.append("\\markup \\small \\italic \"(?) above a bar = it contains low-confidence "

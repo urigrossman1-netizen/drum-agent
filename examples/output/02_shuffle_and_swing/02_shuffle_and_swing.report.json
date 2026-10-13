@@ -1,18 +1,18 @@
 {
  "title": "Shuffle and Swing",
  "chart_type": "pattern_study",
- "status": "verified",
+ "status": "entered",
  "bars": 12,
  "events": 156,
  "files": {
-  "json": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.json",
+  "json": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.json",
   "ly": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.ly",
   "pdf": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.pdf",
   "png1": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.png",
   "engraved_midi": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.midi",
-  "musicxml": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.musicxml",
-  "midi": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.mid",
-  "report": "examples/output/02_shuffle_and_swing/02_shuffle_and_swing.report.md"
+  "musicxml": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.musicxml",
+  "midi": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.mid",
+  "report": "/home/user/drum-agent/examples/output/02_shuffle_and_swing/02_shuffle_and_swing.report.md"
  },
  "rendering_ok": true,
  "lilypond_version": "2.26.0",
@@ -24,21 +24,52 @@
    "found": 156
   },
   {
+   "name": "engraved score tempo map",
+   "ok": true,
+   "expected": 12,
+   "found": 12
+  },
+  {
    "name": "MusicXML",
    "ok": true,
    "expected": 156,
    "found": 156
   },
   {
+   "name": "MusicXML articulations",
+   "ok": true,
+   "expected": 51,
+   "found": 51
+  },
+  {
+   "name": "MusicXML meters",
+   "ok": true,
+   "expected": 12,
+   "found": 12
+  },
+  {
    "name": "MIDI",
    "ok": true,
    "expected": 156,
    "found": 156
+  },
+  {
+   "name": "MIDI tempo map",
+   "ok": true,
+   "expected": 12,
+   "found": 12
+  },
+  {
+   "name": "MIDI barlines",
+   "ok": true,
+   "expected": 12,
+   "found": 12
   }
  ],
  "musicxml_errors": [],
  "uncertain_bars": [],
  "uncertain_score_bars": [],
  "warnings": [],
+ "layout_notes": [],
  "analysis": {}
 }

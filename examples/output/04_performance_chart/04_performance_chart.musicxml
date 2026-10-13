@@ -9,7 +9,7 @@
   <creator type="arranger">Transcribed by Drum Agent</creator>
   <encoding>
    <software>Drum Agent 1.0.0</software>
-   <encoding-date>2026-10-12</encoding-date>
+   <encoding-date>2026-10-13</encoding-date>
    <supports element="beam" type="yes" />
    <supports element="stem" type="yes" />
    <supports element="print" type="yes" attribute="new-system" value="yes" />
@@ -6118,7 +6118,6 @@
    </barline>
   </measure>
   <measure number="33">
-   <print new-system="yes" />
    <direction placement="above">
     <direction-type>
      <rehearsal enclosure="rectangle">Ending</rehearsal>

@@ -126,16 +126,21 @@ def test_case08_tuplets_and_rests(rendered):
     assert {"3", "6"} <= actual
     assert root.findall(".//rest[@measure='yes']")
     assert "32nd" in {t.text for t in root.iter("type")}
+    assert [m.text for m in root.iter("multiple-rest")] == ["4"]  # the tacet section
+    assert "R1*4/1" in ly
+    glob = ly.split("globalMusic = {")[1].split("\n}")[0]
+    assert "\\grace { s8 }" in glob and "\\grace { s16 s16 }" in glob  # downbeat flam and drag
 
 
 def test_case09_meters(rendered):
     _, report = rendered["09_odd_meters"]
     root = _xml(report)
     sigs = [(t.findtext("beats"), t.findtext("beat-type")) for t in root.iter("time")]
-    assert sigs == [("3", "4"), ("7", "8"), ("5", "4"), ("6", "8"), ("12", "8"), ("5", "8"), ("2", "4")]
+    assert sigs == [("3", "4"), ("7", "8"), ("5", "4"), ("6", "8"), ("12", "8"), ("5", "8"), ("3", "8"), ("2", "4")]
     ly = _ly(report)
     assert "\\time 2,2,3 7/8" in ly and "\\time 2,3 5/8" in ly
     assert "\\tempo 4. = 72" in ly
+    assert "hihat8[ hihat8 hihat8]" in ly  # 3/8 is beamed as one group
 
 
 def test_case10_arrangement(rendered):

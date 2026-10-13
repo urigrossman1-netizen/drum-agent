@@ -28,7 +28,9 @@ apart silently. `tests/test_kit.py` asserts the table below.
   (`drum_agent/schemas/musicxml-4.0/musicxml.xsd`).
 
 Publishers don't all agree on tom and cymbal placement, so every chart that
-uses more than kick, snare and hi-hat prints a **Drum Key** on page 1.
+uses more than kick, snare and hi-hat (open and half-open hi-hat count as
+hi-hat) prints a **Drum Key** on page 1. A key for a big kit wraps onto
+further lines; it never runs off the page.
 
 ## 2. Staff
 
@@ -152,18 +154,29 @@ and keeps the page uncluttered.
 
 * **Time signatures** are printed at the start and at every change.
 * **Tempo:** a metronome mark at bar 1 and at every change. In compound
-  meter the beat unit is the dotted quarter. A detected swing feel adds the
+  meter (and 3/8) the beat unit is the dotted beat (dotted quarter in x/8).
+  Short x/8 bars are beamed by beat: 2/8 and 3/8 as one group, 4/8 as 2 + 2. A detected swing feel adds the
   text "Swing" to the mark and the 8ths stay straight (standard practice).
   It is not written as triplets.
 * **Section labels** (Intro, Verse, Chorus, Bridge, Solo, Outro, or A/B/C
   when names are unknown) are boxed labels at the start of a system. Each
-  section starts a new system.
+  section starts a new system, with two exceptions that avoid a system
+  holding one short bar stretched across the page: a short section (under
+  40% of a line) is followed on its line by the next section when that whole
+  section fits there; otherwise it joins the end of the previous line (up to
+  a quarter more than a full line, never after a repeat), after a double
+  barline.
 * **Bar numbers** appear at the start of every system.
 * **Repeats.** These are used only when the repeated music is *exactly*
   identical after quantization:
   * runs of identical single bars inside a section → one-bar simile marks
     (%) with a count every 4 bars;
-  * a phrase of 2–8 bars repeated whole → repeat barlines with "×N".
+  * a phrase of 2–8 bars repeated whole → repeat barlines with "×N"; the
+    phrase that saves the most written bars wins, and the shorter one on a
+    tie (`|: A B :| ×8`, not `|: A B A B A B A B :| ×2`).
+  * two or more consecutive empty bars (same meter, no mark after the first)
+    → one multi-bar rest (an H-bar with the count above), also in MusicXML
+    (`<multiple-rest>`).
   * Fills, variations and the last bar of a phrase that differs are always
     written out. Repeats can be turned off (`--repeats none`) to write
     everything out.

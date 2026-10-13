@@ -1,18 +1,18 @@
 {
  "title": "Basic Rock Beat",
  "chart_type": "pattern_study",
- "status": "verified",
+ "status": "entered",
  "bars": 4,
  "events": 56,
  "files": {
-  "json": "examples/output/01_basic_rock_beat/01_basic_rock_beat.json",
+  "json": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.json",
   "ly": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.ly",
   "pdf": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.pdf",
   "png1": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.png",
   "engraved_midi": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.midi",
-  "musicxml": "examples/output/01_basic_rock_beat/01_basic_rock_beat.musicxml",
-  "midi": "examples/output/01_basic_rock_beat/01_basic_rock_beat.mid",
-  "report": "examples/output/01_basic_rock_beat/01_basic_rock_beat.report.md"
+  "musicxml": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.musicxml",
+  "midi": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.mid",
+  "report": "/home/user/drum-agent/examples/output/01_basic_rock_beat/01_basic_rock_beat.report.md"
  },
  "rendering_ok": true,
  "lilypond_version": "2.26.0",
@@ -24,21 +24,52 @@
    "found": 56
   },
   {
+   "name": "engraved score tempo map",
+   "ok": true,
+   "expected": 4,
+   "found": 4
+  },
+  {
    "name": "MusicXML",
    "ok": true,
    "expected": 56,
    "found": 56
   },
   {
+   "name": "MusicXML articulations",
+   "ok": true,
+   "expected": 4,
+   "found": 4
+  },
+  {
+   "name": "MusicXML meters",
+   "ok": true,
+   "expected": 4,
+   "found": 4
+  },
+  {
    "name": "MIDI",
    "ok": true,
    "expected": 56,
    "found": 56
+  },
+  {
+   "name": "MIDI tempo map",
+   "ok": true,
+   "expected": 4,
+   "found": 4
+  },
+  {
+   "name": "MIDI barlines",
+   "ok": true,
+   "expected": 4,
+   "found": 4
   }
  ],
  "musicxml_errors": [],
  "uncertain_bars": [],
  "uncertain_score_bars": [],
  "warnings": [],
+ "layout_notes": [],
  "analysis": {}
 }

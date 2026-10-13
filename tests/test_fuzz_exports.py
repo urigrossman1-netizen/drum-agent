@@ -442,6 +442,19 @@ def assert_layout(score: Score, plan, mode: str) -> None:
             assert ms[b.index].musical_signature() == ms[prev.index].musical_signature()
             assert ms[b.index].tempo is None and ms[b.index].section is None and not ms[b.index].uncertain
             assert ms[b.index].tempo_text is None and not ms[prev.index].uncertain
+        if b.rest_run:  # a multi-bar rest: empty bars of one meter, marks only on the first
+            assert mode != "none" and b.rest_run >= 2 and not b.in_rest and not b.percent
+            run = bars[k:k + b.rest_run]
+            assert [x.index for x in run] == list(range(b.index, b.index + b.rest_run))
+            assert all(x.in_rest and not x.line_break and not x.percent for x in run[1:])
+            for x in run:
+                m = ms[x.index]
+                assert not m.hits and not m.uncertain and not m.is_pickup
+                assert str(m.time_sig) == str(ms[b.index].time_sig)
+                if x is not b:
+                    assert m.tempo is None and m.tempo_text is None and m.section is None
+        elif b.in_rest:
+            assert bars[k - 1].in_rest or bars[k - 1].rest_run
     k = 0
     while k < len(bars):
         if not bars[k].volta_start:
@@ -475,8 +488,9 @@ def test_random_scores_layout_reproduces_the_bars():
                 if mode == "auto":
                     compressed["percent"] += sum(b.percent for b in plan.bars)
                     compressed["volta"] += sum(b.volta_start for b in plan.bars)
+                    compressed["rest"] += sum(b.rest_run > 0 for b in plan.bars)
         assert len(plan_layout(score, repeats="none").bars) == len(score.measures)
-    assert compressed["percent"] > 20 and compressed["volta"] > 5, compressed
+    assert compressed["percent"] > 20 and compressed["volta"] > 5 and compressed["rest"] > 0, compressed
 
 
 def test_random_scores_musicxml_and_midi_match_the_ir(tmp_path):

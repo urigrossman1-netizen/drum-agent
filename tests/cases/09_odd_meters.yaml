@@ -36,6 +36,11 @@ sections:
     tempo: 160
     bars:
       - {hh: "xxxxx", sn: "--x--", bd: "x----"}
+  - label: "3/8"
+    time: 3/8
+    bars:
+      - {hh: "xxx", bd: "x--"}
+      - {hh: "xxx", sn: "-x-", bd: "x--"}
   - label: "2/4"
     time: 2/4
     bars:

@@ -427,3 +427,129 @@ def test_downbeat_grace_skip_covers_a_simile_run_and_a_pickup():
     pick = spec([{"bars": [{"sn": "f-"}, GROOVE]}], tempo=100, pickup="1/4")
     assert downbeat_grace_skip(spell_measure(pick.measures[0]).voices[1]) == "s8"
     assert "\\tag #'graces \\grace { s8 }" in to_lilypond(pick)
+
+
+A = {"hh": "x-x-x-x-", "sn": "--x---x-", "bd": "x---x---"}
+B = {"hh": "x-x-x-x-", "sn": "--x---x-", "bd": "x--xx---"}
+C = {"rd": "x-x-x-x-", "sn": "--x---x-", "bd": "x---x-x-"}
+D = {"rd": "x-x-x-x-", "sn": "--x-xxxx", "bd": "x---x---"}
+REST = {"hh": "--------"}
+
+
+def systems(plan):
+    lines = []
+    for b in plan.bars:
+        if b.line_break or not lines:
+            lines.append([])
+        lines[-1].append(b.index)
+    return lines
+
+
+@pytest.mark.parametrize("bars,phrase,times", [
+    ([A, B] * 4, 2, 4), ([A, B] * 8, 2, 8), ([A, B, C, D] * 4, 4, 4),
+    ([A, B, A, B, A, B, A, C] * 2, 8, 2),  # the 8-bar phrase saves more than |: A B :| x3
+])
+def test_repeats_use_the_phrase_that_saves_the_most_bars(bars, phrase, times):
+    plan = plan_layout(spec([{"label": "V", "bars": bars}]))
+    assert [len(p) for p in volta_phrases(plan)] == [phrase]
+    assert plan.bars[0].volta_times == times
+
+
+def test_empty_bars_become_one_multi_bar_rest(tmp_path):
+    s = spec([{"label": "Intro", "bars": [REST] * 6}, {"label": "Verse", "bars": [A, B]}], tempo=100)
+    plan = plan_layout(s)
+    assert plan.bars[0].rest_run == 6 and all(b.in_rest for b in plan.bars[1:6])
+    assert not any(b.percent for b in plan.bars)
+    ly = to_lilypond(s)
+    assert "R1*6/1" in ly and "skipBars = ##t" in ly and "\\repeat percent" not in ly
+    assert "<multiple-rest>6</multiple-rest>" in to_musicxml(s)
+    report = export_all(s, tmp_path, "s")
+    assert report.rendering_ok, [c.summary() for c in report.comparisons if not c.ok]
+
+
+def test_multi_bar_rests_split_at_marks_and_meters_and_never_cross_a_line():
+    s = spec([{"label": "Intro", "bars": [REST] * 3 + [{"tempo": 90, **REST}, REST]},
+              {"label": "Tacet", "bars": [REST] * 2 + [{"time": "3/4", "hh": "------"}] * 2},
+              {"label": "Long", "time": "4/4", "bars": [REST] * 12 + [A]}], tempo=100)
+    plan = plan_layout(s)
+    runs = [(b.index, b.rest_run) for b in plan.bars if b.rest_run]
+    assert runs == [(0, 3), (3, 2), (5, 2), (7, 2), (9, 12)]
+    for line in systems(plan):
+        assert not plan.bars[[b.index for b in plan.bars].index(line[0])].in_rest
+    assert plan.expand() == list(range(len(s.measures)))
+    assert not any(b.rest_run for b in plan_layout(s, repeats="none").bars)  # everything written out
+
+
+@needs_lilypond
+def test_multi_bar_rest_inside_a_repeated_phrase_engraves(tmp_path):
+    s = spec([{"bars": [A, REST, REST, B] * 2 + [C]}], tempo=100)
+    plan = plan_layout(s)
+    assert volta_phrases(plan) == [[0, 1, 2, 3]] and plan.bars[1].rest_run == 2
+    report = export_all(s, tmp_path, "s")
+    assert report.rendering_ok, [c.summary() for c in report.comparisons if not c.ok]
+
+
+@pytest.mark.parametrize("bar,key", [
+    ({"hh": "x-x-x-xo", "sn": "--x---x-", "bd": "x---x---"}, False),  # open hi-hat is still the hi-hat
+    ({"xs": "x--x--x---x--x--", "bd": "x--xx--xx--xx--x", "hf": "--x---x---x---x-"}, True),  # 3 instruments
+    ({"rd": "x-xxx-xx", "sn": "---x----", "bd": "x---x---"}, True),
+    ({"t1": "x-x-x-x-", "ft": "-x-x-x-x", "bd": "x---x---"}, True),
+])
+def test_drum_key_is_printed_whenever_more_than_kick_snare_and_hihat_is_used(bar, key):
+    s = spec([{"bars": [bar]}])
+    assert ("Drum Key" in to_lilypond(s)) == key
+
+
+@needs_lilypond
+def test_a_big_kit_drum_key_wraps_inside_the_page(tmp_path):
+    import subprocess
+    from drum_agent.export.render import find_lilypond
+    s = spec([{"bars": [
+        {"hh": "x-x-x-xo", "sn": "--x---x-", "bd": "x---x-x-", "cr": "x-------", "hf": "--x---x-"},
+        {"rd": "x-x-x-x-", "rb": "-x------", "sn": "--x---x-", "bd": "x---x---", "cn": "-------x"},
+        {"t1": "xx------", "t2": "--xx----", "ft": "----xx--", "ft2": "------xx", "bd": "x---x---"},
+        {"spl": "x-------", "c2": "----x---", "rs": "--x---x-", "bd": "x---x---", "hh": "-x-h-x--"}]}])
+    assert len(s.instruments_used()) == 17
+    report = export_all(s, tmp_path, "s")
+    assert report.rendering_ok and not report.warnings
+    ly = (tmp_path / "s.ly").read_text().replace(
+        "\\new Lyrics \\with {", "\\new Lyrics \\with { \\override LyricText.output-attributes = #'((class . \"KeyLabel\"))", 1)
+    (tmp_path / "t.ly").write_text(ly)
+    subprocess.run([find_lilypond(), "-dbackend=svg", "-o", str(tmp_path / "t"), str(tmp_path / "t.ly")],
+                   capture_output=True, check=True)
+    svg = (tmp_path / "t.svg").read_text()
+    width = float(re.search(r'viewBox="[\d.\-]+ [\d.\-]+ ([\d.]+)', svg).group(1))
+    rows: dict[int, list[float]] = {}
+    for m in re.finditer(r'class="KeyLabel"', svg):
+        x, y = map(float, re.search(r'translate\(([\d.\-]+),\s*([\d.\-]+)\)', svg[m.end():m.end() + 800]).groups())
+        rows.setdefault(round(y), []).append(x)
+    assert len(rows) >= 2  # wrapped onto a second line
+    assert max(max(xs) for xs in rows.values()) < 0.85 * width  # labels start well inside the page
+
+
+def test_short_eighth_meters_are_beamed_as_one_beat_with_a_dotted_quarter_mark():
+    from drum_agent.rhythm import spell_measure
+    assert [TimeSig.parse(t).groups() for t in ("2/8", "3/8", "4/8")] == [(2,), (3,), (2, 2)]
+    s = spec([{"time": "3/8", "bars": [{"hh": "xxx", "bd": "x--"}]}], tempo=120)
+    beams = [dict(t.beams) for t in spell_measure(s.measures[0]).voices[1]]
+    assert beams == [{1: "begin"}, {1: "continue"}, {1: "end"}]
+    assert "\\tempo 4. = 80" in to_lilypond(s)
+    xml = to_musicxml(s)
+    assert "<beat-unit-dot />" in xml and "<per-minute>80</per-minute>" in xml
+    assert "\\tempo 8. = 160" in to_lilypond(spec([{"time": "6/16", "bars": [{"hh": "xxxxxx"}]}], tempo=120))
+
+
+def test_a_section_starts_a_new_system_unless_it_is_short():
+    fill = {"sn": "xxxxxxxx", "bd": "x-------"}
+    hit = {"cr": "x-------", "sn": "x-------", "bd": "x-------"}
+    s = spec([{"label": "Intro", "bars": [A, B, A, fill]}, {"label": "Break", "bars": [hit]},
+              {"label": "Verse", "bars": [A, B, A, fill]}])
+    # The one-bar break joins the end of the intro's line rather than sitting alone on
+    # a stretched system, and the verse's phrase is not split.
+    assert systems(plan_layout(s)) == [[0, 1, 2, 3, 4], [5, 6, 7, 8]]
+    s = spec([{"label": "Intro", "bars": [A, B] * 2}, {"label": "Break", "bars": [hit]},
+              {"label": "Verse", "bars": [A, B, A, fill]}])
+    assert systems(plan_layout(s))[1:] == [[4], [5, 6, 7, 8]]  # never appended after a repeat
+    s = spec([{"label": "Hit", "bars": [{"cr": "x-------", "bd": "x-------"}]},
+              {"label": "Tag", "bars": [A, fill]}, {"label": "Out", "bars": [A, B, A, fill]}])
+    assert systems(plan_layout(s)) == [[0, 1, 2], [3, 4, 5, 6]]  # the whole short section fits

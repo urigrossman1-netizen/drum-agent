@@ -120,6 +120,9 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override TupletBracket.bracket-visibility = ##t
     \override PercentRepeatCounter.font-size = #-2
     countPercentRepeats = ##t
+    skipBars = ##t
+    \override MultiMeasureRest.expand-limit = #1
+    \override MultiMeasureRest.minimum-length = #22
   }
   \context {
     \DrumStaff
@@ -158,24 +161,6 @@ drumMusic = \new DrumStaff <<
   \new DrumVoice = "down" \with { \hide PercentRepeat \hide PercentRepeatCounter } { \voiceTwo \downMusic }
 >>
 
-\markup \bold "Drum Key"
-\score {
-  <<
-    \new DrumStaff \with {
-      \remove Time_signature_engraver
-      \remove Bar_number_engraver
-      \override BarLine.stencil = ##f
-      \hide Stem
-      \override Stem.Y-extent = ##f
-      \override StaffSymbol.staff-space = #0.8
-      fontSize = #-2
-    } \drummode { \cadenzaOn hihat4 s4 hihatopen4 s4 snare4 s4 kick4 s4 \cadenzaOff }
-    \new Lyrics \with { \override LyricText.font-size = #-3 \override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } \lyricmode { "Hi-hat"2 "Open hi-hat"2 "Snare"2 "Bass drum"2 }
-  >>
-  \layout { ragged-right = ##t indent = 0 \context { \Score \remove Bar_number_engraver } }
-}
-
-
 \score {
   \drumMusic
   \layout { }
@@ -184,6 +169,7 @@ drumMusic = \new DrumStaff <<
 \score {
   \removeWithTag #'graces \unfoldRepeats \drumMusic
   \midi {
+    \tempo 4 = 100
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }
   }
 }

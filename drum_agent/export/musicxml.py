@@ -226,18 +226,15 @@ class _XmlWriter:
             _sub(dt, "words", m.tempo_text, font_weight="bold")
         dt = _sub(d, "direction-type")
         met = _sub(dt, "metronome")
-        if m.time_sig.is_compound:
+        unit, dotted = m.time_sig.metronome_unit()
+        if unit is None or unit not in _TYPE:
             _sub(met, "beat-unit", "quarter")
-            _sub(met, "beat-unit-dot")
-            _sub(met, "per-minute", str(int(round(tempo * 2 / 3))))
+            _sub(met, "per-minute", str(int(round(tempo))))
         else:
-            unit = m.time_sig.beat_unit
-            if unit in _TYPE:
-                _sub(met, "beat-unit", _TYPE[unit])
-                _sub(met, "per-minute", str(int(round(tempo * float(Fraction(1, 4) / unit)))))
-            else:
-                _sub(met, "beat-unit", "quarter")
-                _sub(met, "per-minute", str(int(round(tempo))))
+            _sub(met, "beat-unit", _TYPE[unit])
+            if dotted:
+                _sub(met, "beat-unit-dot")
+            _sub(met, "per-minute", str(int(round(tempo * float(Fraction(1, 4) / (unit * 3 / 2 if dotted else unit))))))
         _sub(d, "sound", tempo=f"{tempo:g}")
 
 
@@ -333,6 +330,9 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
             _sub(clef, "sign", "percussion")
             sd = _sub(attrs, "staff-details")
             _sub(sd, "staff-lines", "5")
+        if pb.rest_run > 1:  # the bars are all written; readers show them as one multi-bar rest
+            ms = _sub(attrs, "measure-style")
+            _sub(ms, "multiple-rest", str(pb.rest_run))
         if pb.percent and not in_percent:
             ms = _sub(attrs, "measure-style")
             _sub(ms, "measure-repeat", "1", type="start")

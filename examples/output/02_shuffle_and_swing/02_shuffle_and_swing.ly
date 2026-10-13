@@ -121,6 +121,9 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override TupletBracket.bracket-visibility = ##t
     \override PercentRepeatCounter.font-size = #-2
     countPercentRepeats = ##t
+    skipBars = ##t
+    \override MultiMeasureRest.expand-limit = #1
+    \override MultiMeasureRest.minimum-length = #22
   }
   \context {
     \DrumStaff
@@ -185,8 +188,8 @@ drumMusic = \new DrumStaff <<
       \override Stem.Y-extent = ##f
       \override StaffSymbol.staff-space = #0.8
       fontSize = #-2
-    } \drummode { \cadenzaOn crash4 s4 hihat4 s4 hihatopen4 s4 ride4 s4 tomone4 s4 snare4 s4 kick4 s4 hihatpedal4 s4 \cadenzaOff }
-    \new Lyrics \with { \override LyricText.font-size = #-3 \override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } \lyricmode { "Crash"2 "Hi-hat"2 "Open hi-hat"2 "Ride"2 "Tom 1"2 "Snare"2 "Bass drum"2 "Hi-hat (foot)"2 }
+    } \drummode { \cadenzaOn crash4 s4 \bar "" hihat4 s4 \bar "" hihatopen4 s4 \bar "" ride4 s4 \bar "" tomone4 s4 \bar "" snare4 s4 \bar "" kick4 s4 \bar "" hihatpedal4 s4 \bar "" \cadenzaOff }
+    \new Lyrics \with { \override LyricText.font-size = #-3 \override LyricSpace.minimum-distance = #1.5 \override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } \lyricmode { "Crash"2 "Hi-hat"2 "Open hi-hat"2 "Ride"2 "Tom 1"2 "Snare"2 "Bass drum"2 "Hi-hat (foot)"2 }
   >>
   \layout { ragged-right = ##t indent = 0 \context { \Score \remove Bar_number_engraver } }
 }
@@ -200,6 +203,7 @@ drumMusic = \new DrumStaff <<
 \score {
   \removeWithTag #'graces \unfoldRepeats \drumMusic
   \midi {
+    \tempo 4 = 76
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }
   }
 }

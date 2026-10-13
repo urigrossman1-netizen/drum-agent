@@ -29,3 +29,13 @@ sections:
       - {t1: "x---x---x---x--x--x--x--", bd: "x-----------x-----x-----"}
       - silent_hands
       - {sn: "----", bd: "----"}
+  - label: Tacet
+    bars:
+      - {sn: "----"}
+      - {sn: "----"}
+      - {sn: "----"}
+      - {sn: "----"}
+  - label: Flams
+    bars:
+      - {sn: "f-x-x-x-", bd: "x---x---"}
+      - {sn: "d---x---", bd: "x-------"}

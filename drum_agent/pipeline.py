@@ -86,6 +86,14 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
                 res = fitted
                 report.notes.append(f"Fitted onto {len(res.pngs)} page(s) instead of {len(res.pngs) + 1} "
                                     "(the last page held only a sliver); vertical spacing slightly compressed.")
+            squeeze = _compression(res.warnings)
+            if 0 < squeeze <= MAX_COMPRESSION:
+                # LilyPond packed a full page a little tighter than its preferred spacing;
+                # nothing collides at this amount, so it is a note, not a rendering problem.
+                res.warnings = _without_compression(res.warnings)
+                if fitted is None:
+                    report.notes.append(f"A full page was spaced slightly tighter than usual "
+                                        f"({squeeze:g} staff spaces in total).")
             if not opts.png:
                 for p in res.pngs:
                     p.unlink()
@@ -133,8 +141,9 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
 # A last page whose content ends above this fraction of the page height holds
 # only a system or two; try to pull it onto the previous page.
 LIGHT_LAST_PAGE = 0.30
-# Accept the fitted version only if LilyPond had to squeeze this little
-# (staff-spaces in total); more than that crowds the systems.
+# LilyPond may squeeze a page below its preferred spacing. Up to this much (in
+# staff spaces, summed over the page) nothing crowds: accepted as a note, and the
+# limit for pulling a sliver of a last page back. More than that is a warning.
 MAX_COMPRESSION = 6.0
 
 
@@ -183,10 +192,11 @@ def _fit_fewer_pages(score, kit, plan, opts, res, out: Path, stem: str):
             return None
         if len(trial.pngs) != n - 1 or _compression(trial.warnings) > MAX_COMPRESSION:
             return None
-    fitted = render(ly, out, stem, png=True)
-    fitted.warnings = [w for w in fitted.warnings
-                       if "compressing over-full page" not in w and "has been compressed" not in w]
-    return fitted
+    return render(ly, out, stem, png=True)
+
+
+def _without_compression(warnings: list[str]) -> list[str]:
+    return [w for w in warnings if "compressing over-full page" not in w and "has been compressed" not in w]
 
 
 def report_json(score: Score, report: ExportReport) -> dict:

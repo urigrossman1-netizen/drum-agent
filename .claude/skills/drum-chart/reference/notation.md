@@ -43,9 +43,13 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
 - Rests follow bar > half bar > beat. No half rest across the middle of 4/4.
 - Beams group by beat. In 4/4, two beats of plain 8ths beam as one group of four.
 - Exactly identical bars become simile marks (counted), and identical phrases
-  become repeat barlines with "×N". Fills and flagged bars are always written out.
-- Sections start a new system unless very short; lines are balanced (6 bars →
-  3 + 3).
+  become repeat barlines with "×N" (the shortest phrase that repeats:
+  `|: A B :| ×8`). Fills and flagged bars are always written out.
+- Two or more empty bars in a row become one multi-bar rest with its count.
+- Sections start a new system. A short section (under 40% of a line) may share:
+  the next section follows it if that whole section fits, otherwise it joins
+  the end of the previous line. Lines are balanced (6 bars → 3 + 3).
+- 2/8 and 3/8 are beamed as one group, with a dotted-quarter tempo mark in 3/8.
 
 ## Headers
 The chart-type line is always printed: Full Drum Transcription / Performance

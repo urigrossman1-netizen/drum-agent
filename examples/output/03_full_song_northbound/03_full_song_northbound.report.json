@@ -1,19 +1,19 @@
 {
  "title": "Northbound",
  "chart_type": "full_transcription",
- "status": "verified",
+ "status": "entered",
  "bars": 60,
  "events": 853,
  "files": {
-  "json": "examples/output/03_full_song_northbound/03_full_song_northbound.json",
+  "json": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.json",
   "ly": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.ly",
   "pdf": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.pdf",
   "png1": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound-page1.png",
   "png2": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound-page2.png",
   "engraved_midi": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.midi",
-  "musicxml": "examples/output/03_full_song_northbound/03_full_song_northbound.musicxml",
-  "midi": "examples/output/03_full_song_northbound/03_full_song_northbound.mid",
-  "report": "examples/output/03_full_song_northbound/03_full_song_northbound.report.md"
+  "musicxml": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.musicxml",
+  "midi": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.mid",
+  "report": "/home/user/drum-agent/examples/output/03_full_song_northbound/03_full_song_northbound.report.md"
  },
  "rendering_ok": true,
  "lilypond_version": "2.26.0",
@@ -25,21 +25,52 @@
    "found": 853
   },
   {
+   "name": "engraved score tempo map",
+   "ok": true,
+   "expected": 60,
+   "found": 60
+  },
+  {
    "name": "MusicXML",
    "ok": true,
    "expected": 853,
    "found": 853
   },
   {
+   "name": "MusicXML articulations",
+   "ok": true,
+   "expected": 75,
+   "found": 75
+  },
+  {
+   "name": "MusicXML meters",
+   "ok": true,
+   "expected": 60,
+   "found": 60
+  },
+  {
    "name": "MIDI",
    "ok": true,
    "expected": 888,
    "found": 888
+  },
+  {
+   "name": "MIDI tempo map",
+   "ok": true,
+   "expected": 60,
+   "found": 60
+  },
+  {
+   "name": "MIDI barlines",
+   "ok": true,
+   "expected": 60,
+   "found": 60
   }
  ],
  "musicxml_errors": [],
  "uncertain_bars": [],
  "uncertain_score_bars": [],
  "warnings": [],
+ "layout_notes": [],
  "analysis": {}
 }

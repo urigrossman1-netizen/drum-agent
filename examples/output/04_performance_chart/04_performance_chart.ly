@@ -105,8 +105,6 @@ drumPitchNames.hihatclosed = #'hihatclosed
   score-system-spacing.basic-distance = #14
   system-system-spacing = #'((basic-distance . 14) (minimum-distance . 10) (padding . 2) (stretchability . 12))
   print-first-page-number = ##f
-  ragged-last = ##t
-  page-count = 1
 }
 
 
@@ -122,6 +120,9 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override TupletBracket.bracket-visibility = ##t
     \override PercentRepeatCounter.font-size = #-2
     countPercentRepeats = ##t
+    skipBars = ##t
+    \override MultiMeasureRest.expand-limit = #1
+    \override MultiMeasureRest.minimum-length = #22
   }
   \context {
     \DrumStaff
@@ -148,7 +149,7 @@ globalMusic = {
   \repeat percent 3 { s1 | }
   \break \repeat percent 3 { s1 | }
   s1 \bar "||" |
-  \break \sectionLabel "Ending" s1 \bar "|." |
+  \sectionLabel "Ending" s1 \bar "|." |
 }
 
 upMusic = \drummode {
@@ -210,8 +211,8 @@ drumMusic = \new DrumStaff <<
       \override Stem.Y-extent = ##f
       \override StaffSymbol.staff-space = #0.8
       fontSize = #-2
-    } \drummode { \cadenzaOn crash4 s4 hihat4 s4 ride4 s4 snare4 s4 kick4 s4 \cadenzaOff }
-    \new Lyrics \with { \override LyricText.font-size = #-3 \override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } \lyricmode { "Crash"2 "Hi-hat"2 "Ride"2 "Snare"2 "Bass drum"2 }
+    } \drummode { \cadenzaOn crash4 s4 \bar "" hihat4 s4 \bar "" ride4 s4 \bar "" snare4 s4 \bar "" kick4 s4 \bar "" \cadenzaOff }
+    \new Lyrics \with { \override LyricText.font-size = #-3 \override LyricSpace.minimum-distance = #1.5 \override VerticalAxisGroup.nonstaff-relatedstaff-spacing = #'((basic-distance . 2) (padding . 0.4)) } \lyricmode { "Crash"2 "Hi-hat"2 "Ride"2 "Snare"2 "Bass drum"2 }
   >>
   \layout { ragged-right = ##t indent = 0 \context { \Score \remove Bar_number_engraver } }
 }
@@ -225,6 +226,7 @@ drumMusic = \new DrumStaff <<
 \score {
   \removeWithTag #'graces \unfoldRepeats \drumMusic
   \midi {
+    \tempo 4 = 118
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }
   }
 }

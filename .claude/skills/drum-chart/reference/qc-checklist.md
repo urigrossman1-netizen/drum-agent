@@ -17,7 +17,8 @@ an item failing.
 - [ ] Every header word came from the user (or is listed as your assumption)
 - [ ] Requested style/feel printed (tempo_text)
 - [ ] Tempo mark (and "Swing"/feel text if any) at the start
-- [ ] Drum Key present when more than 3 instruments are used
+- [ ] Drum Key present when anything beyond kick, snare and hi-hat (closed,
+      open, half-open) is used; every key label inside the page
 - [ ] Page numbers from page 2; no page with a single system unless it's the last
 - [ ] Uncertainty footnote present if any bar is marked "(?)"
 
@@ -46,6 +47,8 @@ an item failing.
 - [ ] Simile marks only over bars identical to the previous one; count numbers
       readable; nothing written out that is simile-marked elsewhere
 - [ ] Repeat barlines with "×N" when a phrase repeats; volta structure matches the form
+- [ ] Tacet passages (2+ empty bars) shown as one multi-bar rest with the right count
+- [ ] Each section starts a system, or (if short) sits at a line end after "||"
 - [ ] Bars numbered at system starts; numbers match the report's "printed" numbers
 - [ ] Systems balanced (no lonely bar stretched across a line; short last line ragged)
 - [ ] Nothing collides: text, accents, ledger lines, tuplet numbers

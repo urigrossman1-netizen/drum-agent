@@ -115,6 +115,8 @@ class TimeSig:
             if self.num % 2 == 0:
                 return tuple([2] * (self.num // 2))
             return tuple([2] * ((self.num - 3) // 2) + [3])
+        if self.den >= 8 and self.num in (2, 3, 4):  # 2/8, 3/8, 4/8: beamed in one or two groups
+            return {2: (2,), 3: (3,), 4: (2, 2)}[self.num]
         return tuple([1] * self.num)
 
     def beats(self) -> list[tuple[Fraction, Fraction]]:
@@ -132,6 +134,17 @@ class TimeSig:
         """Most common beat length (used for the tempo mark)."""
         beats = [length for _, length in self.beats()]
         return max(set(beats), key=beats.count)
+
+    def metronome_unit(self) -> tuple[Fraction | None, bool]:
+        """Note value of the tempo mark as (undotted value, dotted?), or (None, False)
+        for a plain quarter-note mark. Compound meters and 3/8 count dotted beats;
+        irregular meters (5/8, 7/8) mix beat lengths, so they keep the quarter."""
+        unit = self.beat_unit
+        if self.is_irregular:
+            return (unit, False) if unit == Fraction(1, 4) else (None, False)
+        if unit.numerator == 3 and (Fraction(3, 2) / unit).denominator == 1:
+            return unit * 2 / 3, True
+        return (unit, False) if (1 / unit).denominator == 1 else (None, False)
 
     def half_bar_spans(self) -> list[tuple[Fraction, Fraction]] | None:
         """Half-bar nodes for the rest hierarchy (only meters with a strong middle)."""
