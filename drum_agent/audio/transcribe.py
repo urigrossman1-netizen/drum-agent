@@ -115,9 +115,11 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
             beat_slice, bars, meter_notes = refined
             res = quantize(onsets, beat_slice, bars, qopts)
     # A short bar (e.g. one 2/4 bar ending a section) shifts every later downbeat;
-    # crashes that move off beat 1 for good show where.
-    beat_slice, bars, res, shift_notes = _realign_downbeats(onsets, beat_slice, bars, res, qopts)
-    meter_notes += shift_notes
+    # crashes that move off beat 1 for good show where. A meter given by the user
+    # holds throughout: no bars of another meter are inserted.
+    if not opts.time_signature:
+        beat_slice, bars, res, shift_notes = _realign_downbeats(onsets, beat_slice, bars, res, qopts)
+        meter_notes += shift_notes
     measures = res.measures
     rolls = _notate_rolls(measures)
     while len(measures) > 1 and not measures[-1].hits:

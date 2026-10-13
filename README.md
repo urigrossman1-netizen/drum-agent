@@ -7,9 +7,9 @@ score and checked against each other automatically.
 ![Northbound, page 1](examples/output/03_full_song_northbound/03_full_song_northbound-page1.png)
 
 - **Engraving**: LilyPond 2.26, Weinberg/PAS drum-set layout (hands stems up,
-  feet stems down), Drum Key, boxed section labels, simile marks and repeats,
-  tuplets, flams, drags, rolls, ghost notes, accents, open/closed hi-hat, meter
-  and tempo changes, pickups. The spec is in
+  feet stems down), Drum Key, boxed section labels, simile marks, repeats,
+  multi-bar rests, tuplets, flams, drags, rolls, ghost notes, accents,
+  open/closed hi-hat, meter and tempo changes, pickups. The spec is in
   [docs/NOTATION_SPEC.md](docs/NOTATION_SPEC.md).
 - **Inputs**: audio you're allowed to transcribe, GM MIDI drum tracks, or YAML
   chart specs.
@@ -56,10 +56,12 @@ python -m drum_agent edit out/song/song.json --relabel ride=hihat --bars 9-16 \
 ```
 
 Each run writes `<stem>.pdf`, `<stem>.png` (or `-pageN.png`), `<stem>.musicxml`,
-`<stem>.mid`, `<stem>.ly`, `<stem>.json` (the score) and `<stem>.report.md`.
+`<stem>.mid`, `<stem>.ly`, `<stem>.json` (the score) and `<stem>.report.md`. It
+never writes over its input (pick another `-o` folder or `--stem`).
 
 Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
-with a known chart), `verify` (re-check exported files), `doctor`.
+with a known chart), `verify` (re-check exported files; pass the same `--kit` if
+they were rendered with one), `doctor`.
 
 ## With Claude Code
 

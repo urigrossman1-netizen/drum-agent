@@ -46,6 +46,8 @@ means "written, not detected": nobody has checked it against a recording.
   named.
 - With `|`, each segment is one beat and divides that beat:
   `"xxx|x-x|xxxx|x"` = triplets, a triplet "quarter-eighth", 16ths, a quarter.
+  Beats follow the meter's grouping: 6/8 has two dotted-quarter beats, 3/8 and
+  2/8 one, 4/8 two, 7/8 (2+2+3) three.
 - Instrument names: ids or aliases (`hh hho bd sn t1 t2 ft rd rb cr cr2 cs hf`...).
 
 ## Symbols

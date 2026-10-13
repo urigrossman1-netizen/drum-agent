@@ -65,6 +65,12 @@ def test_short_bars_are_found_and_flagged(tmp_path):
     assert all(est.measures[i].uncertain for i, _ in shorts)  # inserted bars ask for a listen
 
 
+def test_a_meter_given_by_the_user_holds_throughout(tmp_path):
+    # The same take as above: with --time-signature 4/4 no 2/4 or 3/4 bar is inserted.
+    _, est = transcribe(tmp_path, "tests/audio_cases/12_short_bars.yaml", 0, False, 0, time_signature="4/4")
+    assert {str(m.time_sig) for m in est.measures} == {"4/4"}
+
+
 def test_crash_accents_do_not_create_a_short_bar(tmp_path):
     _, est = transcribe(tmp_path, "tests/audio_cases/13_crash_accents.yaml", 0, False, 0)
     assert {str(m.time_sig) for m in est.measures} == {"4/4"}

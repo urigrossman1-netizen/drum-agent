@@ -6,7 +6,7 @@ Two different questions, two different answers:
   the score it was made from: LilyPond's own MIDI, the MusicXML (notes,
   articulations, meters, schema) and our MIDI (notes, tempo map, barlines).
   For hand-written charts and MIDI input this makes the PDF/MusicXML/MIDI
-  trustworthy, and 387 automated tests (including random-score fuzzing) back
+  trustworthy, and 441 automated tests (including random-score fuzzing) back
   it up.
 - **Are the notes right?** For audio this can only be measured where the
   answer is known. All numbers below come from **synthesized** recordings of
@@ -99,8 +99,10 @@ Charts of non-commercial-licensed material are not committed.
    12/8 for a section (the boundary can be a bar off) and short bars that
    shift the downbeat (2/4, 1/4, 3/4 inside 4/4, found from crash
    placement). This needs crashes that sound clearly: in the humanized jazz
-   band mix, case 12's short bars were missed. Odd meters (5/4, 7/8) from
-   audio are not supported: use MIDI or a chart spec.
+   band mix, case 12's short bars were missed. A meter given with
+   `--time-signature` holds for the whole take (no section meters, no
+   inserted short bars). Odd meters (5/4, 7/8) from audio are not supported:
+   use MIDI or a chart spec.
 6. **Bass bleed.** In full mixes bass notes can turn into kicks. A density
    warning catches the extreme cases; an isolated drum stem (`--drums-only`)
    avoids it.

@@ -69,10 +69,13 @@ can't disagree about how a rhythm is written.
 
 - Repeat compression: bars identical to the previous one become simile
   marks (with counts); a phrase of 2, 4 or 8 bars that repeats becomes a
-  repeat with "×N". Section starts, tempo or meter changes and flagged bars
-  are never compressed.
+  repeat with "×N" (the phrase that saves the most written bars, the shorter
+  one on a tie). Two or more empty bars become one multi-bar rest. Section
+  starts, tempo or meter changes and flagged bars are never compressed.
 - Line breaking: a dynamic program balances systems (about 4 bars per line,
-  simile bars counting less) and keeps short sections on shared lines.
+  simile bars counting less, a multi-bar rest as one bar and never split).
+  Each section starts a system; a short section shares a line only when the
+  whole next section fits after it, or joins the end of the previous line.
 - `plan.expand()` must reproduce the original bar sequence, which is asserted.
 
 ## Exporters: `export/`

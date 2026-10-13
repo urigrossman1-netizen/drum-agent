@@ -63,7 +63,7 @@ Don't work around a missing engine.
 |---|---|---|
 | Audio they may transcribe (rights stated) | `transcribe AUDIO --rights R -o OUT` | full_transcription / unverified_auto |
 | Audio, rights unclear | ask; offer `analyze AUDIO` (see rule 3) | none |
-| A MIDI drum track (e-kit, DAW) | `midi FILE.mid -o OUT`: exact strokes, but the bar grid still needs checking | full_transcription / unverified_import |
+| A MIDI drum track (e-kit, DAW) | `midi FILE.mid -o OUT` (add `--rights own` etc. when the user states it, so the report records it): exact strokes, but the bar grid still needs checking | full_transcription / unverified_import |
 | A described groove or arrangement | write a chart spec, `render SPEC.yaml -o OUT` | performance_chart or pattern_study / entered |
 | An existing score.json to fix | `edit score.json ... --render OUT` | unchanged |
 
