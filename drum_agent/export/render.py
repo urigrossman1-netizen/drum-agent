@@ -97,7 +97,7 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     out_dir.mkdir(parents=True, exist_ok=True)
     ly_path = out_dir / f"{stem}.ly"
     ly_path.write_text(ly_source)
-    for old in list(out_dir.glob(f"{stem}*.png")) + [out_dir / f"{stem}.pdf", out_dir / f"{stem}.midi"]:
+    for old in _pages(out_dir, stem) + [out_dir / f"{stem}.pdf", out_dir / f"{stem}.midi"]:
         if old.exists():
             old.unlink()
     cmd = [exe, "-dno-point-and-click", "--pdf", "-o", str(out_dir / stem)]
@@ -118,7 +118,7 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     pdf = out_dir / f"{stem}.pdf"
     if not pdf.exists() or pdf.stat().st_size < 1000:
         raise RenderError("LilyPond reported success but produced no usable PDF", log)
-    pngs = sorted(out_dir.glob(f"{stem}*.png"), key=_page_key) if png else []
+    pngs = _pages(out_dir, stem) if png else []
     if png and not pngs:
         raise RenderError("LilyPond produced no PNG pages", log)
     # LilyPond writes "<stem>.midi". Never fall back to "<stem>.mid": that is the
@@ -128,6 +128,14 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     if not midi.exists():
         raise RenderError("LilyPond produced no MIDI file for the engraving check", log)
     return RenderResult(ly_path, pdf, pngs, midi, warnings, log, ver_str)
+
+
+def _pages(out_dir: Path, stem: str) -> list[Path]:
+    """This chart's PNG pages only: "<stem>.png" or "<stem>-page<N>.png". (A glob on
+    "<stem>*" would also take another chart's "<stem>_fill.png", and treats [ ] in a
+    stem as a pattern.)"""
+    page = re.compile(re.escape(stem) + r"(-page\d+)?\.png")
+    return sorted((p for p in out_dir.iterdir() if page.fullmatch(p.name)), key=_page_key)
 
 
 def _page_key(p: Path) -> int:

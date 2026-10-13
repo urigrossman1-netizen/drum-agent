@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from fractions import Fraction
 from pathlib import Path
@@ -62,6 +63,46 @@ def _print_report(report, out: Path) -> int:
     return 0 if report.rendering_ok else 2
 
 
+# Every file export_all can write for a stem (plus "<stem>-page<N>.png").
+_OUTPUT_SUFFIXES = (".ly", ".pdf", ".png", ".midi", ".log", ".musicxml", ".mid", ".performed.mid",
+                    ".json", ".report.md", ".report.json")
+
+
+def _channel(text: str) -> int:
+    try:
+        n = int(text)
+    except ValueError:
+        n = 0
+    if not 1 <= n <= 16:
+        raise argparse.ArgumentTypeError(f"MIDI channels are 1-16, got {text!r}")
+    return n
+
+
+def _is_score_json(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and "measures" in data
+
+
+def _guard_input(input_path: str, out_dir: str, stem: str) -> None:
+    """Refuse to write an output over the input (a MIDI take, a chart spec): the user's
+    file would be replaced by our export. Re-rendering a score.json in place is the
+    edit-then-render loop and rewrites the same score, so it is allowed."""
+    inp = Path(input_path).resolve()
+    if inp.parent != Path(out_dir).resolve():
+        return
+    names = {stem + suffix for suffix in _OUTPUT_SUFFIXES}
+    page = re.fullmatch(re.escape(stem) + r"-page\d+\.png", inp.name)
+    if inp.name not in names and not page:
+        return
+    if inp.name == f"{stem}.json" and _is_score_json(inp):
+        return
+    raise SystemExit(f"error: this would overwrite the input {inp} with an export; "
+                     f"write to another folder (-o) or pick another name (--stem)")
+
+
 def cmd_render(args) -> int:
     from .charts import load_any
     from .pipeline import export_all
@@ -70,6 +111,7 @@ def cmd_render(args) -> int:
     if args.title:
         score.title = args.title
     stem = args.stem or Path(args.input).stem
+    _guard_input(args.input, args.out, stem)
     report = export_all(score, args.out, stem, kit, _export_opts(args))
     return _print_report(report, Path(args.out))
 
@@ -86,6 +128,8 @@ def cmd_midi(args) -> int:
             pickup = Fraction(pickup)
         except (ValueError, ZeroDivisionError):
             raise SystemExit(f"--pickup {args.pickup!r}: use a length in whole notes like 1/4, 0, or auto") from None
+    stem = args.stem or Path(args.input).stem
+    _guard_input(args.input, args.out, stem)
     score, rep = read_midi(args.input, channel=(args.channel - 1) if args.channel else None,
                            options=opts, title=args.title, pickup=pickup)
     if rep.pickup:
@@ -100,7 +144,6 @@ def cmd_midi(args) -> int:
     _apply_sections(score, args.sections)
     if rep.unmapped:
         print(f"warning: unmapped MIDI notes skipped: {rep.unmapped}", file=sys.stderr)
-    stem = args.stem or Path(args.input).stem
     report = export_all(score, args.out, stem, kit, _export_opts(args))
     return _print_report(report, Path(args.out))
 
@@ -119,6 +162,7 @@ def _apply_sections(score, spec: str | None) -> None:
 def cmd_transcribe(args) -> int:
     from .rights import require_rights
     require_rights(args.rights, args.input)  # before touching the audio
+    _guard_input(args.input, args.out, args.stem or Path(args.input).stem)
     from .audio.transcribe import TranscribeOptions, transcribe_file
     from .pipeline import export_all
     kit = _kit(args)
@@ -171,7 +215,8 @@ def cmd_evaluate(args) -> int:
 def cmd_verify(args) -> int:
     from .charts import load_any
     from .verify import validate_musicxml, verify_exports
-    score = load_any(args.score)
+    kit = _kit(args)
+    score = load_any(args.score, kit)
     files = {"ly_midi": args.ly_midi, "musicxml": args.musicxml, "midi": args.midi}
     if not any(files.values()):
         # Default: the files written next to the score with the same stem.
@@ -186,7 +231,7 @@ def cmd_verify(args) -> int:
         print("verifying", ", ".join(sorted(files.values())))
     comps = verify_exports(score, Path(files["ly_midi"]) if files.get("ly_midi") else None,
                            Path(files["musicxml"]) if files.get("musicxml") else None,
-                           Path(files["midi"]) if files.get("midi") else None)
+                           Path(files["midi"]) if files.get("midi") else None, kit)
     args.musicxml = files.get("musicxml")
     ok = True
     for c in comps:
@@ -204,6 +249,15 @@ def cmd_edit(args) -> int:
     from . import edit as E
     from .charts import load_any
     kit = _kit(args)
+    src = Path(args.score)
+    out = Path(args.output or args.score)
+    if out.suffix.lower() != ".json":
+        raise SystemExit(f"error: the edited score is saved as JSON; {out.name} is not a .json file "
+                         f"(use --output name.json)")
+    if out.resolve() == src.resolve() and not _is_score_json(src):
+        raise SystemExit(f"error: {src.name} is a chart spec, not a score.json; editing it in place would "
+                         f"replace it. Edit the spec text, edit the score.json that render wrote, or "
+                         f"pass --output name.json")
     score = load_any(args.score, kit)
     log = []
     for spec in args.relabel or []:
@@ -232,7 +286,6 @@ def cmd_edit(args) -> int:
             setattr(score, name, getattr(args, name))
             log.append(f"{name} = {getattr(args, name)}")
     score.validate(kit)
-    out = Path(args.output or args.score)
     score.save(out)
     for line in log:
         print(line)
@@ -262,7 +315,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("midi", help="MIDI drum track -> score")
     p.add_argument("input")
-    p.add_argument("--channel", type=int, help="1-based MIDI channel (default 10)")
+    p.add_argument("--channel", type=_channel, help="1-based MIDI channel, 1-16 (default 10)")
     p.add_argument("--title")
     p.add_argument("--artist")
     p.add_argument("--transcriber")
@@ -325,6 +378,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--musicxml")
     p.add_argument("--midi")
     p.add_argument("--ly-midi", help="MIDI written by LilyPond from the engraved .ly")
+    p.add_argument("--kit", help="the JSON kit override the files were rendered with")
     p.set_defaults(func=cmd_verify)
 
     p = sub.add_parser("edit", help="correct a score.json (relabel, add, delete, sections, verify)")

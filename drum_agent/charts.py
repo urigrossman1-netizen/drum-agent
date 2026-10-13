@@ -48,17 +48,21 @@ class ChartSpecError(ScoreError):
 
 def parse_tempo(value: Any) -> float:
     """Tempo as quarter notes per minute. Accepts 120, "120", "4=120", "4.=80", "2=60", "8=180"."""
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         return float(value)
     text = str(value).replace(" ", "")
-    if "=" not in text:
-        return float(text)
-    unit, bpm = text.split("=", 1)
-    dotted = unit.endswith(".")
-    base = Fraction(1, int(unit.rstrip(".")))
-    if dotted:
-        base *= Fraction(3, 2)
-    return float(bpm) * float(base / Fraction(1, 4))
+    try:
+        if "=" not in text:
+            return float(text)
+        unit, bpm = text.split("=", 1)
+        dotted = unit.endswith(".")
+        base = Fraction(1, int(unit.rstrip(".")))
+        if dotted:
+            base *= Fraction(3, 2)
+        return float(bpm) * float(base / Fraction(1, 4))
+    except (ValueError, ZeroDivisionError):
+        raise ChartSpecError(f"tempo {value!r}: use quarter notes per minute (120) "
+                             f"or a mark like '4.=80'") from None
 
 
 # Slots per beat the engraver can spell (rhythm.py): simple beats take 8ths, 16ths,
@@ -185,7 +189,20 @@ _BAR_KEYS = {"pattern", "time", "beat_groups", "tempo", "tempo_text", "length", 
 
 
 def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
+    if not isinstance(spec, dict):
+        raise ChartSpecError("a chart spec is a mapping with 'title', 'tempo', 'sections', ...")
     patterns: dict[str, dict[str, str]] = spec.get("patterns", {}) or {}
+    if not isinstance(patterns, dict):
+        raise ChartSpecError("'patterns' must map pattern names to instrument lines")
+    sections = spec.get("sections")
+    if not isinstance(sections, list) or not sections or not all(isinstance(x, dict) for x in sections):
+        raise ChartSpecError("chart spec needs a 'sections' list; each section is a mapping with 'bars'")
+    for k, sec in enumerate(sections, 1):
+        if not isinstance(sec.get("bars", []), list):
+            raise ChartSpecError(f"section {k} ({sec.get('label')!r}): 'bars' must be a list")
+        rep = sec.get("repeat", 1)
+        if isinstance(rep, bool) or not isinstance(rep, int) or rep < 1:
+            raise ChartSpecError(f"section {k} ({sec.get('label')!r}): 'repeat' must be a whole number from 1")
     for pname, pat in patterns.items():
         if not isinstance(pat, dict):
             raise ChartSpecError(f"pattern {pname!r} must map instruments to strings")
@@ -198,20 +215,17 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
     tempo = parse_tempo(spec.get("tempo", 120))
     measures: list[Measure] = []
     pending_tempo: float | None = tempo
-    pending_text: str | None = spec.get("tempo_text") or ("Swing" if spec.get("swing") else None)
+    pending_text: str | None = _text(spec.get("tempo_text"), "tempo_text") or ("Swing" if spec.get("swing") else None)
     pickup = spec.get("pickup")
 
-    sections = spec.get("sections")
-    if not sections:
-        raise ChartSpecError("chart spec needs a 'sections' list")
     for sec in sections:
-        label = sec.get("label")
+        label = _text(sec.get("label"), "section label")
         if "time" in sec:
             ts = TimeSig.parse(str(sec["time"]), sec.get("beat_groups"))
         if "tempo" in sec:
             pending_tempo = parse_tempo(sec["tempo"])
         if "tempo_text" in sec:
-            pending_text = sec["tempo_text"]
+            pending_text = _text(sec["tempo_text"], f"section {label!r} tempo_text")
         repeat = int(sec.get("repeat", 1))
         bar_entries: list[Any] = []
         for entry in sec.get("bars", []):
@@ -247,7 +261,7 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
                 if "tempo" in extra:
                     pending_tempo = parse_tempo(extra["tempo"])
                 if "tempo_text" in extra:
-                    pending_text = extra["tempo_text"]
+                    pending_text = _text(extra["tempo_text"], f"section {label!r} tempo_text")
             else:
                 raise ChartSpecError(f"bar entries must be pattern names or mappings, got {entry!r}")
             if not measures and pickup is not None and length is None:
@@ -270,7 +284,7 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
                     m.tempo = _current_tempo(measures) or tempo
                 pending_text = None
             m.uncertain = bool(extra.get("uncertain", False))
-            m.notes = list(extra.get("notes", []))
+            m.notes = [_text(n, "bar notes") for n in extra.get("notes", [])]
             measures.append(m)
 
     chart_type = spec.get("chart_type", "pattern_study")
@@ -278,16 +292,16 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
         raise ChartSpecError(f"chart_type must be one of {sorted(CHART_TYPES)}")
     score = Score(
         measures=measures,
-        title=spec.get("title", "Untitled"),
-        artist=spec.get("artist"),
-        transcriber=spec.get("transcriber"),
+        title=_text(spec.get("title", "Untitled"), "title"),
+        artist=_text(spec.get("artist"), "artist"),
+        transcriber=_text(spec.get("transcriber"), "transcriber"),
         chart_type=chart_type,
         status=spec.get("status", "entered"),
         rights=spec.get("rights"),
-        source=spec.get("source"),
+        source=_text(spec.get("source"), "source"),
         swing=bool(spec.get("swing", False)),
-        feel_note=spec.get("feel_note"),
-        copyright=spec.get("copyright"),
+        feel_note=_text(spec.get("feel_note"), "feel_note"),
+        copyright=_text(spec.get("copyright"), "copyright"),
     )
     score.validate(kit)
     return score
@@ -300,6 +314,37 @@ def _current_tempo(measures: list[Measure]) -> float | None:
     return None
 
 
+# Fields printed as text. YAML would read `title: 1999`, `artist: Yes` or `label: 2`
+# as a number or a boolean; these keep exactly what was written.
+TEXT_KEYS = frozenset({"title", "artist", "transcriber", "label", "tempo_text", "source",
+                       "feel_note", "copyright"})
+
+
+def _yaml_load(text: str) -> Any:
+    import yaml
+
+    class TextLoader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            mapping = super().construct_mapping(node, deep=deep)
+            for key_node, value_node in node.value:
+                if (isinstance(key_node, yaml.ScalarNode) and key_node.value in TEXT_KEYS
+                        and isinstance(value_node, yaml.ScalarNode)
+                        and value_node.tag != "tag:yaml.org,2002:null"):
+                    mapping[key_node.value] = value_node.value
+            return mapping
+
+    return yaml.load(text, Loader=TextLoader)  # noqa: S506 - a SafeLoader subclass
+
+
+def _text(value: Any, what: str) -> str | None:
+    """A text field from a spec: numbers become their text (JSON has no unquoted text)."""
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
+    raise ChartSpecError(f"{what} must be text, got {value!r}; put it in quotes")
+
+
 def load_spec(path: str | Path, kit: Kit = DEFAULT_KIT) -> Score:
     path = Path(path)
     text = path.read_text()
@@ -308,7 +353,10 @@ def load_spec(path: str | Path, kit: Kit = DEFAULT_KIT) -> Score:
             import yaml
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise ChartSpecError("PyYAML is required for .yaml chart specs (pip install pyyaml)") from exc
-        data = yaml.safe_load(text)
+        try:
+            data = _yaml_load(text)
+        except yaml.YAMLError as exc:
+            raise ChartSpecError(f"{path}: not valid YAML: {exc}") from None
     else:
         data = json.loads(text)
     if not isinstance(data, dict):
@@ -320,7 +368,12 @@ def load_any(path: str | Path, kit: Kit = DEFAULT_KIT) -> Score:
     """Load an IR score (.json with 'measures') or a chart spec (.yaml/.json with 'sections')."""
     path = Path(path)
     if path.suffix.lower() == ".json":
-        data = json.loads(path.read_text())
+        try:
+            data = json.loads(path.read_text())
+        except ValueError as exc:
+            raise ChartSpecError(f"{path}: not valid JSON: {exc}") from None
+        if not isinstance(data, dict):
+            raise ChartSpecError(f"{path}: top level must be a mapping")
         if "measures" in data:
             score = Score.from_dict(data)
             score.validate(kit)

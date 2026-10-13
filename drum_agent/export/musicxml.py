@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import math
+import re
 import xml.etree.ElementTree as ET
 from fractions import Fraction
 
@@ -27,10 +28,15 @@ _NOTEHEAD = {"cross": "x", "xcircle": "circle-x", "diamond": "diamond", "triangl
              "slashed": "slashed"}
 
 
+# Characters XML 1.0 does not allow (C0 controls other than tab/newline/CR, and
+# non-characters); a title pasted from elsewhere or a MIDI track name can carry them.
+_NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
+
+
 def _sub(parent: ET.Element, tag: str, text: str | None = None, **attrib: str) -> ET.Element:
-    el = ET.SubElement(parent, tag, {k.replace("_", "-"): v for k, v in attrib.items()})
+    el = ET.SubElement(parent, tag, {k.replace("_", "-"): _NOT_XML.sub("", v) for k, v in attrib.items()})
     if text is not None:
-        el.text = text
+        el.text = _NOT_XML.sub("", text)
     return el
 
 

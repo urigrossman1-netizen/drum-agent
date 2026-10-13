@@ -596,7 +596,13 @@ def test_bad_sections_on_transcribe(cli, tmp_path, monkeypatch):
     (None, "nokit.json"),
     ({"instruments": {"gong": {"midi": 60}}}, "unknown instrument 'gong'"),
     ({"instruments": {"snare": {"colour": "red"}}}, "unsupported fields"),
-    ({"instruments": {"snare": {"voice": 3}}}, "voice must be 1 or 2"),
+    ({"instruments": {"snare": {"voice": 3}}}, "voice must be 1 (hands"),
+    # Fields are written into the LilyPond source; a kit file is data, never Scheme.
+    ({"instruments": {"tom1": {"position": ',(begin (system "touch PWNED") 3)'}}}, "position must be a whole number"),
+    ({"instruments": {"tom1": {"notehead": "cross) (system"}}}, "notehead must be one of"),
+    ({"instruments": {"tom1": {"midi": True}}}, "midi must be a note number"),
+    ({"instruments": {"tom1": {"articulation": "#(system)"}}}, "articulation must be one of"),
+    ({"instruments": ["tom1"]}, "expected"),
 ])
 def test_bad_kit_file(cli, tmp_path, kit, message):
     path = tmp_path / "nokit.json"
@@ -677,3 +683,115 @@ def test_verify_defaults_to_the_files_next_to_the_score(tmp_path, capsys):
     lonely.write_text((tmp_path / "out" / "g.json").read_text())
     assert main(["verify", str(lonely)]) == 2
     assert "nothing to verify" in capsys.readouterr().err
+
+
+# --- robustness (second review): the user's files and odd but valid input --------------
+
+def test_outputs_never_replace_the_input(cli, tmp_path):
+    take = gm_drum_midi(tmp_path / "drums.mid")
+    before = take.read_bytes()
+    clean_error(cli("midi", take, "-o", tmp_path, "--formats", "json,midi"), "overwrite the input")
+    assert take.read_bytes() == before
+    assert cli("midi", take, "-o", tmp_path, "--stem", "drums_chart", "--formats", "json,midi").rc == 0
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps(CHART))
+    clean_error(cli("render", spec, "-o", tmp_path, "--formats", "json"), "overwrite the input")
+    assert json.loads(spec.read_text()) == CHART
+    # Re-rendering a score.json in place (the edit-then-render loop) is allowed.
+    score = write_score(tmp_path / "take.json")
+    assert cli("render", score, "-o", tmp_path, "--formats", "json").rc == 0
+    assert load_any(score).title == "Edit Me"
+
+
+def test_edit_never_writes_json_over_a_chart_spec(cli, tmp_path):
+    chart = write_chart(tmp_path / "chart.yaml")
+    text = chart.read_text()
+    clean_error(cli("edit", chart, "--title", "x"), "not a .json file")
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps(CHART))
+    clean_error(cli("edit", spec, "--title", "x"), "chart spec")
+    assert chart.read_text() == text and json.loads(spec.read_text()) == CHART
+    assert cli("edit", chart, "--title", "x", "--output", tmp_path / "edited.json").rc == 0
+    assert load_any(tmp_path / "edited.json").title == "x"
+
+
+@needs_lilypond
+def test_rendering_keeps_other_charts_pages_and_takes_brackets_in_names(cli, tmp_path):
+    a, b = write_chart(tmp_path / "groove_fill.yaml"), write_chart(tmp_path / "groove.yaml")
+    assert cli("render", a, "-o", tmp_path / "out", "--formats", "pdf").rc == 0
+    assert cli("render", b, "-o", tmp_path / "out", "--formats", "pdf").rc == 0
+    assert {p.name for p in (tmp_path / "out").glob("*.png")} == {"groove.png", "groove_fill.png"}
+    live = write_chart(tmp_path / "My Song [Live].yaml")
+    assert cli("render", live, "-o", tmp_path / "out", "--formats", "pdf").rc == 0
+    assert (tmp_path / "out" / "My Song [Live].png").exists()
+
+
+@needs_lilypond
+def test_verify_takes_the_kit_the_files_were_rendered_with(cli, tmp_path):
+    kit = tmp_path / "kit.json"
+    kit.write_text(json.dumps({"instruments": {"snare": {"midi": 40}}}))
+    assert cli("render", write_chart(tmp_path / "g.yaml"), "-o", tmp_path / "out", "--kit", kit).rc == 0
+    assert cli("verify", tmp_path / "out" / "g.json").rc == 2  # wrong kit: the notes differ
+    assert cli("verify", tmp_path / "out" / "g.json", "--kit", kit).rc == 0
+
+
+@pytest.mark.parametrize("pickup,message", [("1", "shorter than the first bar"), ("5/4", "shorter than the first bar"),
+                                            ("1/3", "32nd notes")])
+def test_impossible_pickups_are_refused_not_dropped(cli, tmp_path, pickup, message):
+    clean_error(cli("midi", gm_drum_midi(tmp_path / "b.mid"), "-o", tmp_path / "out", "--pickup", pickup), message)
+
+
+def test_midi_channel_must_exist(cli, tmp_path):
+    r = cli("midi", gm_drum_midi(tmp_path / "b.mid"), "-o", tmp_path / "out", "--channel", "17")
+    assert r.rc == 2 and "1-16" in r.err
+
+
+def test_yaml_text_fields_keep_what_was_written(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text('title: 1999\nartist: Yes\ntranscriber: 311\ntempo: 100\nsections:\n'
+                 '  - label: 2\n    tempo_text: 1.10\n    bars: [{sn: "x-x-"}]\n  - label: ~\n    bars: [{sn: "x-x-"}]\n')
+    s = load_any(p)
+    assert (s.title, s.artist, s.transcriber) == ("1999", "Yes", "311")
+    assert (s.measures[0].section, s.measures[0].tempo_text, s.measures[1].section) == ("2", "1.10", None)
+    assert compile_spec(dict(CHART, title=1999)).title == "1999"  # JSON has numbers, not unquoted text
+    with pytest.raises(ValueError, match="must be text"):
+        compile_spec(dict(CHART, artist=True))
+
+
+@pytest.mark.parametrize("spec,message", [
+    ({"title": "t", "sections": 5}, "'sections' list"),
+    ({"title": "t", "sections": [{"bars": 5}]}, "'bars' must be a list"),
+    ({"title": "t", "patterns": 5, "sections": [{"bars": ["g"]}]}, "'patterns' must map"),
+    ({"title": "t", "tempo": "fast", "sections": [{"bars": [{"sn": "x-x-"}]}]}, "tempo 'fast'"),
+    ({"title": "t", "sections": [{"repeat": "two", "bars": [{"sn": "x-x-"}]}]}, "'repeat' must be"),
+])
+def test_malformed_specs_say_what_is_wrong(cli, tmp_path, spec, message):
+    clean_error(cli("render", write_chart(tmp_path / "bad.yaml", spec), "-o", tmp_path / "out"), message)
+
+
+def test_any_script_in_titles_and_sections_survives_midi(tmp_path):
+    from drum_agent.export.midi import write_midi
+    from drum_agent.io_midi import read_midi
+    s = compile_spec(dict(CHART, title="紅蓮華 – Don’t", sections=[{"label": "Chorus – out", "bars": ["hat"]}]))
+    write_midi(s, tmp_path / "u.mid")
+    back, _ = read_midi(tmp_path / "u.mid")
+    assert back.measures[0].section == "Chorus – out"
+    legacy = mido.MidiFile()  # older files: Latin-1 text
+    legacy.tracks.append(mido.MidiTrack([mido.MetaMessage("marker", text="Café", time=0),
+                                         mido.Message("note_on", channel=9, note=38, velocity=90, time=0),
+                                         mido.Message("note_off", channel=9, note=38, velocity=0, time=240)]))
+    legacy.save(tmp_path / "l.mid")
+    assert read_midi(tmp_path / "l.mid")[0].measures[0].section == "Café"
+
+
+@needs_lilypond
+def test_text_is_printed_never_executed(tmp_path):
+    from drum_agent.pipeline import export_all
+    marker = tmp_path / "PWNED"
+    for k, text in enumerate([f'#(system "touch {marker}")', f'$(system "touch {marker}")', 'Quote " and \\ back',
+                              '} \\score { c }', "NUL\x00 and \x01 controls"]):
+        s = compile_spec(dict(CHART, title=text, artist=text,
+                              sections=[{"label": text, "tempo_text": text, "bars": ["hat"]}]))
+        report = export_all(s, tmp_path / str(k), "s")
+        assert report.rendering_ok and not report.musicxml_errors
+    assert not marker.exists()

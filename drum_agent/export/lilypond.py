@@ -7,6 +7,7 @@ source, tests can read LilyPond's MIDI to verify what was actually engraved.
 
 from __future__ import annotations
 
+import re
 from fractions import Fraction
 
 from ..kit import DEFAULT_KIT, Kit
@@ -26,8 +27,12 @@ _SEMITONE = [(0, "0"), (0, "1/2"), (1, "0"), (1, "1/2"), (2, "0"), (3, "0"), (3,
 CLOSED_HH = "hihatclosed"  # display-only name: closed hi-hat with "+" after an open one
 
 
+_CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")  # a NUL ends a LilyPond string early
+
+
 def ly_string(text: str) -> str:
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """A LilyPond string literal: printed as written, never parsed as markup or Scheme."""
+    return '"' + _CONTROL.sub("", text).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def duration(value: Fraction, dots: int = 0) -> str:

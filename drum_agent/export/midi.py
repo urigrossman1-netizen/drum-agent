@@ -70,7 +70,8 @@ def performed_bar_starts(score: Score) -> list[float]:
 def build_midi(score: Score, kit: Kit = DEFAULT_KIT, timing: str = "quantized") -> mido.MidiFile:
     if timing not in ("quantized", "performed"):
         raise ValueError("timing must be 'quantized' or 'performed'")
-    mid = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT, type=1)
+    # Text (title, section markers) as UTF-8: any script, read back by read_midi.
+    mid = mido.MidiFile(ticks_per_beat=TICKS_PER_BEAT, type=1, charset="utf-8")
     meta = mido.MidiTrack()
     drums = mido.MidiTrack()
     mid.tracks += [meta, drums]

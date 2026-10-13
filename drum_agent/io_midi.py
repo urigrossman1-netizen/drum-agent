@@ -172,13 +172,21 @@ def _tick_to_seconds(tick: int, tempo_map: list[tuple[int, int]], tpb: int) -> f
     return secs
 
 
+def open_midi(path: str | Path) -> mido.MidiFile:
+    """Text meta events in UTF-8 (what we and most current software write), else Latin-1."""
+    try:
+        return mido.MidiFile(str(path), charset="utf-8")
+    except UnicodeDecodeError:
+        return mido.MidiFile(str(path), charset="latin1")
+
+
 def read_midi(path: str | Path, channel: int | None = None, options: QuantizeOptions | None = None,
               title: str | None = None, keep_leading_silence: bool = False,
               pickup: Fraction | str | None = "auto") -> tuple[Score, MidiImportReport]:
     """Import a drum track. `pickup`: length of an anacrusis in whole notes, "auto"
     (infer it from a short opening meter or from off-barline meter changes and
     markers), or None/0 for none."""
-    mid = mido.MidiFile(str(path))
+    mid = open_midi(path)
     tpb = mid.ticks_per_beat
     report = MidiImportReport()
     tempo_map = _tempo_map(mid)
@@ -236,7 +244,18 @@ def read_midi(path: str | Path, channel: int | None = None, options: QuantizeOpt
         if found:
             pickup_ticks, report.pickup_reason = found
     elif pickup:
-        pickup_ticks = int(round(Fraction(pickup) * 4 * tpb))
+        length = Fraction(pickup)
+        opening = ts_changes[0][1]
+        if (len(ts_changes) > 1 and ts_changes[0][0] == 0 and opening.bar_length == length
+                and ts_changes[1][0] == int(round(length * 4 * tpb))):
+            opening = ts_changes[1][1]  # the file's short opening meter is this pickup
+        if not 0 < length < opening.bar_length:
+            raise ValueError(f"pickup {length} must be shorter than the first bar "
+                             f"({opening.bar_length} whole note in {opening}); notes would be lost")
+        if (length * 32).denominator != 1:
+            raise ValueError(f"pickup {length} is not a whole number of 32nd notes; "
+                             f"use a length like 1/4, 3/8 or 1/16")
+        pickup_ticks = int(round(length * 4 * tpb))
         report.pickup_reason = "given by the user"
     if pickup_ticks and ts_changes[0][0] == 0 and len(ts_changes) > 1 and ts_changes[1][0] == pickup_ticks \
             and ts_changes[0][1].bar_length < ts_changes[1][1].bar_length:

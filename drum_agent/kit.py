@@ -11,6 +11,7 @@ and the bass drum (1st space) is -3.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -82,6 +83,37 @@ class KitError(ValueError):
     pass
 
 
+NOTEHEADS = ("normal", "cross", "xcircle", "diamond", "triangle", "slashed")
+ARTICULATIONS = (None, "open", "halfopen", "stopped", "open-down")
+POSITION_RANGE = (-12, 16)  # staff steps from the middle line: far beyond any ledger line used
+
+
+def _check_instrument(ins: Instrument) -> None:
+    """Every field is written into the LilyPond source (some inside Scheme), so each one
+    must be exactly the type and range expected: a kit file is data, never code."""
+    def is_int(v: object) -> bool:
+        return isinstance(v, int) and not isinstance(v, bool)
+
+    if not isinstance(ins.id, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", ins.id):
+        raise KitError(f"instrument id {ins.id!r}: use lowercase letters, digits and _")
+    if not isinstance(ins.name, str) or not ins.name.strip() or len(ins.name) > 40:
+        raise KitError(f"{ins.id}: name must be a short text")
+    if not is_int(ins.position) or not POSITION_RANGE[0] <= ins.position <= POSITION_RANGE[1]:
+        raise KitError(f"{ins.id}: position must be a whole number from {POSITION_RANGE[0]} "
+                       f"to {POSITION_RANGE[1]} (staff steps from the middle line), got {ins.position!r}")
+    if ins.notehead not in NOTEHEADS:
+        raise KitError(f"{ins.id}: notehead must be one of {', '.join(NOTEHEADS)}, got {ins.notehead!r}")
+    if not is_int(ins.voice) or ins.voice not in (1, 2):
+        raise KitError(f"{ins.id}: voice must be 1 (hands, stems up) or 2 (feet, stems down)")
+    if not is_int(ins.midi) or not 0 <= ins.midi <= 127:
+        raise KitError(f"{ins.id}: midi must be a note number from 0 to 127, got {ins.midi!r}")
+    if ins.articulation not in ARTICULATIONS:
+        raise KitError(f"{ins.id}: articulation must be one of "
+                       f"{', '.join(a for a in ARTICULATIONS if a)} or null, got {ins.articulation!r}")
+    if not all(isinstance(a, str) for a in ins.aliases):
+        raise KitError(f"{ins.id}: aliases must be texts")
+
+
 class Kit:
     """An instrument table with alias lookup. Immutable after construction."""
 
@@ -92,10 +124,7 @@ class Kit:
         for ins in self.instruments:
             if ins.id in self._by_id:
                 raise KitError(f"duplicate instrument id {ins.id!r}")
-            if ins.voice not in (1, 2):
-                raise KitError(f"{ins.id}: voice must be 1 or 2")
-            if not 0 <= ins.midi <= 127:
-                raise KitError(f"{ins.id}: MIDI note out of range")
+            _check_instrument(ins)
             self._by_id[ins.id] = ins
         for ins in self.instruments:
             for name in (ins.id, *ins.aliases):
@@ -140,17 +169,28 @@ class Kit:
         Only listed fields change; unknown instrument ids are an error so typos
         can't silently produce a different chart.
         """
-        data = json.loads(Path(path).read_text())
-        overrides = data.get("instruments", {})
+        try:
+            data = json.loads(Path(path).read_text())
+        except (OSError, ValueError) as exc:
+            raise KitError(f"kit file {path}: {exc}") from None
+        overrides = data.get("instruments", {}) if isinstance(data, dict) else None
+        if not isinstance(overrides, dict):
+            raise KitError(f'kit file {path}: expected {{"instruments": {{"tom1": {{"position": 4}}, ...}}}}')
         base = {i.id: i for i in DEFAULT_INSTRUMENTS}
         allowed = {"name", "position", "notehead", "voice", "midi", "articulation"}
         for inst_id, fields in overrides.items():
             if inst_id not in base:
                 raise KitError(f"kit file {path}: unknown instrument {inst_id!r}")
+            if not isinstance(fields, dict):
+                raise KitError(f"kit file {path}: {inst_id} must map field names to values")
             bad = set(fields) - allowed
             if bad:
                 raise KitError(f"kit file {path}: unsupported fields {sorted(bad)} for {inst_id}")
             base[inst_id] = replace(base[inst_id], **fields)
+            try:
+                _check_instrument(base[inst_id])
+            except KitError as exc:
+                raise KitError(f"kit file {path}: {exc}") from None
         return cls(tuple(base[i.id] for i in DEFAULT_INSTRUMENTS))
 
 

@@ -282,7 +282,7 @@ class Score:
     artist: str | None = None
     transcriber: str | None = None
     chart_type: str = "full_transcription"
-    status: str = "verified"
+    status: str = "draft"  # never "verified" by default: that claim needs a human (edit --status)
     rights: str | None = None
     source: str | None = None
     swing: bool = False
@@ -375,9 +375,21 @@ class Score:
             raise ScoreError(f"status must be one of {sorted(STATUSES)}")
         if self.rights is not None and self.rights not in RIGHTS:
             raise ScoreError(f"rights must be one of {sorted(RIGHTS)}")
+        for name in ("title", "artist", "transcriber", "source", "feel_note", "copyright"):
+            value = getattr(self, name)
+            if value is not None and not isinstance(value, str):
+                raise ScoreError(f"{name} must be text, got {value!r}")
+        if not isinstance(self.title, str):
+            raise ScoreError("title must be text")
         if self.measures[0].tempo is None:
             warnings.append("bar 1 has no tempo; 120 BPM assumed")
         for i, m in enumerate(self.measures, start=1):
+            for name in ("section", "tempo_text"):
+                value = getattr(m, name)
+                if value is not None and not isinstance(value, str):
+                    raise ScoreError(f"bar {i}: {name} must be text, got {value!r}")
+            if not all(isinstance(n, str) for n in m.notes):
+                raise ScoreError(f"bar {i}: notes must be texts")
             if m.length is not None:
                 if i != 1:
                     raise ScoreError(f"bar {i}: only the first bar may be a pickup (shorter bar)")
@@ -437,14 +449,17 @@ class Score:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Score":
         if d.get("schema", SCHEMA_VERSION) != SCHEMA_VERSION:
-            raise ScoreError(f"unsupported score schema {d.get('schema')}")
+            raise ScoreError(f"score.json schema {d.get('schema')!r} is not supported: this drum_agent reads "
+                             f"schema {SCHEMA_VERSION}" + (" (the file is from a newer version)"
+                                                          if isinstance(d.get("schema"), int)
+                                                          and d["schema"] > SCHEMA_VERSION else ""))
         return cls(
             measures=[Measure.from_dict(m) for m in d["measures"]],
             title=d.get("title", "Untitled"),
             artist=d.get("artist"),
             transcriber=d.get("transcriber"),
             chart_type=d.get("chart_type", "full_transcription"),
-            status=d.get("status", "verified"),
+            status=d.get("status", "draft"),
             rights=d.get("rights"),
             source=d.get("source"),
             swing=bool(d.get("swing", False)),
