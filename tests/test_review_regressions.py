@@ -242,3 +242,127 @@ def test_verification_catches_a_dropped_accent_and_a_wrong_tempo(tmp_path):
     assert not checks["MusicXML articulations"].ok
     assert not checks["MIDI tempo map"].ok
     assert checks["MusicXML"].ok and checks["MIDI"].ok  # the note events alone would have passed
+
+
+# --- MIDI import and quantization (second review) ----------------------------------
+
+def midi_file(tmp_path, notes, tpb=960, tempos=((0, 120),), sigs=((0, 4, 4),), markers=(), name="t.mid"):
+    """notes: (tick, GM note, velocity); events of each kind keep their given order."""
+    mid = mido.MidiFile(ticks_per_beat=tpb)
+    tr = mido.MidiTrack()
+    mid.tracks.append(tr)
+    ev = [(t, 0, i, mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(b))) for i, (t, b) in enumerate(tempos)]
+    ev += [(t, 0, 100 + i, mido.MetaMessage("time_signature", numerator=n, denominator=d))
+           for i, (t, n, d) in enumerate(sigs)]
+    ev += [(t, 0, 200 + i, mido.MetaMessage("marker", text=x)) for i, (t, x) in enumerate(markers)]
+    for t, n, v in notes:
+        ev += [(t, 2, 0, mido.Message("note_on", channel=9, note=n, velocity=v)),
+               (t + 30, 1, 0, mido.Message("note_off", channel=9, note=n, velocity=0))]
+    last = 0
+    for t, _, _, m in sorted(ev, key=lambda e: (e[0], e[1], e[2])):
+        tr.append(m.copy(time=t - last))
+        last = t
+    p = tmp_path / name
+    mid.save(p)
+    return p
+
+
+ROCK = [(b * 3840 + k * 960, n, 90) for b in range(4) for k, n in enumerate([36, 38, 36, 38])]
+
+
+@pytest.mark.parametrize("time,pickup", [("4/4", "1/8"), ("6/8", "1/8"), ("4/4", "3/16")])
+def test_pickups_shorter_than_a_beat_round_trip(tmp_path, time, pickup):
+    s = spec([{"time": time, "tempo": 100, "bars": [{"length": pickup, "sn": "x" if pickup == "1/8" else "xxx"},
+                                                    {"bd": "x-----" if time == "6/8" else "x---", "sn": "--x---" if time == "6/8" else "--x-"}]}])
+    back, rep = read_midi(write_midi(s, tmp_path / "p.mid"))
+    assert back.event_list() == s.event_list()
+
+
+def test_short_real_bar_before_another_meter_is_not_a_pickup(tmp_path):
+    s = spec([{"tempo": 100, "time": "2/4", "bars": [{"sn": "xxxx"}]},
+              {"time": "6/8", "bars": [{"bd": "x-----", "sn": "---x--"}, {"bd": "x-----", "sn": "---x--"}]}])
+    back, rep = read_midi(write_midi(s, tmp_path / "m.mid"))
+    assert rep.pickup is None and [str(m.time_sig) for m in back.measures] == ["2/4", "6/8", "6/8"]
+
+
+def test_one_cue_marker_does_not_rebar_the_song(tmp_path):
+    notes = ROCK + [(0, 49, 100)]
+    path = midi_file(tmp_path, notes, markers=[(3 * 3840 + 960, "Vocal in")])
+    s, rep = read_midi(path)
+    assert rep.pickup is None
+    assert {(h.pos, h.inst) for h in s.measures[1].hits} == {(F(0), "kick"), (F(1, 4), "snare"),
+                                                            (F(1, 2), "kick"), (F(3, 4), "snare")}
+
+
+def test_final_stroke_played_early_keeps_its_bar(tmp_path):
+    path = midi_file(tmp_path, ROCK + [(4 * 3840 - 15, 49, 100)])
+    s, _ = read_midi(path)
+    assert len(s.measures) == 5 and [(h.pos, h.inst) for h in s.measures[4].hits] == [(F(0), "crash")]
+
+
+def test_32nd_note_triplets_survive_import(tmp_path):
+    s = spec([{"tempo": 80, "bars": [{"sn": "xxxxxxxxxxxx|x|x|x", "bd": "x|-|x|-"}]}])
+    back, _ = read_midi(write_midi(s, tmp_path / "t.mid"))
+    assert back.event_list() == s.event_list()
+
+
+def test_swing_reading_leaves_triplet_and_16th_fills_alone():
+    from drum_agent.quantize import BarDef, Onset, QuantizeOptions, quantize
+    beat = 0.5
+    onsets = []
+    for b in range(8):  # swung ride: beat, swung offbeat
+        for q in range(4):
+            t0 = (b * 4 + q) * beat
+            onsets += [Onset(t0, "ride"), Onset(t0 + beat * 2 / 3, "ride")]
+    t = 32 * beat
+    onsets += [Onset(t + q * beat / 3, "snare") for q in range(12)]  # a bar of 8th-note triplets
+    t = 36 * beat
+    onsets += [Onset(t + q * beat / 4, "snare") for q in range(16)]  # a bar of straight 16ths
+    bars = [BarDef(4 * i, TimeSig(4, 4), 4) for i in range(10)]
+    res = quantize(onsets, [i * beat for i in range(41)], bars, QuantizeOptions())
+    assert res.feel == "swing"
+    assert sorted(h.pos for h in res.measures[8].hits) == [F(k, 12) for k in range(12)]
+    assert sorted(h.pos for h in res.measures[9].hits) == [F(k, 16) for k in range(16)]
+    assert sorted(h.pos for h in res.measures[0].hits) == [F(k, 8) for k in range(8)]  # swung 8ths written straight
+
+
+def test_tempo_jump_is_marked_on_the_bar_where_it_happens():
+    from drum_agent.quantize import QuantizeOptions, _apply_tempo_marks
+    ms = [Measure(TimeSig(4, 4), []) for _ in range(8)]
+    _apply_tempo_marks(ms, [120.0] * 4 + [150.0] * 4, QuantizeOptions())
+    assert [(i + 1, m.tempo) for i, m in enumerate(ms) if m.tempo] == [(1, 120.0), (5, 150.0)]
+
+
+def test_the_later_tempo_event_at_a_tick_wins(tmp_path):
+    s, _ = read_midi(midi_file(tmp_path, ROCK, tempos=((0, 120), (0, 140))))
+    assert s.measures[0].tempo == 140
+
+
+def test_no_32nds_keeps_16ths_in_cut_time(tmp_path):
+    from drum_agent.quantize import QuantizeOptions
+    s = spec([{"tempo": 70, "time": "2/2", "bars": [{"hh": "x" * 16, "bd": "x-------x-------"}] * 2}])
+    back, _ = read_midi(write_midi(s, tmp_path / "c.mid"), options=QuantizeOptions(allow_32nds=False))
+    assert back.event_list() == s.event_list()
+
+
+def test_count_in_clicks_are_trimmed(tmp_path):
+    clicks = [(k * 960, 33, 70) for k in range(8)]
+    s, rep = read_midi(midi_file(tmp_path, clicks + [(t + 2 * 3840, n, v) for t, n, v in ROCK]))
+    assert rep.trimmed_leading_bars == 2 and s.measures[0].hits and rep.unmapped == {33: 8}
+
+
+def test_tempo_mapped_jitter_gets_one_mark_and_mid_bar_changes_warn(tmp_path):
+    jitter = tuple((k * 960, 120 + (0.6 if k % 2 else -0.5)) for k in range(16))
+    s, _ = read_midi(midi_file(tmp_path, ROCK, tempos=jitter))
+    assert sum(m.tempo is not None for m in s.measures) == 1
+    s, rep = read_midi(midi_file(tmp_path, ROCK, tempos=((0, 100), (2 * 3840 + 1920, 140)), name="m.mid"))
+    assert any("inside bar 3" in w for w in rep.warnings)
+
+
+def test_flams_and_drags_round_trip_through_midi(tmp_path):
+    s = spec([{"tempo": 100, "bars": [{"sn": "--d---f-", "bd": "x---x---"}, {"sn": "--d---F-", "bd": "x---x---"}]}])
+    back, rep = read_midi(write_midi(s, tmp_path / "g.mid"))
+    assert back.event_list() == s.event_list()
+    got = {(i, h.pos): (h.flam, h.drag, h.accent) for i, m in enumerate(back.measures) for h in m.hits if h.inst == "snare"}
+    assert got[(0, F(1, 4))] == (False, True, False) and got[(0, F(3, 4))] == (True, False, False)
+    assert got[(1, F(3, 4))][0] is True and rep.graces_folded == 6

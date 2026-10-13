@@ -31,6 +31,7 @@ class Onset:
     accent: bool = False
     ghost: bool = False
     flam: bool = False
+    drag: bool = False
 
 
 @dataclass
@@ -60,11 +61,18 @@ class QuantizeResult:
     grid_counts: dict[str, int] = field(default_factory=dict)
     bar_tempi: list[float] = field(default_factory=list)
     mean_abs_offset_ms: float = 0.0
+    dropped: int = 0  # onsets outside the beat grid (reported by callers)
 
 
-_BINARY_COST = {1: 0.0, 2: 0.5, 4: 2.0, 3: 3.0, 6: 5.0, 8: 6.5}
-_BINARY_COST_TRIPLET = {1: 0.0, 3: 0.5, 2: 1.5, 6: 2.5, 4: 3.5, 8: 8.0}
+_BINARY_COST = {1: 0.0, 2: 0.5, 4: 2.0, 3: 3.0, 6: 5.0, 8: 6.5, 12: 9.0}
+_BINARY_COST_TRIPLET = {1: 0.0, 3: 0.5, 2: 1.5, 6: 2.5, 4: 3.5, 8: 8.0, 12: 6.0}
 _TERNARY_COST = {1: 0.0, 3: 0.5, 6: 2.5, 2: 4.0, 4: 6.0, 12: 7.0}
+# In a swing feel, swung 8ths are read through the warp; a beat that is really a
+# triplet or straight-16th figure is read unwarped with these grids instead.
+_SWING_WARPED = (1, 2)
+_SWING_UNWARPED = {3: 1.5, 6: 4.0, 12: 8.0, 4: 3.0, 8: 6.5}
+# Without 32nds no slot may be shorter than a 16th-note triplet, whatever the beat.
+_MIN_SLOT_NO_32NDS = Fraction(1, 24)
 
 
 def detect_feel(rels: list[float]) -> tuple[str, float | None]:
@@ -158,16 +166,22 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
             table = _BINARY_COST_TRIPLET if feel == "triplet" else _BINARY_COST
         else:
             table = _TERNARY_COST
-        if not opts.allow_32nds:
-            table = {n: c for n, c in table.items() if n not in (8, 12)}
         sigma = opts.sigma_base + opts.sigma_rel * d
-        use_rels = [(o, _warp(r, swing_pos) if (feel == "swing" and binary and swing_pos and 0 <= r <= 1) else r)
-                    for o, r in items]
+        swing = feel == "swing" and binary and bool(swing_pos)
+        warped = [(o, _warp(r, swing_pos) if swing and 0 <= r <= 1 else r) for o, r in items]
+        candidates = []  # (grid, complexity, positions used)
+        if swing:
+            candidates += [(n, table[n], warped) for n in _SWING_WARPED]
+            candidates += [(n, c, items) for n, c in _SWING_UNWARPED.items()]
+        else:
+            candidates += [(n, c, items) for n, c in table.items()]
+        if not opts.allow_32nds:
+            candidates = [c for c in candidates if blen / c[0] >= _MIN_SLOT_NO_32NDS]
         best = None
-        for n, complexity in table.items():
+        for n, complexity, rels in candidates:
             cost = complexity
             seen: dict[tuple[int, str], int] = {}
-            for o, r in use_rels:
+            for o, r in rels:
                 slot = min(max(round(r * n), 0), n)
                 err = (r - slot / n) * d
                 cost += (err / sigma) ** 2 * max(o.confidence, 0.2)
@@ -175,8 +189,9 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
                 seen[key] = seen.get(key, 0) + 1
             cost += 4.0 * sum(c - 1 for c in seen.values())
             if best is None or cost < best[0]:
-                best = (cost, n)
-        _, n = best
+                best = (cost, n, rels)
+        _, n, use_rels = best
+        swung_reading = swing and use_rels is warped
         grid_counts[str(n)] = grid_counts.get(str(n), 0) + 1
         residuals = []
         for (o, r_orig), (_, r) in zip(items, use_rels):
@@ -190,13 +205,13 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
             tb, _, tstart, tlen = beat_info[target_k]
             pos = tstart + tlen * Fraction(target_slot, n)
             q_time = beat_times[target_k] + (target_slot / n) * durations[target_k]
-            if feel == "swing" and binary and swing_pos and target_k == k and n in (2, 4) and target_slot * 2 == n:
+            if swung_reading and target_k == k and n == 2 and target_slot == 1:
                 q_time = beat_times[k] + swing_pos * d  # the swung offbeat's nominal time
             offset_ms = (o.time - q_time) * 1000
             residuals.append(abs(offset_ms) / 1000 / sigma)
             abs_offsets.append(abs(offset_ms))
             hit = Hit(pos=pos, inst=o.inst, velocity=max(1, min(127, int(o.velocity))),
-                      accent=o.accent, ghost=o.ghost and not o.accent, flam=o.flam,
+                      accent=o.accent, ghost=o.ghost and not o.accent, flam=o.flam, drag=o.drag and not o.flam,
                       confidence=round(min(1.0, max(0.0, o.confidence)), 3),
                       time=round(o.time, 4), offset_ms=round(offset_ms, 1))
             key = (tb, pos, o.inst)
@@ -258,7 +273,7 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         measures[0].tempo_text = "Swing"
     return QuantizeResult(measures, feel, round(swing_pos, 3) if swing_pos else None, merged, grid_counts,
                           [round(t, 2) for t in bar_tempi],
-                          round(statistics.mean(abs_offsets), 1) if abs_offsets else 0.0)
+                          round(statistics.mean(abs_offsets), 1) if abs_offsets else 0.0, dropped)
 
 
 def _apply_tempo_marks(measures: list[Measure], bar_tempi: list[float], opts: QuantizeOptions) -> None:
@@ -284,11 +299,14 @@ def _apply_tempo_marks(measures: list[Measure], bar_tempi: list[float], opts: Qu
             i += 1
             continue
         w = window(i)
-        if abs(w - current) / current > opts.tempo_change_threshold and i + 1 < n and \
-                abs(window(i + 1) - current) / current > opts.tempo_change_threshold:
-            current = round(w)
-            measures[i].tempo = float(current)
-            i += 2
+        thr = opts.tempo_change_threshold
+        if abs(w - current) / current > thr and i + 1 < n and abs(window(i + 1) - current) / current > thr:
+            # The windows see a change coming a bar early; the mark goes on the first
+            # bar whose own tempo has moved, with the tempo of the bars after it.
+            j = next((t for t in range(i, min(n, i + 3)) if abs(bar_tempi[t] - current) / current > thr), i + 1)
+            current = round(statistics.median(bar_tempi[j:min(n, j + 3)]))
+            measures[j].tempo = float(current)
+            i = j + 2
             continue
         i += 1
 
