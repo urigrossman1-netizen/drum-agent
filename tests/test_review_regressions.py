@@ -366,3 +366,64 @@ def test_flams_and_drags_round_trip_through_midi(tmp_path):
     got = {(i, h.pos): (h.flam, h.drag, h.accent) for i, m in enumerate(back.measures) for h in m.hits if h.inst == "snare"}
     assert got[(0, F(1, 4))] == (False, True, False) and got[(0, F(3, 4))] == (True, False, False)
     assert got[(1, F(3, 4))][0] is True and rep.graces_folded == 6
+
+
+# --- notation (second review) --------------------------------------------------------
+
+def _svg_positions(ly_path, tmp_path):
+    """x positions of barlines, time signatures and grace noteheads, per system (y)."""
+    import subprocess
+    from drum_agent.export.render import find_lilypond
+    ly = ly_path.read_text().replace(
+        "    \\Score\n", "    \\Score\n"
+        "    \\override BarLine.output-attributes = #'((class . \"BarLine\"))\n"
+        "    \\override TimeSignature.output-attributes = #'((class . \"TimeSig\"))\n", 1)
+    for g in ("\\acciaccatura {", "\\appoggiatura {"):
+        ly = ly.replace(g, g + " \\once \\override NoteHead.output-attributes = #'((class . \"Grace\"))")
+    src = tmp_path / "tagged.ly"
+    src.write_text(ly)
+    subprocess.run([find_lilypond(), "-dbackend=svg", "-o", str(tmp_path / "tagged"), str(src)],
+                   capture_output=True, check=True)
+    svg = (tmp_path / "tagged.svg").read_text()
+    rows: dict[int, list] = {}
+    for m in re.finditer(r'<g class="(BarLine|TimeSig|Grace)"[^>]*>(.*?)</g>', svg, re.S):
+        x, y = map(float, re.search(r'translate\(([\d.\-]+),\s*([\d.\-]+)\)', m.group(2)).groups())
+        rows.setdefault(round(y), []).append((x, m.group(1)))
+    return [sorted(r) for _, r in sorted(rows.items())]
+
+
+@needs_lilypond
+def test_downbeat_flam_and_drag_are_engraved_after_the_barline_and_meter(tmp_path):
+    # LilyPond aligns grace time across voices: without matching grace skips in the
+    # other streams, the barline, time signature and line break came before the graces.
+    s = spec([{"label": "A", "bars": [{"sn": "f-x-x-x-", "bd": "x---x---"}, GROOVE,
+                                      {"time": "3/4", "sn": "f-x-x-", "bd": "x-----"}, {"time": "4/4", **GROOVE}]},
+              {"label": "B", "bars": [{"sn": "d-x-x-x-", "cr": "x-------", "bd": "x-------"}, GROOVE]}], tempo=100)
+    report = export_all(s, tmp_path, "s")
+    assert report.rendering_ok, [c.summary() for c in report.comparisons if not c.ok]
+    ly = (tmp_path / "s.ly").read_text()
+    glob = re.search(r"globalMusic = \{(.*?)\n\}", ly, re.S).group(1)
+    assert glob.count("\\tag #'graces \\grace { s8 }") == 2 and "\\tag #'graces \\grace { s16 s16 }" in glob
+    systems = _svg_positions(tmp_path / "s.ly", tmp_path)
+    first = systems[0]
+    # System 1: the opening flam follows the 4/4 time signature; the 3/4 bar's flam
+    # follows its own time signature (one time signature per meter change, no stray one).
+    kinds = [k for _, k in first]
+    assert kinds.index("Grace") > kinds.index("TimeSig")
+    ts = [x for x, k in first if k == "TimeSig"]
+    graces = [x for x, k in first if k == "Grace"]
+    assert len(graces) == 2 and graces[1] > ts[1]
+    # Section B starts a new system and its drag is on that system, not at the end of system 1.
+    # (only the first grace notehead of the drag is tagged)
+    assert sum(k == "Grace" for _, k in systems[1]) == 1
+
+
+def test_downbeat_grace_skip_covers_a_simile_run_and_a_pickup():
+    from drum_agent.export.lilypond import downbeat_grace_skip
+    from drum_agent.rhythm import spell_measure
+    s = spec([{"bars": [{"sn": "f-x-x-x-", "bd": "x---x---"}] * 3}], tempo=100)
+    ly = to_lilypond(s)
+    assert ly.count("\\tag #'graces \\grace { s8 }") >= 1
+    pick = spec([{"bars": [{"sn": "f-"}, GROOVE]}], tempo=100, pickup="1/4")
+    assert downbeat_grace_skip(spell_measure(pick.measures[0]).voices[1]) == "s8"
+    assert "\\tag #'graces \\grace { s8 }" in to_lilypond(pick)

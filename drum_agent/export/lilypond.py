@@ -278,7 +278,7 @@ class _Writer:
 
     # -- bars ----------------------------------------------------------------
     def global_bar(self, pb: PrintedBar, idx: int, prev: Measure | None,
-                   end_bar: str | None = None, restate_time: bool = False) -> str:
+                   end_bar: str | None = None, restate_time: bool = False, grace_skip: str = "") -> str:
         m = self.score.measures[idx]
         items: list[str] = []
         if pb.line_break and prev is not None:
@@ -293,6 +293,8 @@ class _Writer:
         if m.section:
             items.append(f"\\sectionLabel {ly_string(m.section)}")
         skip = _skip(m.actual_length)
+        if grace_skip:  # keep this bar's barline, meter and line break ahead of a downbeat flam/drag
+            skip = f"\\tag #'graces \\grace {{ {grace_skip} }} " + skip
         if m.uncertain:
             skip += "^\\markup \\small \\with-color #(rgb-color 0.35 0.35 0.35) \"(?)\""
         items.append(skip)
@@ -301,6 +303,25 @@ class _Writer:
         if end_bar:
             items.append(f'\\bar "{end_bar}"')
         return " ".join(items)
+
+
+def downbeat_grace_skip(tokens: list[Token]) -> str:
+    """Grace time used on the bar's first stroke ("s8" for a flam, "s16 s16" for a drag).
+
+    LilyPond aligns grace time across the voices of a staff: a voice without the
+    graces needs a matching grace skip, or the barline, time signature and line
+    break of that moment are drawn before the grace notes (on the previous system).
+    """
+    for t in tokens:
+        if t.kind != "note" or t.tie_stop or t.pos != 0:
+            continue
+        parts = []
+        if any(h.flam for h in t.hits):
+            parts.append("s8")
+        if any(h.drag for h in t.hits):
+            parts.append("s16 s16")
+        return " ".join(parts)
+    return ""
 
 
 def _partial(length: Fraction) -> str:
@@ -350,7 +371,11 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         elif score.measures[after.index].section and not last_in_group.volta_end and not after.volta_start:
             end_bar = "||"
         restate = pb.volta_start and volta_restates_meter(score, plan, i)
-        gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None, restate_time=restate)
+        g_up = downbeat_grace_skip(sm.voices[1])
+        g_down = "" if sm.shared_rest else downbeat_grace_skip(sm.voices[2])
+        grace = max(g_up, g_down, key=lambda g: sum(Fraction(1, int(d[1:])) for d in g.split()))
+        gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None, restate_time=restate,
+                            grace_skip=grace)
         w.bar_index = idx
         w.shared_rest = sm.shared_rest
         up = w.voice_bar(sm.voices[1], 1, m)
@@ -359,6 +384,10 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             down = _skip(m.actual_length)
         else:
             down = w.voice_bar(sm.voices[2], 2, m)
+        if grace and not g_up:
+            up = f"\\tag #'graces \\grace {{ {grace} }} " + up
+        if grace and not g_down:
+            down = f"\\tag #'graces \\grace {{ {grace} }} " + down
         if run > 1:
             # The global stream prints the simile marks; voices hide theirs.
             pre = ""
