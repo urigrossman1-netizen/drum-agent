@@ -200,6 +200,11 @@ def cmd_analyze(args) -> int:
     return 0
 
 
+def cmd_song(args) -> int:
+    from .song.run import run_song
+    return run_song(args)
+
+
 def cmd_synth(args) -> int:
     from .charts import load_any
     from .synth import synthesize
@@ -365,6 +370,40 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--bpm", type=float)
     p.add_argument("--time-signature")
     p.set_defaults(func=cmd_analyze)
+
+    # "resolve": the shared export args make -o required; here it is needed only with --rights.
+    p = sub.add_parser("song", conflict_handler="resolve",
+                       help="identify a song by name, find audio you may use, analyze it (transcribe with --rights)")
+    p.add_argument("query", help="the song's name as you'd say it")
+    p.add_argument("--artist", help="helps the lookup; printed on the chart")
+    src = p.add_mutually_exclusive_group()
+    src.add_argument("--audio", metavar="FILE", help="your own audio file (used in place, never modified)")
+    src.add_argument("--url", help="direct link to an audio file, or a video page (needs your own yt-dlp)")
+    p.add_argument("--library", action="append", metavar="DIR",
+                   help="folder of your audio to search (repeatable; default ~/Music and DRUM_AGENT_MUSIC_DIRS)")
+    p.add_argument("--no-online", action="store_true", help="no network at all: your library or --audio only")
+    p.add_argument("--candidates", type=int, default=5, help="how many candidates to list and search (default 5)")
+    p.add_argument("--pick", type=int, help="use audio candidate N from the list instead of the best one")
+    p.add_argument("--rights", choices=sorted(RIGHTS),
+                   help="basis for full transcription: own, permission, licensed, public_domain, original "
+                        "(without it: analysis only)")
+    p.add_argument("--use-metadata-bpm", action="store_true", help="use the identified recording's BPM as --bpm")
+    p.add_argument("--title", help="title printed on the chart (default: QUERY as typed)")
+    p.add_argument("--transcriber")
+    p.add_argument("--bpm", type=float, help="tempo hint (quarter notes per minute)")
+    p.add_argument("--time-signature", help="e.g. 4/4, 3/4, 6/8, 12/8 (default: detect)")
+    p.add_argument("--downbeat", type=float, help="time in seconds of a downbeat (beat 1)")
+    p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
+    p.add_argument("--drums-only", action="store_true", help="input is an isolated drum track/stem")
+    p.add_argument("--sensitivity", type=float, default=1.0, help=">1 finds more (softer) strokes, <1 fewer")
+    p.add_argument("--no-32nds", action="store_true")
+    p.add_argument("--start", type=float, help="start time in seconds")
+    p.add_argument("--end", type=float, help="end time in seconds")
+    p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
+    p.add_argument("--chart-type", choices=["full_transcription", "performance_chart"])
+    _add_export_args(p)
+    p.add_argument("-o", "--out", default=None, help="output directory for the chart (needed with --rights)")
+    p.set_defaults(func=cmd_song)
 
     p = sub.add_parser("synth", help="render a chart to audio (test fixtures)")
     p.add_argument("input")
