@@ -163,6 +163,31 @@ def cmd_midi(args) -> int:
     return _print_report(report, Path(args.out))
 
 
+def cmd_gamechart(args) -> int:
+    """A Rock Band / Clone Hero drum chart the user supplies. Like `midi`, it converts strokes
+    someone has already charted and opens no recording, so --rights records the basis (the
+    gate in rights.py is for transcribing recordings, `transcribe`)."""
+    from .gamechart import default_stem, locate_chart, read_gamechart
+    from .pipeline import export_all
+    from .quantize import QuantizeOptions
+    kit = _kit(args)
+    chart_file, _, _ = locate_chart(args.input)
+    stem = args.stem or default_stem(chart_file)
+    _guard_input(str(chart_file), args.out, stem)  # the notes.mid itself, not the folder
+    score, rep = read_gamechart(args.input, difficulty=args.difficulty, pro=False if args.no_pro else None,
+                                title=args.title, artist=args.artist, options=QuantizeOptions(feel=args.feel))
+    print(f"{rep.path.name}: {rep.difficulty} drums ({len(score.measures)} bars, {rep.gems} notes); "
+          f"pro drums {rep.pro_reason}")
+    for w in rep.warnings:
+        print(f"warning: {w}", file=sys.stderr)
+    if args.transcriber:
+        score.transcriber = args.transcriber
+    score.rights = args.rights
+    _apply_sections(score, args.sections)
+    report = export_all(score, args.out, stem, kit, _export_opts(args))
+    return _print_report(report, Path(args.out))
+
+
 def _apply_sections(score, spec: str | None) -> None:
     """--sections "Intro:1,Verse 1:5,Chorus:13" (label:first bar, 1-based performance bars)."""
     if not spec:
@@ -344,6 +369,23 @@ def build_parser() -> argparse.ArgumentParser:
                         'or "auto" (default: inferred from the file\'s meter changes and markers)')
     _add_export_args(p)
     p.set_defaults(func=cmd_midi)
+
+    p = sub.add_parser("gamechart", help="Rock Band / Clone Hero drum chart (notes.mid, notes.chart or a "
+                                         "song folder) -> score")
+    p.add_argument("input", help="notes.mid, notes.chart, or the song folder holding one (and song.ini)")
+    p.add_argument("--difficulty", default="expert", choices=["expert", "hard", "medium", "easy"])
+    p.add_argument("--no-pro", action="store_true",
+                   help="read yellow, blue and green as toms (default: pro drums when the file has tom "
+                        "markers or cymbal flags, or song.ini says pro_drums)")
+    p.add_argument("--title", help="default: song.ini name, the .chart's Name, or the folder name")
+    p.add_argument("--artist", help="default: song.ini or .chart artist")
+    p.add_argument("--transcriber", help="default: the charter named in song.ini or the .chart")
+    p.add_argument("--rights", choices=sorted(RIGHTS), default=None)
+    p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
+    p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar); '
+                   "default: the chart's sections")
+    _add_export_args(p)
+    p.set_defaults(func=cmd_gamechart)
 
     p = sub.add_parser("transcribe", help="audio recording -> drum score (requires --rights)")
     p.add_argument("input")
