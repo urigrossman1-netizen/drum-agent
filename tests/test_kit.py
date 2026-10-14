@@ -14,14 +14,14 @@ SPEC = {  # id: (display pitch, notehead, voice, GM note)
     "hihat_half": ("G5", "cross", 1, 46),
     "ride": ("F5", "cross", 1, 51),
     "ride_bell": ("F5", "diamond", 1, 53),
-    "tom1": ("E5", "normal", 1, 48),
+    "tom1": ("E5", "normal", 2, 48),
     "cowbell": ("E5", "triangle", 1, 56),
-    "tom2": ("D5", "normal", 1, 45),
-    "snare": ("C5", "normal", 1, 38),
-    "cross_stick": ("C5", "cross", 1, 37),
-    "rimshot": ("C5", "slashed", 1, 40),
-    "floor_tom": ("A4", "normal", 1, 43),
-    "floor_tom2": ("G4", "normal", 1, 41),
+    "tom2": ("D5", "normal", 2, 45),
+    "snare": ("C5", "normal", 2, 38),
+    "cross_stick": ("C5", "cross", 2, 37),
+    "rimshot": ("C5", "slashed", 2, 40),
+    "floor_tom": ("A4", "normal", 2, 43),
+    "floor_tom2": ("G4", "normal", 2, 41),
     "kick": ("F4", "normal", 2, 36),
     "kick2": ("E4", "normal", 2, 35),
     "hihat_pedal": ("D4", "cross", 2, 44),
@@ -38,6 +38,16 @@ def test_spec_table(inst):
     assert ins.notehead == head
     assert ins.voice == voice
     assert ins.midi == midi
+
+
+def test_hands_up_voicing():
+    """--voicing hands-up (Weinberg/PAS): everything but the feet stems up."""
+    kit = DEFAULT_KIT.with_voicing("hands-up")
+    for ins in kit.instruments:
+        assert ins.voice == (2 if ins.id in ("kick", "kick2", "hihat_pedal", "hihat_splash") else 1), ins.id
+        assert ins.position == DEFAULT_KIT[ins.id].position
+    with pytest.raises(KitError):
+        DEFAULT_KIT.with_voicing("sideways")
 
 
 def test_every_instrument_documented():

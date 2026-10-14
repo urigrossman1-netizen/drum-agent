@@ -10,12 +10,20 @@ from fractions import Fraction
 from pathlib import Path
 
 from . import __version__
-from .kit import DEFAULT_KIT, Kit
+from .kit import DEFAULT_KIT, DEFAULT_VOICING, VOICINGS, Kit
 from .model import RIGHTS, STATUSES
 
 
 def _kit(args) -> Kit:
-    return Kit.from_json(args.kit) if getattr(args, "kit", None) else DEFAULT_KIT
+    voicing = getattr(args, "voicing", None) or DEFAULT_VOICING
+    base = DEFAULT_KIT if voicing == DEFAULT_VOICING else DEFAULT_KIT.with_voicing(voicing)
+    return Kit.from_json(args.kit, base=base) if getattr(args, "kit", None) else base
+
+
+def _add_voicing_arg(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--voicing", choices=VOICINGS, default=DEFAULT_VOICING,
+                   help="stems: cymbals-up (cymbals and hi-hat up, snare, toms and feet down; the default) "
+                        "or hands-up (everything the hands play up, the feet down: Weinberg/PAS)")
 
 
 def _export_opts(args):
@@ -45,6 +53,7 @@ def _add_export_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--midi-timing", default="quantized", choices=["quantized", "performed"],
                    help="also write a .performed.mid with the original timing when 'performed'")
     p.add_argument("--kit", help="JSON kit override file (see drum_agent/kit.py)")
+    _add_voicing_arg(p)
 
 
 def _print_report(report, out: Path) -> int:
@@ -379,6 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--midi")
     p.add_argument("--ly-midi", help="MIDI written by LilyPond from the engraved .ly")
     p.add_argument("--kit", help="the JSON kit override the files were rendered with")
+    _add_voicing_arg(p)
     p.set_defaults(func=cmd_verify)
 
     p = sub.add_parser("edit", help="correct a score.json (relabel, add, delete, sections, verify)")
@@ -400,6 +410,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-o", "--output", help="write to this .json instead of overwriting")
     p.add_argument("--render", metavar="OUT_DIR", help="re-render all formats after editing")
     p.add_argument("--kit", help="JSON kit override file")
+    _add_voicing_arg(p)
     p.set_defaults(func=cmd_edit)
 
     p = sub.add_parser("doctor", help="check dependencies")

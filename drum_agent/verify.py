@@ -314,6 +314,9 @@ def musicxml_articulations(path: str | Path) -> list[tuple[Fraction, str, str]]:
                 if el.find("notations/ornaments/tremolo") is not None:
                     out.append((at, inst, "roll"))
                 for tech in el.findall("notations/technical/*"):
+                    if tech.tag == "fingering":
+                        out.append((at, inst, f"sticking:{(tech.text or '').strip()}"))
+                        continue
                     flag = _TECH_FLAGS.get((tech.tag, tech.get("placement", "above")))
                     if flag:
                         out.append((at, inst, flag))
@@ -341,6 +344,8 @@ def expected_articulations(score: Score, kit: Kit = DEFAULT_KIT) -> list[tuple[F
         tech = _KIT_TECH.get(kit[h.inst].articulation or "")
         if tech:
             out.append((at, h.inst, tech))
+        if h.sticking:
+            out.append((at, h.inst, f"sticking:{h.sticking}"))
     return sorted(out)
 
 

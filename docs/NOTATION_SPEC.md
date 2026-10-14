@@ -37,16 +37,28 @@ further lines; it never runs off the page.
 * A five-line staff with a percussion clef. Notes are given by staff
   position, written here as the treble-clef pitch of that position (the
   middle line is B4).
-* **Two voices**, as in virtually all modern drum books:
-  * **Voice 1, stems up: hands.** Cymbals, hi-hat played with sticks, snare,
-    toms.
-  * **Voice 2, stems down: feet.** Bass drum(s), hi-hat pedal.
+* **Two voices.** The default voicing, `cymbals-up`, is the one in the
+  user's reference chart (and in Guitar Pro and Songsterr charts):
+  * **Voice 1, stems up: cymbals.** Hi-hat played with sticks, ride, crash,
+    china, splash, cowbell.
+  * **Voice 2, stems down: drums and feet.** Snare, cross-stick, rimshot,
+    toms, bass drum(s), hi-hat pedal.
+
+  The alternative, `--voicing hands-up` (Weinberg / Percussive Arts Society
+  drum-book layout), puts everything the hands play in voice 1 (cymbals,
+  snare, toms) and only the feet in voice 2. Staff positions and noteheads
+  are the same in both; only the stem direction of snare and toms changes.
+* **Sticking** (R, L, B for both hands) prints on one line under the staff,
+  centred under the stroke it belongs to. **Cues** ("hey", "Band in",
+  "Gtr. solo") print in italics above the staff at the start of the bar.
+* **Swing**: a chart written in straight 8ths with `swing` set prints the
+  word with its rhythm, ♫ = ♩♪ under a triplet bracket.
 * A voice with no hits for a whole bar shows a whole-bar rest. If both
   voices are silent, one whole-bar rest is printed.
 
 ## 3. Instrument map
 
-| id | Instrument | Staff position | Notehead | Voice | GM note |
+| id | Instrument | Staff position | Notehead | Voice (default voicing) | GM note |
 |---|---|---|---|---|---|
 | `crash2` | Crash cymbal 2 | B5 (space above 1st ledger line) | × | 1 up | 57 |
 | `china` | China cymbal | C6 (2nd ledger line) | × | 1 up | 52 |
@@ -57,14 +69,14 @@ further lines; it never runs off the page.
 | `hihat_half` | Hi-hat, half-open | G5 | × with half-open circle (⊘) above | 1 up | 46 |
 | `ride` | Ride cymbal | F5 (top line) | × | 1 up | 51 |
 | `ride_bell` | Ride bell | F5 | ◇ (diamond) | 1 up | 53 |
-| `tom1` | High tom (Tom 1) | E5 (top space) | ● | 1 up | 48 |
+| `tom1` | High tom (Tom 1) | E5 (top space) | ● | 2 down | 48 |
 | `cowbell` | Cowbell | E5 | ▲ (triangle) | 1 up | 56 |
-| `tom2` | Mid tom (Tom 2) | D5 (4th line) | ● | 1 up | 45 |
-| `snare` | Snare drum | C5 (3rd space) | ● | 1 up | 38 |
-| `cross_stick` | Cross-stick (side stick) | C5 | × | 1 up | 37 |
-| `rimshot` | Snare rimshot | C5 | ● with a slash through it | 1 up | 40 |
-| `floor_tom` | Floor tom | A4 (2nd space) | ● | 1 up | 43 |
-| `floor_tom2` | Low floor tom | G4 (2nd line) | ● | 1 up | 41 |
+| `tom2` | Mid tom (Tom 2) | D5 (4th line) | ● | 2 down | 45 |
+| `snare` | Snare drum | C5 (3rd space) | ● | 2 down | 38 |
+| `cross_stick` | Cross-stick (side stick) | C5 | × | 2 down | 37 |
+| `rimshot` | Snare rimshot | C5 | ● with a slash through it | 2 down | 40 |
+| `floor_tom` | Floor tom | A4 (2nd space) | ● | 2 down | 43 |
+| `floor_tom2` | Low floor tom | G4 (2nd line) | ● | 2 down | 41 |
 | `kick` | Bass drum | F4 (1st space) | ● | 2 down | 36 |
 | `kick2` | Second bass drum / double pedal | E4 (bottom line) | ● | 2 down | 35 |
 | `hihat_pedal` | Hi-hat with foot | D4 (space below staff) | × | 2 down | 44 |

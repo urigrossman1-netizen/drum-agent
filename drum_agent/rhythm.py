@@ -502,10 +502,31 @@ class SpelledMeasure:
     shared_rest: bool  # both voices empty: print one rest only (in voice 1)
 
 
-def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
+def _starts_during(spans: list[tuple[Fraction, Fraction]], hits: list[Hit]) -> bool:
+    return any(a <= h.pos < b for a, b in spans for h in hits)
+
+
+def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT) -> dict[int, list[Hit]]:
+    """The hits of each voice: the kit's voice, except that a snare/tom roll with the kick
+    under it moves up. In the cymbals-up voicing the roll shares the lower voice with the
+    kick, and a kick on the roll's first note or during it would be written as part of the
+    rolled chord. Both hands are rolling, so the upper voice is free there and the bar reads
+    as in the hands-up layout."""
     by_voice: dict[int, list[Hit]] = {1: [], 2: []}
     for h in measure.hits:
         by_voice[kit[h.inst].voice].append(h)
+    rolled = [h for h in by_voice[2] if h.roll is not None and not kit.is_foot(h.inst)]
+    if rolled:
+        spans = [(h.pos, h.pos + h.roll) for h in rolled]
+        others = [h for h in by_voice[2] if h not in rolled]
+        if _starts_during(spans, others) and not _starts_during(spans, by_voice[1]):
+            by_voice[2] = others
+            by_voice[1] = by_voice[1] + rolled
+    return by_voice
+
+
+def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
+    by_voice = assign_voices(measure, kit)
     if not by_voice[1] and not by_voice[2]:
         rest = spell_voice(measure, [])
         return SpelledMeasure({1: rest, 2: []}, shared_rest=True)

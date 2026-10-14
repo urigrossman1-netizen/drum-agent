@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -40,6 +41,9 @@ RIGHTS = {
     "public_domain": "Public-domain material",
     "original": "Original composition/pattern",
 }
+
+
+STICKING = re.compile(r"[RLB]{1,3}")
 
 
 class ScoreError(ValueError):
@@ -167,6 +171,7 @@ class Hit:
     roll: Fraction | None = None  # notated roll duration in whole notes
     choke: bool = False
     confidence: float = 1.0
+    sticking: str | None = None  # hand(s) to play it with, printed under the staff: R, L, B (both), RL...
     time: float | None = None  # performed onset in seconds (audio/MIDI sources)
     offset_ms: float | None = None  # performed time minus quantized time
 
@@ -184,6 +189,8 @@ class Hit:
             d["roll"] = frac_str(self.roll)
         if self.confidence != 1.0:
             d["confidence"] = round(self.confidence, 3)
+        if self.sticking:
+            d["sticking"] = self.sticking
         if self.time is not None:
             d["time"] = round(self.time, 4)
         if self.offset_ms is not None:
@@ -193,7 +200,7 @@ class Hit:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Hit":
         unknown = set(d) - {"pos", "inst", "velocity", "accent", "ghost", "flam", "drag", "roll",
-                            "choke", "confidence", "time", "offset_ms"}
+                            "choke", "confidence", "sticking", "time", "offset_ms"}
         if unknown:
             raise ScoreError(f"unknown hit fields {sorted(unknown)}")
         return cls(
@@ -207,6 +214,7 @@ class Hit:
             roll=frac(d["roll"]) if d.get("roll") is not None else None,
             choke=bool(d.get("choke", False)),
             confidence=float(d.get("confidence", 1.0)),
+            sticking=d.get("sticking"),
             time=d.get("time"),
             offset_ms=d.get("offset_ms"),
         )
@@ -220,6 +228,7 @@ class Measure:
     tempo: float | None = None  # new tempo (quarter notes per minute) starting at this bar
     tempo_text: str | None = None  # e.g. "Swing", "Half-time feel"
     section: str | None = None  # section label starting at this bar
+    cue: str | None = None  # text above the staff at the start of the bar ("Band in", "Gtr. solo")
     uncertain: bool = False  # contains low-confidence material needing human review
     notes: list[str] = field(default_factory=list)  # free-text review notes (not printed)
     start_time: float | None = None  # performed start of the bar in seconds (audio sources)
@@ -235,9 +244,10 @@ class Measure:
     def musical_signature(self) -> tuple:
         """Everything that is printed for this bar, used to detect exact repeats."""
         hits = tuple(sorted(
-            (h.pos, h.inst, h.accent, h.ghost, h.flam, h.drag, h.roll, h.choke) for h in self.hits
+            (h.pos, h.inst, h.accent, h.ghost, h.flam, h.drag, h.roll, h.choke, h.sticking or "")
+            for h in self.hits
         ))
-        return (str(self.time_sig), self.time_sig.beat_groups, self.actual_length, hits)
+        return (str(self.time_sig), self.time_sig.beat_groups, self.actual_length, hits, self.cue or "")
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"time": str(self.time_sig)}
@@ -251,6 +261,8 @@ class Measure:
             d["tempo_text"] = self.tempo_text
         if self.section:
             d["section"] = self.section
+        if self.cue:
+            d["cue"] = self.cue
         if self.uncertain:
             d["uncertain"] = True
         if self.notes:
@@ -269,6 +281,7 @@ class Measure:
             tempo=float(d["tempo"]) if d.get("tempo") is not None else None,
             tempo_text=d.get("tempo_text"),
             section=d.get("section"),
+            cue=d.get("cue"),
             uncertain=bool(d.get("uncertain", False)),
             notes=list(d.get("notes", [])),
             start_time=d.get("start_time"),
@@ -384,7 +397,7 @@ class Score:
         if self.measures[0].tempo is None:
             warnings.append("bar 1 has no tempo; 120 BPM assumed")
         for i, m in enumerate(self.measures, start=1):
-            for name in ("section", "tempo_text"):
+            for name in ("section", "tempo_text", "cue"):
                 value = getattr(m, name)
                 if value is not None and not isinstance(value, str):
                     raise ScoreError(f"bar {i}: {name} must be text, got {value!r}")
@@ -417,6 +430,10 @@ class Score:
                         raise ScoreError(f"bar {i}: roll at {h.pos} runs past the barline; split it across bars")
                 if not 0.0 <= h.confidence <= 1.0:
                     raise ScoreError(f"bar {i}: confidence must be within 0..1")
+                if h.sticking is not None and (not isinstance(h.sticking, str)
+                                               or not STICKING.fullmatch(h.sticking)):
+                    raise ScoreError(f"bar {i}: sticking {h.sticking!r} at {h.pos}: use R, L or B "
+                                     f"(both hands), up to three letters such as RL")
             # Hi-hat physically can't be open and closed at the same instant.
             by_pos: dict[Fraction, set[str]] = {}
             for h in m.hits:
@@ -425,7 +442,7 @@ class Score:
                 stick_hh = insts & {"hihat", "hihat_open", "hihat_half"}
                 if len(stick_hh) > 1:
                     raise ScoreError(f"bar {i}: conflicting hi-hat states {sorted(stick_hh)} at {pos}")
-                hands = [x for x in insts if kit[x].voice == 1]
+                hands = [x for x in insts if not kit.is_foot(x)]
                 if len(hands) > 3:
                     warnings.append(f"bar {i}: {len(hands)} simultaneous hand strokes at {pos} "
                                     f"({', '.join(sorted(hands))}) - check playability")

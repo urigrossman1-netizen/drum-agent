@@ -76,7 +76,10 @@ def test_case04_simultaneous_hits(rendered):
     chords = root.findall(".//note/chord")
     assert len(chords) >= 6
     ly = _ly(report)
-    assert "<snare crash>4" in ly or "<crash snare>4" in ly or "<snare crash>" in ly
+    # Cymbals-up voicing: the crash stems up, snare and kick share the stems-down chord.
+    up, down = ly.split("upMusic = ")[1].split("downMusic = ")
+    assert "crash4" in up and "snare" not in up
+    assert "<kick snare>4" in down
     heads = {n.text for n in root.iter("notehead")}
     assert {"x", "diamond"} <= heads  # cymbals and ride bell
 

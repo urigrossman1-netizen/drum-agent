@@ -425,7 +425,8 @@ def test_downbeat_grace_skip_covers_a_simile_run_and_a_pickup():
     ly = to_lilypond(s)
     assert ly.count("\\tag #'graces \\grace { s8 }") >= 1
     pick = spec([{"bars": [{"sn": "f-"}, GROOVE]}], tempo=100, pickup="1/4")
-    assert downbeat_grace_skip(spell_measure(pick.measures[0]).voices[1]) == "s8"
+    from drum_agent.kit import DEFAULT_KIT
+    assert downbeat_grace_skip(spell_measure(pick.measures[0]).voices[DEFAULT_KIT["snare"].voice]) == "s8"
     assert "\\tag #'graces \\grace { s8 }" in to_lilypond(pick)
 
 

@@ -53,6 +53,7 @@ class DetectOptions:
     nmf_input: str = "auto"  # "full" | "percussive" | "auto" (full for mixes, as-is for stems)
     hpss_margin: float = 1.0
     seed: int = 0
+    method: str = "auto"  # "classifier" (trained onset classifier), "nmf" (templates + rules), "auto"
 
 
 @dataclass
@@ -234,23 +235,89 @@ def _peaks(env: np.ndarray, delta: float, wait: int = 4) -> np.ndarray:
     return librosa.util.peak_pick(e, pre_max=2, post_max=2, pre_avg=12, post_avg=6, delta=delta, wait=wait)
 
 
-def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
-    import librosa
-    opts = options or DetectOptions()
+PAD = 0.25  # seconds of silence prepended before analysis
+
+
+@dataclass
+class FrontEnd:
+    """What every detector works from: spectrograms and candidate onset frames.
+
+    Frames are counted from the start of the padded signal (PAD seconds of
+    silence first), so a frame f is at f * FRAME - PAD seconds in the input.
+    """
+    y: np.ndarray  # peak-normalized, padded signal
+    gain: float  # normalization applied to the input
+    duration: float  # of the input, seconds
+    M_full: np.ndarray  # mel magnitude of the whole signal (bands, frames)
+    M_perc: np.ndarray  # ... of its percussive part (HPSS), or the whole signal for a drum stem
+    M_harm: np.ndarray  # ... of its strictly harmonic part (zeros for a drum stem)
+    flux: np.ndarray  # superflux onset strength of M_perc
+    cand: np.ndarray  # candidate onset frames
+
+
+def front_end(y: np.ndarray, opts: DetectOptions) -> FrontEnd | None:
+    """Spectrograms and onset candidates; None for silence."""
     y = np.asarray(y, dtype=np.float32)
     if y.size == 0 or np.max(np.abs(y)) < 1e-5:
-        return Detection([], np.zeros(1, dtype=np.float32), 0, len(y) / SR)
+        return None
     gain = 0.9 / (float(np.max(np.abs(y))) + 1e-9)  # analysis works on a peak-normalized signal
     y = y * gain
     duration = len(y) / SR
     # Lead-in silence: a stroke at t=0 would otherwise be analysed with half-empty
     # STFT windows and no pre-onset baseline (it was being missed or mislabelled).
-    PAD = 0.25
     y = np.concatenate([np.zeros(int(PAD * SR), dtype=np.float32), y])
+    from .features import filterbank
+    M_full, V_plain, M_harm = _front_end(y, filterbank(), opts)
+    flux = _superflux(V_plain)
+    delta = 0.06 / max(opts.sensitivity, 0.1)
+    cand = _peaks(flux, delta)
+    # Everything after this is relative to the recording itself, so near-silence
+    # needs an absolute floor: an onset where the signal stays below -60 dBFS
+    # (with the analysis padding) is noise, not a stroke.
+    if len(cand):
+        hop_peak = np.array([np.abs(y[i * HOP:(i + 1) * HOP + HOP]).max() if i * HOP < len(y) else 0.0
+                             for i in range(int(cand.max()) + 6)])
+        cand = np.array([t for t in cand if hop_peak[max(0, t - 2):t + 6].max() >= ABS_FLOOR * gain], dtype=int)
+    return FrontEnd(y, gain, duration, M_full, V_plain, M_harm, flux, np.asarray(cand, dtype=int))
 
-    from .features import STACK, filterbank, stack_frames
-    fb = filterbank()
-    M_full, V_plain, M_harm = _front_end(y, fb, opts)  # full signal, percussive part, harmonic part
+
+def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
+    opts = options or DetectOptions()
+    fe = front_end(y, opts)
+    if fe is None:
+        return Detection([], np.zeros(1, dtype=np.float32), 0, len(y) / SR)
+    method = opts.method
+    if method == "auto":
+        from .classifier import model_available
+        method = "classifier" if model_available() else "nmf"
+    if method == "classifier":
+        from .classifier import classify_hits
+        hits, extra = classify_hits(fe, opts)
+        return _finish(hits, fe, extra)
+    return _detect_nmf(fe, opts)
+
+
+def _finish(hits: list[DrumHit], fe: FrontEnd, stats: dict) -> Detection:
+    """Post-processing shared by the detectors, then the Detection."""
+    hits = _merge_flams(hits)
+    hits = _drop_flam_crashes(hits)
+    _smooth_cymbals(hits)
+    _dynamics(hits)
+    pad_frames = int(round(PAD / FRAME))
+    return Detection(
+        hits=sorted(hits, key=lambda h: (h.time, h.inst)),
+        onset_env=fe.flux[pad_frames:],
+        candidates=int(len(fe.cand)),
+        duration=fe.duration,
+        activations=stats.pop("activations", {}),
+        stats=stats,
+    )
+
+
+def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
+    """Template NMF with rules (the original detector; kept for comparison)."""
+    from .features import STACK, stack_frames
+    y, gain, M_full, V_plain, M_harm, flux, cand = fe.y, fe.gain, fe.M_full, fe.M_perc, fe.M_harm, fe.flux, fe.cand
     use_full = opts.nmf_input == "full" or (opts.nmf_input == "auto" and not opts.drums_only)
     V = stack_frames(M_full if use_full else V_plain)
 
@@ -266,17 +333,6 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
     K0 = W0.shape[1]
     A = {c: H[[i for i, lab in enumerate(labels) if lab == c]].sum(axis=0) for c in classes}
     A_free = H[K0:].sum(axis=0) if W.shape[1] > K0 else np.zeros(V.shape[1], dtype=np.float32)
-
-    flux = _superflux(V_plain)
-    delta = 0.06 / max(opts.sensitivity, 0.1)
-    cand = _peaks(flux, delta)
-    # Everything after this is relative to the recording itself, so near-silence
-    # needs an absolute floor: an onset where the signal stays below -60 dBFS
-    # (with the analysis padding) is noise, not a stroke.
-    if len(cand):
-        hop_peak = np.array([np.abs(y[i * HOP:(i + 1) * HOP + HOP]).max() if i * HOP < len(y) else 0.0
-                             for i in range(int(cand.max()) + 6)])
-        cand = np.array([t for t in cand if hop_peak[max(0, t - 2):t + 6].max() >= ABS_FLOOR * gain], dtype=int)
     T = V.shape[1]
     centers = np.tile(band_centers(), len(STACK))
 
@@ -426,19 +482,10 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
             f = int(round((h.time + PAD) / FRAME))
             h.flam = _has_grace(A[h.inst], f, last_frame.get(h.inst, -10**9), T)
             last_frame[h.inst] = f
-    hits = _merge_flams(hits)
-    hits = _drop_flam_crashes(hits)
-    _smooth_cymbals(hits)
-    _dynamics(hits)
     pad_frames = int(round(PAD / FRAME))
-    return Detection(
-        hits=sorted(hits, key=lambda h: (h.time, h.inst)),
-        onset_env=flux[pad_frames:],
-        candidates=int(len(cand)),
-        duration=duration,
-        activations={c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()},
-        stats={"free_components": free, "templates": K0, "frames": int(T), "debug": debug},
-    )
+    return _finish(hits, fe, {"detector": "nmf", "free_components": free, "templates": K0, "frames": int(T),
+                              "debug": debug,
+                              "activations": {c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()}})
 
 
 def _drop_flam_crashes(hits: list[DrumHit]) -> list[DrumHit]:

@@ -188,9 +188,13 @@ class _XmlWriter:
                 if h.inst == "hihat" and (self.bar_index, h.pos) in self.hh_marks:
                     art_kind = "stopped"
                 tech = _TECHNICAL.get(art_kind) if art_kind else None
-            if tech:
+            sticking = h.sticking if not t.tie_stop else None
+            if tech or sticking:
                 tech_el = _sub(nots, "technical")
-                _sub(tech_el, tech[0], placement=tech[1])
+                if tech:
+                    _sub(tech_el, tech[0], placement=tech[1])
+                if sticking:
+                    _sub(tech_el, "fingering", sticking, placement="below")
             if h.accent and not t.tie_stop:
                 art = _sub(nots, "articulations")
                 _sub(art, "accent", placement="above" if voice == 1 else "below")
@@ -354,6 +358,8 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
             dt = _sub(d, "direction-type")
             _sub(dt, "rehearsal", m.section, enclosure="rectangle")
         w.tempo_direction(mel, m, pb.index)
+        if m.cue:
+            w.direction_words(mel, m.cue, font_style="italic")
         if m.uncertain:
             w.direction_words(mel, "(?)", font_size="9", color="#555555")
         sm = spell_measure(m, kit)

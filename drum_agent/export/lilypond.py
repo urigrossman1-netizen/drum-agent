@@ -108,6 +108,13 @@ def paper(paper_size: str, staff_size: float, ragged_last: bool, page_count: int
     footer = "  ragged-last = ##t\n" if ragged_last else ""
     if page_count:
         footer += f"  page-count = {int(page_count)}\n"
+    else:
+        # Page breaking only: plan with a little more room than the systems will get. Snare and
+        # toms stem down (cymbals-up voicing), so beams reach further below the staff than the
+        # breaker estimates, and a full page would otherwise come out slightly compressed. (A
+        # forced page count is checked by its measured compression instead.)
+        footer += ("  page-breaking-system-system-spacing = #'((basic-distance . 14) (minimum-distance . 11.5) "
+                   "(padding . 2.5) (stretchability . 12))\n")
     return (
         f"#(set-global-staff-size {staff_size})\n"
         "\\paper {\n"
@@ -160,6 +167,17 @@ def layout_block() -> str:
 # Music
 # ---------------------------------------------------------------------------
 
+SWING_WORDS = ("swing", "shuffle")
+# "Swing" with its rhythm: two 8ths are played as a triplet quarter + eighth.
+SWING_FIGURE = ("\\hspace #0.6 \\fontsize #-2 \\rhythm { 8[ 8] } \\hspace #0.3 \\fontsize #-1 \"=\" "
+                "\\hspace #0.3 \\fontsize #-2 \\rhythm { \\tuplet 3/2 { 4 8 } }")
+
+
+def swing_text(text: str | None, score: Score) -> bool:
+    """True when a tempo text announces swung 8ths in a chart written straight."""
+    return bool(text) and score.swing and any(w in text.lower() for w in SWING_WORDS)
+
+
 def _tempo_mark(m: Measure, score: Score, index: int) -> str | None:
     if m.tempo is None and not m.tempo_text:
         return None
@@ -172,6 +190,8 @@ def _tempo_mark(m: Measure, score: Score, index: int) -> str | None:
         bpm = tempo * float(Fraction(1, 4) / (unit * 3 / 2 if dotted else unit))
         unit_str = duration(unit, 1 if dotted else 0)
     mark = f"{unit_str} = {int(round(bpm))}"
+    if text and swing_text(text, score) and not m.time_sig.is_compound:
+        return f"\\tempo \\markup {{ {ly_string(text)} {SWING_FIGURE} }} {mark}"
     return f"\\tempo {ly_string(text)} {mark}" if text else f"\\tempo {mark}"
 
 
@@ -306,6 +326,8 @@ class _Writer:
         skip = _skip(length if length is not None else m.actual_length)
         if grace_skip:  # keep this bar's barline, meter and line break ahead of a downbeat flam/drag
             skip = f"\\tag #'graces \\grace {{ {grace_skip} }} " + skip
+        if m.cue:
+            skip += f"^\\markup \\italic {ly_string(m.cue)}"
         if m.uncertain:
             skip += "^\\markup \\small \\with-color #(rgb-color 0.35 0.35 0.35) \"(?)\""
         items.append(skip)
@@ -314,6 +336,44 @@ class _Writer:
         if end_bar:
             items.append(f'\\bar "{end_bar}"')
         return " ".join(items)
+
+
+def _scaled(length: Fraction) -> str:
+    return f"1*{length.numerator}/{length.denominator}" if length != 1 else "1"
+
+
+def bar_stickings(m: Measure, kit: Kit) -> list[tuple[Fraction, str]]:
+    """(position, text) of the sticking printed under each stroke; drums before cymbals
+    when two hands' strokes at one instant both carry one."""
+    at: dict[Fraction, list[tuple[int, str]]] = {}
+    for h in m.hits:
+        if h.sticking:
+            at.setdefault(h.pos, []).append((-kit[h.inst].voice, h.sticking))
+    out = []
+    for pos in sorted(at):
+        texts = []
+        for _, t in sorted(at[pos]):
+            if t not in texts:
+                texts.append(t)
+        out.append((pos, "/".join(texts)))
+    return out
+
+
+def stick_bar(m: Measure, kit: Kit, grace: str = "") -> tuple[str, list[str]]:
+    """An invisible voice with a note at each sticking (for the sticking line's alignment)."""
+    marks = bar_stickings(m, kit)
+    length = m.actual_length
+    if not marks:
+        return (f"\\grace {{ {grace} }} " if grace else "") + _skip(length), []
+    items = [f"\\grace {{ {grace} }}"] if grace else []
+    t = Fraction(0)
+    for k, (pos, _) in enumerate(marks):
+        if pos > t:
+            items.append("s" + _scaled(pos - t))
+        nxt = marks[k + 1][0] if k + 1 < len(marks) else length
+        items.append("sn" + _scaled(nxt - pos))
+        t = nxt
+    return " ".join(items), [text for _, text in marks]
 
 
 def downbeat_grace_skip(tokens: list[Token]) -> str:
@@ -347,8 +407,9 @@ def _partial(length: Fraction) -> str:
     return rv
 
 
-def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, str]:
-    """Return (global, up, down) LilyPond music with identical repeat structure."""
+def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, str, str, list[str]]:
+    """Return (global, up, down, sticking, sticking texts): LilyPond music with the same
+    repeat structure, and the texts the sticking line prints in order."""
     w = _Writer(score, kit, plan)
     spelled: dict[int, SpelledMeasure] = {}
 
@@ -360,6 +421,8 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     g_out: list[str] = []
     up_out: list[str] = []
     down_out: list[str] = []
+    stick_out: list[str] = []
+    syllables: list[str] = []
     prev: Measure | None = None
     bars = plan.bars
     i = 0
@@ -367,7 +430,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     while i < len(bars):
         pb = bars[i]
         if pb.volta_start:
-            for out in (g_out, up_out, down_out):
+            for out in (g_out, up_out, down_out, stick_out):
                 out.append(f"\\repeat volta {pb.volta_times} {{")
             open_volta = True
         run = pb.percent_run if pb.percent_run > 1 else (pb.rest_run if pb.rest_run > 1 else 1)
@@ -391,10 +454,11 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             g_out.append(gbar + " |")
             up_out.append(f"\\once \\override MultiMeasureRest.direction = #CENTER {_mm_rest(total)} |")
             down_out.append(_skip(total) + " |")
+            stick_out.append(_skip(total) + " |")
             i += run
             prev = m
             if last_in_group.volta_end and open_volta:
-                for out in (g_out, up_out, down_out):
+                for out in (g_out, up_out, down_out, stick_out):
                     out.append("}")
                 open_volta = False
             continue
@@ -415,6 +479,8 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             up = f"\\tag #'graces \\grace {{ {grace} }} " + up
         if grace and not g_down:
             down = f"\\tag #'graces \\grace {{ {grace} }} " + down
+        stick, texts = stick_bar(m, kit, grace)
+        syllables += texts
         if run > 1:
             # The global stream prints the simile marks; voices hide theirs.
             pre = ""
@@ -429,6 +495,8 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             g_out.append(f"{pre}\\repeat percent {run} {{ {gbar} | }}{end_mark}")
             up_out.append(f"\\repeat percent {run} {{ {up} | }}")
             down_out.append(f"\\repeat percent {run} {{ {down} | }}")
+            # A percent repeat plays its bar again in time; the sticking prints once.
+            stick_out.append(f"{stick} | " + " ".join(_skip(m.actual_length) + " |" for _ in range(run - 1)))
             # Hi-hat state after the run equals the state after one pass (identical bars).
             i += run
             last = bars[i - 1]
@@ -436,16 +504,18 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             g_out.append(gbar + " |")
             up_out.append(up + " |")
             down_out.append(down + " |")
+            stick_out.append(stick + " |")
             i += 1
             last = pb
         prev = m
         if last.volta_end and open_volta:
-            for out in (g_out, up_out, down_out):
+            for out in (g_out, up_out, down_out, stick_out):
                 out.append("}")
             open_volta = False
     if open_volta:
         raise AssertionError("unterminated volta in layout plan")
-    return "\n  ".join(g_out), "\n  ".join(up_out), "\n  ".join(down_out)
+    return ("\n  ".join(g_out), "\n  ".join(up_out), "\n  ".join(down_out), "\n  ".join(stick_out),
+            syllables)
 
 
 # A chart using only these reads without a key (open and half-open hi-hat are the
@@ -501,13 +571,20 @@ def _short_last_line(score: Score, plan: LayoutPlan) -> bool:
     return weight < 0.6 * plan.bars_per_line
 
 
+def _sticking_music(stick: str, syllables: list[str]) -> str:
+    if not syllables:
+        return "% no sticking"
+    return (f"stickMusic = \\drummode {{\n  {stick}\n}}\n"
+            "stickText = \\lyricmode { " + " ".join(ly_string(t) for t in syllables) + " }")
+
+
 def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = None,
                 paper_size: str = "letter", staff_size: float = 20, with_legend: bool = True,
                 repeats: str = "auto", bars_per_line: float = 4.0, page_count: int | None = None) -> str:
     score.validate(kit)
     if plan is None:
         plan = plan_layout(score, repeats=repeats, bars_per_line=bars_per_line)
-    glob, up, down = music_streams(score, kit, plan)
+    glob, up, down, stick, syllables = music_streams(score, kit, plan)
     has_uncertain = any(m.uncertain for m in score.measures)
     parts = [
         preamble(kit),
@@ -517,11 +594,17 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",
         f"upMusic = \\drummode {{\n  \\autoBeamOff\n  {up}\n}}",
         f"downMusic = \\drummode {{\n  \\autoBeamOff\n  {down}\n}}",
-        "drumMusic = \\new DrumStaff <<\n"
+        _sticking_music(stick, syllables),
+        "drumMusic = \\new DrumStaff = \"drums\" <<\n"
         "  \\new DrumVoice = \"global\" \\globalMusic\n"
         "  \\new DrumVoice = \"up\" \\with { \\hide PercentRepeat \\hide PercentRepeatCounter } { \\voiceOne \\upMusic }\n"
         "  \\new DrumVoice = \"down\" \\with { \\hide PercentRepeat \\hide PercentRepeatCounter } { \\voiceTwo \\downMusic }\n"
-        ">>",
+        + ("  \\tag #'sticking \\new NullVoice = \"stick\" \\stickMusic\n"
+           "  \\tag #'sticking \\new Lyrics \\with { alignBelowContext = \"drums\" "
+           "\\override LyricText.font-size = #-1 "
+           "\\override VerticalAxisGroup.nonstaff-relatedstaff-spacing.padding = #1.2 } "
+           "\\lyricsto \"stick\" \\stickText\n" if syllables else "")
+        + ">>",
     ]
     if with_legend and needs_drum_key(score):
         parts.append(legend(score, kit))
@@ -531,7 +614,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     parts.append("\\score {\n  \\drumMusic\n  \\layout { }\n}")
     parts.append(
         "\\score {\n"
-        "  \\removeWithTag #'graces \\unfoldRepeats \\drumMusic\n"
+        "  \\removeWithTag #'(graces sticking) \\unfoldRepeats \\drumMusic\n"
         "  \\midi {\n"
         f"    \\tempo 4 = {_midi_tempo(score.initial_tempo)}\n"
         "    \\context { \\DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }\n"

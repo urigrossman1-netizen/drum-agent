@@ -39,7 +39,7 @@ from drum_agent.export.musicxml import to_musicxml
 from drum_agent.kit import DEFAULT_KIT
 from drum_agent.layout import plan_layout
 from drum_agent.model import CHART_TYPES, RIGHTS, STATUSES, Hit, Measure, Score, TimeSig, is_power_of_two_fraction
-from drum_agent.rhythm import check_tokens, spell_measure
+from drum_agent.rhythm import assign_voices, check_tokens, spell_measure
 from drum_agent.verify import expected_midi_keys, midi_events, musicxml_events, validate_musicxml
 
 # ---------------------------------------------------------------------------
@@ -151,8 +151,8 @@ class Gen:
             later = [p for p in slots if p > start] + [bar_len]
             later = later[:rng.choice([1, 2, 3, 4, 6, 12])]
             end = rng.choice(later)
-            # Nothing else in the hands voice may start inside the roll.
-            for key in [k for k in hits if voice_of(k[1]) == 1 and start <= k[0] < end]:
+            # Both hands are rolling: nothing else the hands play may start inside the roll.
+            for key in [k for k in hits if not DEFAULT_KIT.is_foot(k[1]) and start <= k[0] < end]:
                 del hits[key]
             rolls = [(s, e) for s, e in rolls if not start <= s < end] + [(start, end)]
             h = self._hit(start, rng.choice(ROLLABLE))
@@ -279,9 +279,10 @@ def assert_spelling(m: Measure) -> None:
     beat_starts = {s for s, _ in beats if s >= 0}
     halves = set(ts.half_bar_spans() or []) if not offset else set()
     sm = spell_measure(m)
-    by_voice = {1: [], 2: []}
-    for h in m.hits:
-        by_voice[voice_of(h.inst)].append(h)
+    by_voice = assign_voices(m)
+    assert sorted(id(h) for v in by_voice.values() for h in v) == sorted(id(h) for h in m.hits)
+    for h in by_voice[1]:  # only rolls under which the kick plays leave their voice
+        assert voice_of(h.inst) == 1 or h.roll is not None
     if not m.hits:
         assert sm.shared_rest and not sm.voices[2]
     else:
@@ -317,7 +318,7 @@ def assert_spelling(m: Measure) -> None:
                 if t.dots:  # simple meter has no dotted rests; only whole ternary beats/half bars
                     assert is_ternary(t.dur) and ((t.pos, t.dur) in beats or (t.pos, t.dur) in halves), ctx
                 continue
-            assert t.hits and all(voice_of(h.inst) == v for h in t.hits), ctx
+            assert t.hits and all(any(h is x for x in by_voice[v]) for h in t.hits), ctx
             if not t.tie_stop:
                 assert all(h.pos == t.pos for h in t.hits), ctx
             if t.is_roll:

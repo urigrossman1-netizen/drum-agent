@@ -152,9 +152,33 @@ def parse_pattern_line(text: str, ts: TimeSig, length: Fraction | None = None) -
     return out
 
 
+STICKING_KEYS = ("sticking", "stick")
+
+
+def _apply_sticking(line: str, hits: list[Hit], ts: TimeSig, length: Fraction | None, kit: Kit) -> None:
+    """A sticking line ("R-L-R-L-..." on the same grid as the instrument lines) names the hand
+    for the stroke at each position: a drum stroke if there is one, else a cymbal."""
+    compact = re.sub(r"\s+", "", line)
+    letters = [c.upper() for c in compact if c not in "-.|"]
+    bad = sorted({c for c in letters if c not in "RLB"})
+    if bad:
+        raise ChartSpecError(f"sticking line {line!r}: use R, L or B (both hands) and - for none, not {bad}")
+    grid = "".join("x" if c.upper() in "RLB" else c for c in compact)
+    for (pos, _, _), letter in zip(parse_pattern_line(grid, ts, length), letters):
+        at = [h for h in hits if h.pos == pos and not kit.is_foot(h.inst)]
+        if not at:
+            raise ChartSpecError(f"sticking line {line!r}: {letter} at {pos} has no hand stroke under it")
+        at.sort(key=lambda h: (kit[h.inst].family != "drum", -kit[h.inst].position))
+        at[0].sticking = letter
+
+
 def _hits_from_pattern(pattern: dict[str, str], ts: TimeSig, length: Fraction | None, kit: Kit) -> list[Hit]:
     hits: list[Hit] = []
+    sticking = None
     for name, line in pattern.items():
+        if str(name).lower() in STICKING_KEYS:
+            sticking = str(line)
+            continue
         inst = kit.resolve(name)
         try:
             parsed = parse_pattern_line(str(line), ts, length)
@@ -182,10 +206,12 @@ def _hits_from_pattern(pattern: dict[str, str], ts: TimeSig, length: Fraction | 
                 h.choke = True
             h.inst = this
             hits.append(h)
+    if sticking is not None:
+        _apply_sticking(sticking, hits, ts, length, kit)
     return hits
 
 
-_BAR_KEYS = {"pattern", "time", "beat_groups", "tempo", "tempo_text", "length", "uncertain", "notes"}
+_BAR_KEYS = {"pattern", "time", "beat_groups", "tempo", "tempo_text", "length", "uncertain", "notes", "cue"}
 
 
 def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
@@ -275,6 +301,9 @@ def compile_spec(spec: dict[str, Any], kit: Kit = DEFAULT_KIT) -> Score:
             m = Measure(time_sig=bar_ts, length=length, hits=bar_hits)
             if bi == 0 and label:
                 m.section = label
+            cue = extra.get("cue", sec.get("cue") if bi == 0 else None)
+            if cue is not None:
+                m.cue = _text(cue, f"section {label!r} cue")
             if pending_tempo is not None:
                 m.tempo = pending_tempo
                 pending_tempo = None
@@ -317,7 +346,7 @@ def _current_tempo(measures: list[Measure]) -> float | None:
 # Fields printed as text. YAML would read `title: 1999`, `artist: Yes` or `label: 2`
 # as a number or a boolean; these keep exactly what was written.
 TEXT_KEYS = frozenset({"title", "artist", "transcriber", "label", "tempo_text", "source",
-                       "feel_note", "copyright"})
+                       "feel_note", "copyright", "cue", "sticking", "stick"})
 
 
 def _yaml_load(text: str) -> Any:

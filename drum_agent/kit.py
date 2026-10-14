@@ -61,15 +61,15 @@ DEFAULT_INSTRUMENTS: tuple[Instrument, ...] = (
     Instrument("ride", "Ride", 4, "cross", 1, 51, family="cymbal", aliases=("rd", "r", "ri")),
     Instrument("ride_bell", "Ride bell", 4, "diamond", 1, 53, family="cymbal",
                aliases=("rb", "bell")),
-    Instrument("tom1", "Tom 1", 3, "normal", 1, 48, aliases=("t1", "ht", "tomh")),
+    Instrument("tom1", "Tom 1", 3, "normal", 2, 48, aliases=("t1", "ht", "tomh")),
     Instrument("cowbell", "Cowbell", 3, "triangle", 1, 56, family="percussion",
                aliases=("cb", "cow")),
-    Instrument("tom2", "Tom 2", 2, "normal", 1, 45, aliases=("t2", "mt", "tomm")),
-    Instrument("snare", "Snare", 1, "normal", 1, 38, aliases=("sn", "sd", "s")),
-    Instrument("cross_stick", "Cross-stick", 1, "cross", 1, 37, aliases=("cs", "xs", "ss")),
-    Instrument("rimshot", "Rimshot", 1, "slashed", 1, 40, aliases=("rs", "rim")),
-    Instrument("floor_tom", "Floor tom", -1, "normal", 1, 43, aliases=("ft", "t3", "tomf")),
-    Instrument("floor_tom2", "Floor tom 2", -2, "normal", 1, 41, aliases=("ft2", "t4")),
+    Instrument("tom2", "Tom 2", 2, "normal", 2, 45, aliases=("t2", "mt", "tomm")),
+    Instrument("snare", "Snare", 1, "normal", 2, 38, aliases=("sn", "sd", "s")),
+    Instrument("cross_stick", "Cross-stick", 1, "cross", 2, 37, aliases=("cs", "xs", "ss")),
+    Instrument("rimshot", "Rimshot", 1, "slashed", 2, 40, aliases=("rs", "rim")),
+    Instrument("floor_tom", "Floor tom", -1, "normal", 2, 43, aliases=("ft", "t3", "tomf")),
+    Instrument("floor_tom2", "Floor tom 2", -2, "normal", 2, 41, aliases=("ft2", "t4")),
     Instrument("kick", "Bass drum", -3, "normal", 2, 36, aliases=("bd", "k", "kd")),
     Instrument("kick2", "Bass drum 2", -4, "normal", 2, 35, aliases=("bd2", "k2")),
     Instrument("hihat_pedal", "Hi-hat (foot)", -5, "cross", 2, 44, family="hihat",
@@ -77,6 +77,27 @@ DEFAULT_INSTRUMENTS: tuple[Instrument, ...] = (
     Instrument("hihat_splash", "Hi-hat splash (foot)", -5, "cross", 2, 44,
                articulation="open-down", family="hihat", aliases=("hhs",)),
 )
+
+
+# Limbs: these are played with the feet; everything else with the hands.
+FEET = frozenset({"kick", "kick2", "hihat_pedal", "hihat_splash"})
+
+# Voicings: which instruments share the stems-up voice. "cymbals-up" (default):
+# cymbals, hi-hat and cowbell stems up; snare, toms and feet stems down, as in
+# Guitar Pro and Songsterr charts. "hands-up": everything the hands play stems
+# up, the feet down (Weinberg / Percussive Arts Society).
+VOICINGS = ("cymbals-up", "hands-up")
+DEFAULT_VOICING = "cymbals-up"
+
+
+def voicing_voice(ins: "Instrument", voicing: str) -> int:
+    if voicing not in VOICINGS:
+        raise KitError(f"unknown voicing {voicing!r}; use {' or '.join(VOICINGS)}")
+    if ins.id in FEET:
+        return 2
+    if voicing == "hands-up":
+        return 1
+    return 1 if ins.family in ("cymbal", "hihat", "percussion") else 2
 
 
 class KitError(ValueError):
@@ -155,6 +176,13 @@ class Kit:
     def ids(self) -> list[str]:
         return [i.id for i in self.instruments]
 
+    def with_voicing(self, voicing: str) -> "Kit":
+        """The same kit with stems assigned by a voicing (see VOICINGS)."""
+        return Kit(tuple(replace(i, voice=voicing_voice(i, voicing)) for i in self.instruments))
+
+    def is_foot(self, inst_id: str) -> bool:
+        return inst_id in FEET
+
     def by_midi(self) -> dict[int, str]:
         """Default MIDI note -> instrument id (first instrument wins for shared notes)."""
         out: dict[int, str] = {}
@@ -163,7 +191,7 @@ class Kit:
         return out
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "Kit":
+    def from_json(cls, path: str | Path, base: "Kit | None" = None) -> "Kit":
         """Load a kit override file: {"instruments": {"tom1": {"position": 4}, ...}}.
 
         Only listed fields change; unknown instrument ids are an error so typos
@@ -176,7 +204,8 @@ class Kit:
         overrides = data.get("instruments", {}) if isinstance(data, dict) else None
         if not isinstance(overrides, dict):
             raise KitError(f'kit file {path}: expected {{"instruments": {{"tom1": {{"position": 4}}, ...}}}}')
-        base = {i.id: i for i in DEFAULT_INSTRUMENTS}
+        start = base.instruments if base is not None else DEFAULT_INSTRUMENTS
+        base = {i.id: i for i in start}
         allowed = {"name", "position", "notehead", "voice", "midi", "articulation"}
         for inst_id, fields in overrides.items():
             if inst_id not in base:
@@ -191,7 +220,7 @@ class Kit:
                 _check_instrument(base[inst_id])
             except KitError as exc:
                 raise KitError(f"kit file {path}: {exc}") from None
-        return cls(tuple(base[i.id] for i in DEFAULT_INSTRUMENTS))
+        return cls(tuple(base[i.id] for i in start))
 
 
 DEFAULT_KIT = Kit()
