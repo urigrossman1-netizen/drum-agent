@@ -30,7 +30,7 @@ STATUSES = {  # status -> text printed under the title (None: nothing printed)
     "verified": None,  # a human checked it against the recording
     "entered": None,  # written as a chart spec (by hand or from a description); nothing detected
     "unverified_auto": "Automatic transcription, unverified",
-    "unverified_import": "Imported from MIDI, unverified",
+    "unverified_import": "Imported, unverified",
     "draft": "Draft",
 }
 

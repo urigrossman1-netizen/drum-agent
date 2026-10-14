@@ -610,7 +610,7 @@ def events(monkeypatch):
         score.analysis = {"tempo_estimate": "120 BPM (quarter note)", "notes": ["from the detector"]}
         return score
 
-    def fake_analyze(path, bpm=None, time_signature=None):
+    def fake_analyze(path, bpm=None, time_signature=None, detector="auto"):
         seen.append(("analyze", (Path(path), bpm, time_signature)))
         return {"file": str(path), "tempo": "120 BPM (quarter note)", "meter": "4/4 (confidence 0.9)",
                 "sections": ["A: bar 1, 6 bars, hihat"]}

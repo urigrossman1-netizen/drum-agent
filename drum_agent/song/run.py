@@ -256,7 +256,8 @@ def analyze_only(audio: AudioSource, ident: SongCandidate | None, args) -> int:
     from ..audio.transcribe import analyze_file
     print("4. Analysis only (no --rights): tempo, meter and sections; no notes")
     bpm = _bpm_hint(args, ident)
-    info = analyze_file(audio.path, bpm=bpm, time_signature=args.time_signature)
+    info = analyze_file(audio.path, bpm=bpm, time_signature=args.time_signature,
+                        detector=getattr(args, "detector", "auto"))
     info["audio_source"] = audio.describe()
     if ident:
         info["identified_as"] = ident.to_dict()
@@ -288,7 +289,7 @@ def transcribe(audio: AudioSource, ident: SongCandidate | None, args, query: str
     topts = TranscribeOptions(
         bpm=bpm, time_signature=args.time_signature, downbeat=args.downbeat, feel=args.feel,
         drums_only=args.drums_only, sensitivity=args.sensitivity, allow_32nds=not args.no_32nds,
-        start=args.start, end=args.end,
+        start=args.start, end=args.end, detector=getattr(args, "detector", "auto"),
     )
     score = transcribe_file(audio.path, topts)
     score.title = title

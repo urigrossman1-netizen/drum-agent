@@ -451,6 +451,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--end", type=float, help="end time in seconds")
     p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
     p.add_argument("--chart-type", choices=["full_transcription", "performance_chart"])
+    _add_detector_arg(p)
     _add_export_args(p)
     p.add_argument("-o", "--out", default=None, help="output directory for the chart (needed with --rights)")
     p.set_defaults(func=cmd_song)

@@ -3,9 +3,14 @@
 Full transcription reproduces a performance in detail, so it is limited to
 material the user owns, has permission to transcribe, has licensed, or that
 is in the public domain. Without one of those, only high-level analysis
-(`python -m drum_agent analyze`: tempo, meter, sections) is offered. The agent never
-downloads audio from streaming services or circumvents DRM; it works only on
-files the user supplies.
+(`python -m drum_agent analyze`: tempo, meter, sections) is offered. The basis
+is the user's statement; the agent never picks one for them.
+
+The agent never circumvents DRM and never takes audio from streaming services
+(Spotify, Apple Music, Tidal, Deezer, Amazon Music: metadata only). Audio comes
+from the user's own files, a direct link, or a video page fetched with the
+user's own yt-dlp (`song`), and this gate runs before any audio is fetched or
+opened for transcription.
 """
 
 from __future__ import annotations

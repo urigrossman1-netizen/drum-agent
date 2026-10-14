@@ -228,14 +228,15 @@ STATUS_REPORT = {
     "verified": "Verified by a human",
     "entered": "Entered as a chart spec (written by hand or from a description)",
     "unverified_auto": "Automatic transcription, unverified",
-    "unverified_import": "Imported from MIDI, unverified",
+    "unverified_import": "Imported, unverified",
     "draft": "Draft",
 }
 CONFIDENCE_TEXT = {
     "verified": "A human checked this chart against the recording.",
     "entered": "Written as a chart spec: nothing was detected automatically, and nobody has checked it "
                "against a recording. It shows what was written, not necessarily what is played.",
-    "unverified_import": "The strokes come from the MIDI file, but the barlines (pickup, meter changes) and the "
+    "unverified_import": "The strokes come from the imported file (MIDI or game chart), but the barlines (pickup, "
+                         "meter changes) and the "
                          "quantization were worked out automatically. Check that downbeats, crashes and meter "
                          "changes sit where they belong before relying on it.",
     "unverified_auto": "This chart was produced automatically. A valid PDF does **not** mean the notes are right; "

@@ -195,18 +195,24 @@ def cmd_train(a) -> None:
     clips = np.unique(clip)
     val_clips = set(rng.choice(clips, size=max(1, int(len(clips) * a.val)), replace=False).tolist())
     is_val = np.isin(clip, list(val_clips))
-    Xf = X.astype(np.float32)
-    mu = Xf[~is_val].mean(axis=0)
-    sd = Xf[~is_val].std(axis=0) + 1e-3
-    Xf = (Xf - mu) / sd
-    Xtr, Ytr = Xf[~is_val], Y[~is_val].astype(np.float32)
-    Xva, Yva = Xf[is_val], Y[is_val]
-    del Xf, X
+    # Kept as float16 (600k x 1300 would be 3 GB in float32); standardized batch by batch.
+    Xtr16, Ytr = X[~is_val], Y[~is_val].astype(np.float32)
+    s1 = np.zeros(X.shape[1], dtype=np.float64)
+    s2 = np.zeros(X.shape[1], dtype=np.float64)
+    for i in range(0, len(Xtr16), 50000):
+        c = Xtr16[i:i + 50000].astype(np.float64)
+        s1 += c.sum(axis=0)
+        s2 += (c * c).sum(axis=0)
+    mu = (s1 / len(Xtr16)).astype(np.float32)
+    sd = (np.sqrt(np.maximum(s2 / len(Xtr16) - (s1 / len(Xtr16)) ** 2, 0)) + 1e-3).astype(np.float32)
+    Xva = (X[is_val].astype(np.float32) - mu) / sd
+    Yva = Y[is_val]
+    del X
     pos = Ytr.mean(axis=0)
     pos_w = np.clip(np.sqrt((1 - pos) / (pos + 1e-6)), 1.0, a.max_pos_weight).astype(np.float32)
     sizes = [FEATURE_DIM] + [int(h) for h in a.hidden.split(",")] + [len(CLASSES)]
     net = MLP(sizes, rng)
-    n = len(Xtr)
+    n = len(Xtr16)
     steps_per_epoch = n // a.batch
     best = (-1.0, None)
     t0 = time.time()
@@ -216,7 +222,8 @@ def cmd_train(a) -> None:
         losses = []
         for s in range(steps_per_epoch):
             bi = perm[s * a.batch:(s + 1) * a.batch]
-            losses.append(net.step(Xtr[bi], Ytr[bi], pos_w, lr, a.dropout, a.wd, rng))
+            xb = (Xtr16[np.sort(bi)].astype(np.float32) - mu) / sd
+            losses.append(net.step(xb, Ytr[np.sort(bi)], pos_w, lr, a.dropout, a.wd, rng))
         P = net.predict(Xva)
         thr, fs = best_thresholds(P, Yva)
         main = float(np.mean([fs[CLASSES.index(c)] for c in CLASSES if c != "other"]))
