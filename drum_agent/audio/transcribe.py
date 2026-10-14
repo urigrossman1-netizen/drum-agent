@@ -29,6 +29,7 @@ class TranscribeOptions:
     allow_32nds: bool = True
     start: float | None = None
     end: float | None = None
+    detector: str = "auto"  # "classifier", "nmf" or "auto" (the classifier when its weights are installed)
 
 
 def load_audio(path: str | Path, start: float | None = None, end: float | None = None) -> np.ndarray:
@@ -73,7 +74,7 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
                          f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
                          f"transcribe from MIDI or write a chart spec.")
-    det = detect(y, DetectOptions(drums_only=opts.drums_only, sensitivity=opts.sensitivity))
+    det = detect(y, DetectOptions(drums_only=opts.drums_only, sensitivity=opts.sensitivity, method=opts.detector))
     if not det.hits:
         raise ValueError("no drum strokes detected; is there a drum part? Try --sensitivity 1.5")
     pre_feel = opts.feel if opts.feel != "auto" else None
@@ -134,6 +135,9 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
     low = sum(1 for m in measures for h in m.hits if h.confidence < 0.5)
     score = Score(measures=measures, title=title, chart_type="full_transcription", status="unverified_auto")
     score.swing = res.feel == "swing"
+    # Strokes one drummer can't play together are a detection error somewhere in that bar.
+    from ..playability import check, flag_bars
+    unplayable = flag_bars(score, check(score))
     score.analysis = {
         "input": "audio",
         "tempo_estimate": f"{grid.tempo:g} BPM (quarter note)",
@@ -148,10 +152,14 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "grid_counts": res.grid_counts,
         "sections": [f"{r['label']}: bar {r['first_bar']}, {r['bars']} bars, {r['main_cymbal'] or 'no cymbal'}"
                      + (f", {r['fills']} fill bar(s)" if r["fills"] else "") for r in roadmap],
-        "notes": grid.notes + meter_notes + ([density_note] if density_note else []) + [
+        "notes": grid.notes + meter_notes + ([density_note] if density_note else []) + (
+            [f"{unplayable} bar(s) contain strokes one drummer can't play together (flagged); a stroke there was "
+             f"probably detected on the wrong instrument."] if unplayable else []) + [
             "Section letters are pattern-based; rename them with --sections once you know the song form.",
+        ] + ([] if det.stats.get("detector", "").startswith("classifier") else [
             "Hi-hat pedal strokes are not detected (no detector class); add them by hand if needed.",
-        ],
+        ]),
+        "detector": det.stats.get("detector", "nmf"),
     }
     return score
 
@@ -462,10 +470,11 @@ def transcribe_file(path: str | Path, opts: TranscribeOptions) -> Score:
     return score
 
 
-def analyze_file(path: str | Path, bpm: float | None = None, time_signature: str | None = None) -> dict:
+def analyze_file(path: str | Path, bpm: float | None = None, time_signature: str | None = None,
+                 detector: str = "auto") -> dict:
     """High-level analysis only (no note-level output): tempo, meter, sections, instrumentation."""
     y = load_audio(path)
-    score = transcribe_audio(y, TranscribeOptions(bpm=bpm, time_signature=time_signature))
+    score = transcribe_audio(y, TranscribeOptions(bpm=bpm, time_signature=time_signature, detector=detector))
     return {
         "file": str(path),
         "duration_s": round(len(y) / SR, 1),

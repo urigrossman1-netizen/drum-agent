@@ -87,6 +87,31 @@ HYDROGEN_KITS = ("Audiophob", "BJA_Pacific", "ColomboAcousticDrumkit", "ForzeeSt
                  "rumpf_kit_z01_h2", "ElectricEmpireKit", "Gimme A Hand 1.0")
 HELD_OUT_FLUID_PROGRAMS = (32, 40)
 
+# Licence of each source (from /usr/share/doc/<package>/copyright and the kits' own files).
+# The samples are never redistributed; they shape the classifier's weights (docs/MODELS.md).
+LICENSES = {
+    "avl": ("AVL Drumkits, Glen MacArthur", "CC-BY-SA-3.0"),
+    "fluid": ("FluidR3 GM, Frank Wen", "MIT"),
+    "csound": ("csound sf_GMbank.sf2", "public-domain"),
+    "h2_audiophob": ("Hydrogen Audiophob kit", "CC0"),
+    "h2_bja_pacific": ("Hydrogen BJA Pacific kit, Luc Tunguay", "CC-BY-SA-3.0-US"),
+    "h2_colomboacousticdrumkit": ("Hydrogen Colombo Acoustic kit, Marcos Guglielmetti", "GPL-2+"),
+    "h2_forzeestereo": ("Hydrogen ForzeeStereo kit", "GPL-2"),
+    "h2_millo_multilayered2": ("Hydrogen Millo MultiLayered 2, Emiliano Grilli", "GPL-2"),
+    "h2_millo_multilayered3": ("Hydrogen Millo MultiLayered 3, Emiliano Grilli", "GPL-2"),
+    "h2_millo_drums_v_1": ("Hydrogen Millo Drums, Emiliano Grilli", "GPL-2"),
+    "h2_the_black_pearl_1_0": ("Hydrogen The Black Pearl, Glen MacArthur", "GPL-2"),
+    "h2_varibreaks": ("Hydrogen VariBreaks", "GPL-2+"),
+    "h2_rumpf_kit_z01_h2": ("Hydrogen rumpf kit, Emanuel Rumpf", "CC-BY-3.0"),
+    "h2_electricempirekit": ("Hydrogen Electric Empire kit", "GPL-2+"),
+    "h2_gimme_a_hand_1_0": ("Hydrogen Gimme A Hand", "GPL-2+"),
+}
+PERMISSIVE = {"MIT", "public-domain", "CC0", "CC-BY-3.0"}
+
+
+def license_of(kit: str) -> tuple[str, str]:
+    return LICENSES.get(kit) or LICENSES[kit.split("_")[0]]
+
 
 def held_out_fluid_samples() -> set[str]:
     """Sample names that only FluidR3's held-out Jazz/Brush kits (and their variants) use."""
@@ -269,11 +294,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--kits", help="comma list (default: all)")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--permissive-only", action="store_true",
+                    help="only sources under MIT, public domain, CC0 or CC BY (no share-alike or GPL samples)")
     a = ap.parse_args()
     h2 = {f"h2_{re.sub(r'[^a-z0-9]+', '_', k.lower()).strip('_')}": k for k in HYDROGEN_KITS}
     names = a.kits.split(",") if a.kits else all_kits()
+    if a.permissive_only:
+        names = [n for n in names if license_of(n)[1] in PERMISSIVE]
     if a.list:
-        print("\n".join(all_kits()))
+        print("\n".join(f"{n:28s} {license_of(n)[1]:16s} {license_of(n)[0]}" for n in names))
         return
     held = held_out_fluid_samples()
     print(f"held-out FluidR3 samples (Jazz/Brush only): {len(held)}")

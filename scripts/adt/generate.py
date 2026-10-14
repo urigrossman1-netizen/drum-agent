@@ -23,8 +23,11 @@ import numpy as np
 
 SR = 44100
 ONESHOTS = Path(os.environ.get("DRUM_AGENT_DATA", Path.home() / ".cache" / "drum-agent")) / "adt" / "oneshots"
+# Band accompaniment: FluidR3 (MIT), MuseScore General (MIT), csound GM bank (public domain),
+# TimGM6mb (GPL-2; left out with DRUM_AGENT_PERMISSIVE=1, see oneshots.py --permissive-only).
 GM_SOUNDFONTS = ["/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/MuseScore_General_Full.sf2",
-                 "/usr/share/sounds/sf2/sf_GMbank.sf2", "/usr/share/sounds/sf2/TimGM6mb.sf2"]
+                 "/usr/share/sounds/sf2/sf_GMbank.sf2"] + (
+    [] if os.environ.get("DRUM_AGENT_PERMISSIVE") else ["/usr/share/sounds/sf2/TimGM6mb.sf2"])
 HAND = ("snare", "cross_stick", "hihat", "hihat_open", "ride", "ride_bell", "crash", "tom", "other")
 
 
@@ -113,7 +116,7 @@ def make_kit(rng: random.Random, electronic_ok: bool = True) -> VirtualKit:
             continue
         subs = bank(src).subs(cls)
         sub = rng.choice(subs) if cls in ("snare", "crash", "ride", "hihat_open", "other") else None
-        db = rng.uniform(-9, 3) if cls != "kick" else rng.uniform(-6, 4)
+        db = {"kick": rng.uniform(-8, 4), "snare": rng.uniform(-8, 3)}.get(cls, rng.uniform(-18, 3))
         shift = 2 ** (rng.uniform(-2.5, 2.5) / 12) if cls in ("kick", "snare", "tom") else 2 ** (rng.uniform(-1, 1) / 12)
         voices[cls] = Voice(src, cls, sub, 10 ** (db / 20), shift)
     if "hihat" in voices:  # the same hi-hat for closed, open and foot when possible
@@ -367,10 +370,39 @@ def _resample(x: np.ndarray, ratio: float) -> np.ndarray:
     return np.interp(np.arange(n) * ratio, np.arange(len(x)), x).astype(np.float32)
 
 
+STEM_OF = {"kick": "kick", "snare": "snare", "cross_stick": "snare", "hihat": "hats", "hihat_open": "hats",
+           "hihat_pedal": "hats", "ride": "cymbals", "ride_bell": "cymbals", "crash": "cymbals", "other": "other"}
+
+
 def render_drums(ev: list[Ev], dur: float, kit: VirtualKit, rng: random.Random) -> np.ndarray:
-    out = np.zeros(int((dur + 3.5) * SR), dtype=np.float32)
+    """Each drum on its own channel (EQ, compression, gated reverb on snare/toms), then summed."""
+    n = int((dur + 3.5) * SR)
+    stems: dict[str, np.ndarray] = {}
+    _render_events(ev, kit, rng, stems, n)
+    out = np.zeros(n, dtype=np.float32)
+    for name, x in stems.items():
+        if rng.random() < 0.6:
+            x = channel_strip(x, name, rng)
+        out += x
+    return out
+
+
+def channel_strip(x: np.ndarray, name: str, rng: random.Random) -> np.ndarray:
+    for _ in range(rng.randint(1, 3)):
+        kind = rng.choice(["low", "high", "peak"])
+        f0 = {"low": rng.uniform(60, 400), "high": rng.uniform(2000, 10000), "peak": rng.uniform(100, 8000)}[kind]
+        x = _biquad(x, kind, f0, rng.uniform(-10, 8), q=rng.uniform(0.5, 2.5))
+    if rng.random() < 0.4:
+        x = _compress(x, rng)
+    if name in ("snare", "toms") and rng.random() < 0.18:  # 80s gated reverb
+        x = _gated_reverb(x, rng)
+    return x
+
+
+def _render_events(ev, kit, rng, stems, n_out):
     hat_events = sorted(e.t for e in ev if e.inst in ("hihat", "hihat_open", "hihat_pedal"))
     for e in ev:
+        stem = "toms" if e.inst.startswith("tom") else STEM_OF.get(e.inst, "other")
         if e.inst.startswith("tom"):
             idx = int(e.inst[3:])
             if idx >= len(kit.toms):
@@ -392,11 +424,11 @@ def render_drums(ev: list[Ev], dur: float, kit: VirtualKit, rng: random.Random) 
                     x = x.copy()
                     x[cut:cut + fade] *= np.linspace(1, 0, fade, dtype=np.float32)
                     x[cut + fade:] = 0
+        out = stems.setdefault(stem, np.zeros(n_out, dtype=np.float32))
         i0 = int(max(0.0, e.t) * SR)
         n = min(len(x), len(out) - i0)
         if n > 0:
             out[i0:i0 + n] += g * x[:n]
-    return out
 
 
 def _biquad(x, kind, f0, gain_db, q=0.7):
@@ -437,18 +469,67 @@ def process_bus(x: np.ndarray, rng: random.Random) -> np.ndarray:
         kind = rng.choice(["low", "high", "peak"])
         f0 = {"low": rng.uniform(60, 250), "high": rng.uniform(3000, 10000), "peak": rng.uniform(150, 8000)}[kind]
         x = _biquad(x, kind, f0, rng.uniform(-8, 8), q=rng.uniform(0.5, 2.0))
-    if rng.random() < 0.6:  # feed-forward compressor
-        thr = rng.uniform(0.05, 0.4) * float(np.max(np.abs(x)) + 1e-9)
-        ratio = rng.uniform(2, 8)
-        att = np.exp(-1 / (rng.uniform(0.001, 0.01) * SR))
-        rel = np.exp(-1 / (rng.uniform(0.04, 0.25) * SR))
-        env = _envelope(np.abs(x), att, rel)
-        gain = np.where(env > thr, (thr + (env - thr) / ratio) / (env + 1e-9), 1.0).astype(np.float32)
-        x = x * gain
+    if rng.random() < 0.6:
+        x = _compress(x, rng)
     if rng.random() < 0.25:
         drive = rng.uniform(1.5, 5)
         x = np.tanh(drive * x / (np.max(np.abs(x)) + 1e-9)) / np.tanh(drive)
+    if rng.random() < 0.3:  # dark / vintage: a steep low-pass somewhere between 3.5 and 12 kHz
+        f = rng.uniform(3500, 12000)
+        for _ in range(rng.choice([1, 2, 3])):
+            x = _lowpass(x, f)
+    if rng.random() < 0.2:
+        x = _highpass(x, rng.uniform(40, 250))
+    if rng.random() < 0.08:  # band-limited "AM radio / old tape" chain
+        x = _highpass(_lowpass(_lowpass(x, rng.uniform(2500, 5000)), rng.uniform(2500, 5000)), rng.uniform(150, 400))
+    if rng.random() < 0.1:  # reduced sample rate
+        import librosa
+        sr2 = rng.choice([16000, 22050, 32000])
+        x = librosa.resample(librosa.resample(x, orig_sr=SR, target_sr=sr2), orig_sr=sr2, target_sr=SR)[:len(x)]
+    if rng.random() < 0.1:  # tape hiss and mains hum
+        r = np.random.default_rng(rng.randrange(1 << 30))
+        t = np.arange(len(x)) / SR
+        lvl = float(np.std(x)) + 1e-9
+        x = x + lvl * (10 ** (rng.uniform(-45, -25) / 20) * r.standard_normal(len(x))
+                       + 10 ** (rng.uniform(-45, -25) / 20) * np.sin(2 * np.pi * rng.choice([50, 60]) * t))
     return x.astype(np.float32)
+
+
+def _compress(x: np.ndarray, rng: random.Random) -> np.ndarray:
+    """Feed-forward compressor with random threshold, ratio, attack and release."""
+    thr = rng.uniform(0.05, 0.4) * float(np.max(np.abs(x)) + 1e-9)
+    ratio = rng.uniform(2, 8)
+    att = np.exp(-1 / (rng.uniform(0.001, 0.01) * SR))
+    rel = np.exp(-1 / (rng.uniform(0.04, 0.25) * SR))
+    env = _envelope(np.abs(x), att, rel)
+    gain = np.where(env > thr, (thr + (env - thr) / ratio) / (env + 1e-9), 1.0).astype(np.float32)
+    return (x * gain).astype(np.float32)
+
+
+def _gated_reverb(x: np.ndarray, rng: random.Random) -> np.ndarray:
+    """A big dense reverb cut off by a gate ~150-400 ms after each hit (the 80s snare)."""
+    from scipy.signal import fftconvolve
+    n = int(rng.uniform(0.8, 1.6) * SR)
+    t = np.arange(n) / SR
+    ir = np.random.default_rng(rng.randrange(1 << 30)).standard_normal(n).astype(np.float32) * np.exp(-t / 0.6)
+    ir /= np.sqrt(np.sum(ir ** 2)) + 1e-9
+    wet = fftconvolve(x, ir)[:len(x)].astype(np.float32)
+    env = _envelope(np.abs(x), np.exp(-1 / (0.001 * SR)), np.exp(-1 / (rng.uniform(0.15, 0.4) * SR)))
+    gate = (env > 0.05 * float(env.max() + 1e-9)).astype(np.float32)
+    gate = np.convolve(gate, np.ones(256, dtype=np.float32) / 256, mode="same")  # no clicks
+    return (x + rng.uniform(0.5, 1.5) * wet * gate * (np.std(x) / (np.std(wet) + 1e-9))).astype(np.float32)
+
+
+def _lowpass(x: np.ndarray, f: float) -> np.ndarray:
+    from scipy.signal import butter, lfilter
+    b, a = butter(2, min(f, SR / 2 - 100) / (SR / 2), "low")
+    return lfilter(b, a, x).astype(np.float32)
+
+
+def _highpass(x: np.ndarray, f: float) -> np.ndarray:
+    from scipy.signal import butter, lfilter
+    b, a = butter(2, f / (SR / 2), "high")
+    return lfilter(b, a, x).astype(np.float32)
 
 
 def _envelope(a: np.ndarray, att: float, rel: float) -> np.ndarray:

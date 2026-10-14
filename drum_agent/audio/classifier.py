@@ -191,6 +191,53 @@ def assign_toms(pitches: list[float | None]) -> list[str]:
     return out
 
 
+NMF_TOMS = ("tom1", "tom2", "floor_tom")
+NMF_DECISIVE = 1.5  # the best tom template must explain the stroke this much better than the next
+NMF_MIN_SHARE = 0.35
+NMF_TRUST = 0.7  # use template labels when they decide at least this share of the tom strokes
+
+
+def name_toms(fe, opts, frames: list[int]) -> list[str]:
+    """Which tom each tom stroke is on.
+
+    Tom order is relative to the kit, and two toms can share a fundamental (it happens
+    in sampled kits), so pitch alone can't always tell them apart. The template NMF
+    compares whole spectra with the tom templates: where it is decisive for most
+    strokes its labels are used (the undecided ones take the label of the nearest
+    decided stroke in pitch); otherwise, for a kit unlike any template, strokes are
+    grouped by pitch within the recording (assign_toms).
+    """
+    if not frames:
+        return []
+    pitches = [_tom_pitch(fe.y, t) for t in frames]
+    from .detect import nmf_analysis
+    na = nmf_analysis(fe, opts)
+    index = {int(t): k for k, t in enumerate(fe.cand)}
+    decided: list[str | None] = []
+    for t in frames:
+        k = index.get(int(t))
+        if k is None:
+            decided.append(None)
+            continue
+        ev = []
+        for c in NMF_TOMS:
+            share = float(na.r_cls[c][k] / (na.r_tot[c][k] + 1e-9))
+            loud = float(na.r_cls[c][k] / na.region_ref[c])
+            ev.append((share * loud, share, c))
+        ev.sort(reverse=True)
+        best, second = ev[0], ev[1]
+        decided.append(best[2] if best[0] >= NMF_DECISIVE * second[0] and best[1] >= NMF_MIN_SHARE else None)
+    known = [(p, d) for p, d in zip(pitches, decided) if d is not None]
+    if len(known) < NMF_TRUST * len(frames):
+        return assign_toms(pitches)
+    out = []
+    for p, d in zip(pitches, decided):
+        if d is None:
+            d = min(known, key=lambda kd: abs(np.log2(kd[0] or 1) - np.log2(p or 1)) if p else 0)[1]
+        out.append(d)
+    return out
+
+
 def classify_hits(fe, opts) -> tuple[list, dict]:
     """DrumHits for every candidate the classifier accepts (see detect.detect)."""
     from .detect import FLAM_DRUMS, PAD, DrumHit, _has_grace
@@ -236,7 +283,7 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
         rises.setdefault(c, []).append(_rise(E[c], t))
     typical = {c: max(float(np.percentile(v, 90)), 0.1 * max(v), 1e-12) for c, v in rises.items()}
     tom_frames = [t for t, c, *_ in raw if c == "tom"]
-    tom_names = assign_toms([_tom_pitch(fe.y, t) for t in tom_frames])
+    tom_names = name_toms(fe, opts, tom_frames)
     tom_iter = iter(tom_names)
     hits = []
     for t, c, pc, m, conf in raw:

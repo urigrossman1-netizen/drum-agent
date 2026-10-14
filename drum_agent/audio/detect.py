@@ -314,10 +314,31 @@ def _finish(hits: list[DrumHit], fe: FrontEnd, stats: dict) -> Detection:
     )
 
 
-def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
-    """Template NMF with rules (the original detector; kept for comparison)."""
+@dataclass
+class NmfAnalysis:
+    """Template NMF over a recording: per-class activations and regional rises at the candidates."""
+    classes: list[str]
+    A: dict[str, np.ndarray]  # activation of each class's templates
+    A_free: np.ndarray  # activation of the accompaniment/free components
+    E_cls: dict[str, np.ndarray]  # each class's energy inside its own frequency region
+    E_tot: dict[str, np.ndarray]  # the whole reconstruction's energy in that region
+    r_cls: dict[str, np.ndarray]  # rise of E_cls at every candidate
+    r_tot: dict[str, np.ndarray]
+    region_ref: dict[str, float]  # a typical stroke's rise in each region
+    T: int
+    K0: int
+    free: int
+
+
+def _rise(a: np.ndarray, t: int, T: int) -> float:
+    hi = a[max(0, t - 1):min(T, t + 5)].max()
+    lo = a[max(0, t - 6):max(1, t)].min()
+    return float(max(0.0, hi - lo))
+
+
+def nmf_analysis(fe: FrontEnd, opts: DetectOptions) -> NmfAnalysis:
     from .features import STACK, stack_frames
-    y, gain, M_full, V_plain, M_harm, flux, cand = fe.y, fe.gain, fe.M_full, fe.M_perc, fe.M_harm, fe.flux, fe.cand
+    M_full, V_plain, M_harm, cand = fe.M_full, fe.M_perc, fe.M_harm, fe.cand
     use_full = opts.nmf_input == "full" or (opts.nmf_input == "auto" and not opts.drums_only)
     V = stack_frames(M_full if use_full else V_plain)
 
@@ -346,17 +367,21 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
         E_cls[c] = W[band_mask][:, idx].sum(axis=0) @ H[idx]
         E_tot[c] = W[band_mask].sum(axis=0) @ H
 
-    def rise(a: np.ndarray, t: int) -> float:
-        hi = a[max(0, t - 1):min(T, t + 5)].max()
-        lo = a[max(0, t - 6):max(1, t)].min()
-        return float(max(0.0, hi - lo))
-
-    r_cls = {c: np.array([rise(E_cls[c], t) for t in cand]) for c in classes}
-    r_tot = {c: np.array([rise(E_tot[c], t) for t in cand]) for c in classes}
+    r_cls = {c: np.array([_rise(E_cls[c], t, T) for t in cand]) for c in classes}
+    r_tot = {c: np.array([_rise(E_tot[c], t, T) for t in cand]) for c in classes}
     # A class's typical stroke: the 90th percentile of its region's rises, floored
     # at a tenth of the largest so a few strokes among noise candidates still set it.
     region_ref = {c: max(float(np.percentile(r_tot[c], 90)) if len(cand) else 0.0,
                          0.1 * float(r_tot[c].max()) if len(cand) else 0.0, 1e-9) for c in classes}
+    return NmfAnalysis(classes, A, A_free, E_cls, E_tot, r_cls, r_tot, region_ref, T, K0, free)
+
+
+def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
+    """Template NMF with rules (the original detector; kept for comparison)."""
+    M_full, cand = fe.M_full, fe.cand
+    na = nmf_analysis(fe, opts)
+    classes, A, A_free, T, K0, free = na.classes, na.A, na.A_free, na.T, na.K0, na.free
+    r_cls, r_tot, region_ref = na.r_cls, na.r_tot, na.region_ref
 
     sens = max(opts.sensitivity, 0.1)
     # Per-recording loudness floors: where a class's candidate strokes split into a

@@ -169,3 +169,17 @@ def test_a_sliver_of_a_last_page_is_pulled_back(tmp_path):
     assert [k for k in report.files if k.startswith("png")] == ["png1"]
     assert any("Fitted onto 1 page" in n for n in report.notes)
     assert not [w for w in report.warnings if w.startswith("LilyPond")]
+
+
+def test_chart_spec_reference_example_compiles():
+    """The YAML example at the top of the chart-spec reference compiles as written
+    (its Bridge section's "bars: [...]" placeholder aside), sticking and cue included."""
+    from drum_agent.charts import compile_spec
+    text = (SKILL / "reference" / "chart-spec.md").read_text()
+    block = text.split("```yaml", 1)[1].split("```", 1)[0]
+    spec = yaml.safe_load(block.split("  - label: Bridge")[0])
+    score = compile_spec(spec)
+    assert any(m.cue == "Band in" for m in score.measures)
+    spec["sections"].append({"label": "Fill", "bars": ["fill"]})
+    fill = compile_spec(spec).measures[-1]
+    assert [h.sticking for h in sorted(fill.hits, key=lambda h: h.pos) if h.sticking][:4] == ["R", "L", "R", "L"]

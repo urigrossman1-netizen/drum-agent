@@ -56,6 +56,12 @@ def _add_export_args(p: argparse.ArgumentParser) -> None:
     _add_voicing_arg(p)
 
 
+def _add_detector_arg(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--detector", default="auto", choices=["auto", "classifier", "nmf"],
+                   help="stroke classifier: the trained onset classifier (auto, when installed) or the "
+                        "original template-NMF detector (nmf); see docs/MODELS.md")
+
+
 def _print_report(report, out: Path) -> int:
     print(f"Wrote {len(report.files)} files to {out}:")
     for k, v in report.files.items():
@@ -178,7 +184,7 @@ def cmd_transcribe(args) -> int:
     topts = TranscribeOptions(
         bpm=args.bpm, time_signature=args.time_signature, downbeat=args.downbeat,
         feel=args.feel, drums_only=args.drums_only, sensitivity=args.sensitivity,
-        allow_32nds=not args.no_32nds, start=args.start, end=args.end,
+        allow_32nds=not args.no_32nds, start=args.start, end=args.end, detector=args.detector,
     )
     score = transcribe_file(args.input, topts)
     score.title = args.title or score.title
@@ -195,7 +201,7 @@ def cmd_transcribe(args) -> int:
 
 def cmd_analyze(args) -> int:
     from .audio.transcribe import analyze_file
-    info = analyze_file(args.input, bpm=args.bpm, time_signature=args.time_signature)
+    info = analyze_file(args.input, bpm=args.bpm, time_signature=args.time_signature, detector=args.detector)
     print(json.dumps(info, indent=1))
     return 0
 
@@ -357,6 +363,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--end", type=float, help="end time in seconds")
     p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
     p.add_argument("--chart-type", choices=["full_transcription", "performance_chart"])
+    _add_detector_arg(p)
     _add_export_args(p)
     p.set_defaults(func=cmd_transcribe)
 
@@ -364,6 +371,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input")
     p.add_argument("--bpm", type=float)
     p.add_argument("--time-signature")
+    _add_detector_arg(p)
     p.set_defaults(func=cmd_analyze)
 
     p = sub.add_parser("synth", help="render a chart to audio (test fixtures)")

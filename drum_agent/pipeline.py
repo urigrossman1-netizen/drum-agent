@@ -44,6 +44,7 @@ class ExportReport:
     uncertain_score_bars: list[int] = field(default_factory=list)  # 1-based bar numbers in score.json (for `edit`)
     lilypond_version: str = ""
     notes: list[str] = field(default_factory=list)  # layout decisions worth knowing, not problems
+    playability: list[str] = field(default_factory=list)  # strokes one drummer can't play together
 
     @property
     def rendering_ok(self) -> bool:
@@ -69,6 +70,8 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     plan = plan_layout(score, repeats=opts.repeats, bars_per_line=opts.bars_per_line)
     report.uncertain_bars = [plan.printed_numbers[i] for i, m in enumerate(score.measures) if m.uncertain]
     report.uncertain_score_bars = [i + 1 for i, m in enumerate(score.measures) if m.uncertain]
+    from .playability import check, describe
+    report.playability = describe(score, check(score, kit))
 
     if "json" in opts.formats:
         p = out / f"{stem}.json"
@@ -215,6 +218,7 @@ def report_json(score: Score, report: ExportReport) -> dict:
         "uncertain_bars": report.uncertain_bars,
         "uncertain_score_bars": report.uncertain_score_bars,
         "warnings": report.warnings,
+        "playability": report.playability,
         "layout_notes": report.notes,
         "analysis": score.analysis,
     }
@@ -276,6 +280,12 @@ def render_report(score: Score, report: ExportReport) -> str:
                 "low_confidence_hits", "dropped_hits", "sections", "notes"):
         if key in a:
             lines.append(f"* {key.replace('_', ' ')}: {a[key]}")
+    if report.playability:
+        lines.append("")
+        lines.append("## Playability")
+        lines.append("* Strokes one drummer with two hands and two feet can't play as written "
+                     "(in a transcription: a stroke on the wrong instrument):")
+        lines += [f"  * {p}" for p in report.playability]
     if report.notes:
         lines.append("")
         lines.append("## Layout notes")

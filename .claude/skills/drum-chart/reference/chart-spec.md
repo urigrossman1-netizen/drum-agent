@@ -12,15 +12,22 @@ rights: original                # own | permission | licensed | public_domain | 
 tempo: 100                      # quarter notes per minute, or "4.=72" / "2=60"
 tempo_text: Funk                # style/feel printed with the tempo mark (also per section)
 time: 4/4                       # 3/4, 6/8, 12/8, 7/8 (+ beat_groups: "2+2+3") ...
-pickup: "1/4"                   # optional anacrusis length (whole notes)
-swing: false                    # true prints "Swing"; write the 8ths straight
+# pickup: "1/4"                 # optional anacrusis: bar 1 is then this long (whole notes)
+swing: false                    # true prints "Swing" with its rhythm (♫ = ♩♪³); write the 8ths straight
 patterns:
   verse:
     hh: "x-x-x-x-x-x-x-x-"
     sn: "----x-------x---"
     bd: "x-------x-x-----"
+  fill:
+    sn: "x-x-x-x-xxxx----"
+    t1: "------------xx--"
+    ft: "--------------xx"
+    bd: "x-------x-------"
+    sticking: "R-L-R-L-RLRLRLRL"     # hand per stroke, on the same grid; printed under the staff
 sections:
   - label: Verse 1
+    cue: Band in                # italic text above the first bar of the section
     bars: [verse, "verse*6", {sn: "----x-------xxxx", hh: "x-x-x-x-x-x-----", bd: "x-------x-------"}]
   - label: Bridge
     time: 6/8                   # meter and tempo changes persist until changed again
@@ -31,8 +38,17 @@ sections:
 
 ## Bars
 - A pattern name, `"name*N"` (N copies), or an inline mapping of instrument
-  lines. An inline mapping can also set `time`, `tempo`, `tempo_text`,
+  lines. An inline mapping can also set `time`, `tempo`, `tempo_text`, `cue`,
   `uncertain: true` and `notes: [...]`, or reuse `pattern: name`.
+
+## Sticking and cues
+- `sticking:` (or `stick:`) is a line in a pattern or bar, on the same grid as
+  the instrument lines: `R`, `L` or `B` (both hands) under a stroke, `-` for
+  none. Each letter goes to the hand stroke at that position (a drum before a
+  cymbal); a letter with no hand stroke under it is an error. It prints on one
+  line under the staff and is exported as MusicXML fingering.
+- `cue:` on a bar entry or a section prints italic text above the staff at the
+  start of that bar ("Band in", "Gtr. solo", "hey"). Never put lyrics here.
 
 Charts compiled from a spec get status `entered` (the report says so). It
 means "written, not detected": nobody has checked it against a recording.

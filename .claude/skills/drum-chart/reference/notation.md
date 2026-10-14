@@ -4,22 +4,31 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
 
 ## Staff and voices
 - Five-line staff, percussion clef. Positions are given as treble-clef pitches.
-- **Voice 1 (stems up): hands.** Cymbals, hi-hat with sticks, snare, toms.
-- **Voice 2 (stems down): feet.** Bass drum(s), hi-hat pedal.
+- Default voicing **cymbals-up** (the user's reference chart; also Guitar Pro
+  and Songsterr charts):
+  - **Voice 1 (stems up): cymbals.** Hi-hat with sticks, ride, crash, china,
+    splash, cowbell.
+  - **Voice 2 (stems down): drums and feet.** Snare, cross-stick, rimshot,
+    toms, bass drum(s), hi-hat pedal. A snare/tom roll with the kick under it
+    moves up for that bar, so the kick is never part of the rolled chord.
+- `--voicing hands-up` gives the Weinberg/PAS drum-book layout: everything the
+  hands play stems up, only the feet down. Positions and noteheads don't change.
 - A silent voice gets a whole-bar rest; if both are silent, one rest.
+- Sticking (R, L, B) prints on one line under the staff; cues ("hey",
+  "Band in") print in italics above the staff at the start of their bar.
 
 ## Instrument map (chart-spec names in brackets)
-| Instrument | Position | Head | Voice |
+| Instrument | Position | Head | Stem (cymbals-up) |
 |---|---|---|---|
 | China [cn] | C6 | x | up |
 | Crash 2 [cr2] / Splash [spl] | B5 | x / circled x | up |
 | Crash [cr] | A5 (ledger line) | x | up |
 | Hi-hat [hh], open [o on hh line], half-open [h] | G5 | x (+ o / ⊘ above) | up |
 | Ride [rd], ride bell [rb] | F5 (top line) | x / diamond | up |
-| Tom 1 [t1], cowbell [cb] | E5 | normal / triangle | up |
-| Tom 2 [t2] | D5 | normal | up |
-| Snare [sn], cross-stick [cs], rimshot [rs] | C5 | normal / x / slashed | up |
-| Floor tom [ft], floor tom 2 [ft2] | A4, G4 | normal | up |
+| Tom 1 [t1] / cowbell [cb] | E5 | normal / triangle | down / up |
+| Tom 2 [t2] | D5 | normal | down |
+| Snare [sn], cross-stick [cs], rimshot [rs] | C5 | normal / x / slashed | down |
+| Floor tom [ft], floor tom 2 [ft2] | A4, G4 | normal | down |
 | Bass drum [bd], bass drum 2 [bd2] | F4, E4 | normal | down |
 | Hi-hat foot [hf], foot splash [hhs] | D4 | x (+ o below) | down |
 

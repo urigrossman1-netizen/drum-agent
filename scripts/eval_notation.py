@@ -9,6 +9,7 @@ Usage:
   python scripts/eval_notation.py                      # default charts x default conditions
   python scripts/eval_notation.py --charts 06,11,northbound --conditions std_band --jobs 4
   python scripts/eval_notation.py --json out.json
+  python scripts/eval_notation.py --library --conditions std_do,jazz_band_h --jobs 4   # all 113 library charts
 
 Charts are names from tests/cases/, tests/audio_cases/ or examples/specs/
 (prefix match, e.g. "06" or "northbound"). Results go to stdout and, with
@@ -39,7 +40,12 @@ CONDITIONS = {
 }
 DEFAULT_CHARTS = ["02", "03", "05", "06", "07", "10", "11", "12", "13", "northbound"]
 DEFAULT_CONDITIONS = ["std_do", "jazz_do", "std_band", "jazz_band_h"]
-SEARCH = [ROOT / "tests" / "cases", ROOT / "tests" / "audio_cases", ROOT / "examples" / "specs"]
+SEARCH = [ROOT / "tests" / "cases", ROOT / "tests" / "audio_cases", ROOT / "examples" / "specs",
+          ROOT / "library" / "rudiments", ROOT / "library" / "grooves"]
+
+
+def library_charts() -> list[str]:
+    return [p.stem for d in SEARCH[-2:] for p in sorted(d.glob("*.yaml"))]
 
 
 def find_chart(name: str) -> Path:
@@ -95,8 +101,10 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--bpm", type=float, default=None, help="tempo hint passed to every transcription")
     ap.add_argument("--json", default=None)
+    ap.add_argument("--library", action="store_true", help="evaluate every chart in library/ (overrides --charts)")
     a = ap.parse_args()
-    jobs = [(c, k) for c in a.charts.split(",") for k in a.conditions.split(",")]
+    charts = library_charts() if a.library else a.charts.split(",")
+    jobs = [(c, k) for c in charts for k in a.conditions.split(",")]
     for _, k in jobs:
         if k not in CONDITIONS:
             raise SystemExit(f"unknown condition {k}; choose from {', '.join(CONDITIONS)}")
@@ -115,8 +123,13 @@ def main() -> None:
               f"flagged {r['bars_flagged']:3d}  {r['tempo']}")
     ok = [r for r in results if "error" not in r]
     if ok:
+        import statistics
         mean = sum(r["notation_F"] for r in ok) / len(ok)
         print(f"MEAN notation F over {len(ok)} runs: {mean:.4f}  (errors: {len(results) - len(ok)})")
+        for cond in dict.fromkeys(r["condition"] for r in ok):
+            fs = [r["notation_F"] for r in ok if r["condition"] == cond]
+            print(f"  {cond:11s} mean {sum(fs) / len(fs):.3f}  median {statistics.median(fs):.3f}  "
+                  f"worst {min(fs):.3f}  >= 0.9: {sum(f >= 0.9 for f in fs)}/{len(fs)}")
     if a.json:
         Path(a.json).write_text(json.dumps(results, indent=1) + "\n")
 

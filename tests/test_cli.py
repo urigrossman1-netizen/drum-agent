@@ -517,12 +517,13 @@ def test_transcribe_passes_options_through(cli, tmp_path, monkeypatch, rights):
 
 def test_analyze_needs_no_rights(cli, tmp_path, monkeypatch):
     import drum_agent.audio.transcribe as T
-    monkeypatch.setattr(T, "analyze_file", lambda path, bpm=None, time_signature=None:
-                        {"file": str(path), "tempo": "100 BPM", "bpm_hint": bpm, "meter_hint": time_signature})
+    monkeypatch.setattr(T, "analyze_file", lambda path, bpm=None, time_signature=None, detector="auto":
+                        {"file": str(path), "tempo": "100 BPM", "bpm_hint": bpm, "meter_hint": time_signature,
+                         "detector": detector})
     r = cli("analyze", tmp_path / "song.wav", "--bpm", 100, "--time-signature", "3/4")
     assert r.rc == 0, r.err
     info = json.loads(r.out)
-    assert info["bpm_hint"] == 100 and info["meter_hint"] == "3/4"
+    assert info["bpm_hint"] == 100 and info["meter_hint"] == "3/4" and info["detector"] == "auto"
     assert "rights" not in r.err
 
 
