@@ -84,8 +84,17 @@ def test_full_song_with_band(tmp_path):
 
 
 def test_tempo_hint_resolves_double_time(tmp_path):
-    # Case 07 reads at double tempo without a hint (documented); with --bpm it is right.
+    # With --bpm the tempo can't double, whatever the material.
     ref, est = transcribe(tmp_path, "tests/cases/07_ghost_accent_roll.yaml", 0, False, 0, bpm=92)
+    assert len(est.measures) == len(ref.measures)
+    assert notation_accuracy(ref, est).f >= 0.85
+
+
+def test_rolls_dont_double_the_tempo(tmp_path):
+    # Case 07 (ghosts, accents, flams, rolls; no backbeat) used to read at 184 BPM without a
+    # hint: the rolls' 32nd strokes look like a 16th grid at double tempo. Roll and grace
+    # strokes are no longer evidence for the beat grid (beats._texture_weights).
+    ref, est = transcribe(tmp_path, "tests/cases/07_ghost_accent_roll.yaml", 0, False, 0)
     assert len(est.measures) == len(ref.measures)
     assert notation_accuracy(ref, est).f >= 0.85
 

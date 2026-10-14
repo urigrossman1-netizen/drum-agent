@@ -138,7 +138,7 @@ def _grid_fit(hits: list[DrumHit], beats: np.ndarray, tempo: float) -> float:
     k = np.clip(np.searchsorted(beats, times, side="right") - 1, 0, len(beats) - 2)
     d = beats[k + 1] - beats[k]
     pos = (times - beats[k]) / d  # position within the beat, 0..1
-    w = np.array([_PULSE_WEIGHT.get(h.inst, 0.3) for h in hits])
+    w = np.array([_PULSE_WEIGHT.get(h.inst, 0.3) for h in hits]) * _texture_weights(hits)
     sigma = 0.06
 
     def closeness(grid: np.ndarray) -> np.ndarray:
@@ -162,6 +162,34 @@ def _grid_fit(hits: list[DrumHit], beats: np.ndarray, tempo: float) -> float:
             spacing = float(np.mean(np.abs(gaps - 2.0) < 0.2))
     prior = float(np.exp(-0.5 * (np.log2(tempo / 105) / 0.5) ** 2))
     return fit + 0.6 * backbeat + 0.3 * spacing + 0.35 * prior
+
+
+ROLL_GAP_S = 0.09  # snare/tom strokes this close on the same drum: a roll, buzz or grace notes
+GRACE_RATIO = 1.3  # a grace note is this much softer than the stroke it leads into
+
+
+def _texture_weights(hits: list[DrumHit]) -> np.ndarray:
+    """1 for metrical strokes, 0 for the inside of a roll and for grace notes (snare/toms).
+
+    A roll's inner strokes are a texture: at the true tempo they fall between the
+    grid points (32nds), at double tempo they look like a tidy 16th grid, so
+    counting them pulls the tempo up an octave. Its first and last strokes, and the
+    main note after a drag's graces, do mark the pulse and keep their weight."""
+    w = np.ones(len(hits))
+    by: dict[str, list[tuple[float, int]]] = {}
+    for i, h in enumerate(hits):
+        if h.inst == "snare" or h.inst.startswith(("tom", "floor")):
+            by.setdefault(h.inst, []).append((h.time, i))
+    for strokes in by.values():
+        strokes.sort()
+        for j, (t, i) in enumerate(strokes):
+            prev_close = j > 0 and t - strokes[j - 1][0] < ROLL_GAP_S
+            nxt = strokes[j + 1] if j + 1 < len(strokes) else None
+            next_close = nxt is not None and nxt[0] - t < ROLL_GAP_S
+            grace = next_close and hits[nxt[1]].strength > GRACE_RATIO * hits[i].strength
+            if (prev_close and next_close) or grace:
+                w[i] = 0.0
+    return w
 
 
 def _tempo_estimate(env: np.ndarray) -> float:
