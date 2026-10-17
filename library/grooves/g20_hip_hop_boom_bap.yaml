@@ -1,0 +1,30 @@
+# Boom bap: a heavy bass drum ("boom") and a fat snare ("bap") on 2 and 4,
+# laid back. The kick pattern skips around the "a" of 1 and the "&" of 3.
+title: "G20 Hip-Hop: Boom Bap"
+chart_type: pattern_study
+rights: original
+tempo: 88
+time: 4/4
+tempo_text: Hip-hop, laid back
+patterns:
+  boom:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x--x|----|--x-|----"
+  boom_b:
+    hh: "x-x-|x-x-|x-x-|x-o-"
+    sn: "----|x---|----|x--g"
+    bd: "x--x|---x|--x-|----"
+  break:
+    hh: "x-x-|x-x-|x-x-|----"
+    sn: "----|x---|----|x-xx"
+    bd: "x--x|----|--x-|----"
+    sticking: "----|----|----|L-RL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Boom bap
+    bars: [boom, boom_b, boom, break]
+  - label: Out
+    bars: [boom_b, ending]

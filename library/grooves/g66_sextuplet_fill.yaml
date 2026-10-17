@@ -1,0 +1,37 @@
+# Sextuplet fill: six notes per beat, R L R L R L, moving from the snare
+# around the toms, with the bass drum on each beat.
+title: "G66 Fill: Sextuplets"
+chart_type: pattern_study
+rights: original
+tempo: 76
+time: 4/4
+tempo_text: Rock ballad
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  fill:
+    sn: "Xxxxxx|------|------|------"
+    t1: "------|Xxxxxx|------|------"
+    t2: "------|------|Xxxxxx|------"
+    ft: "------|------|------|Xxxxxx"
+    bd: "x-----|x-----|x-----|x-----"
+    sticking: "RLRLRL|RLRLRL|RLRLRL|RLRLRL"
+  fill_b:
+    hh: "x-x-|x-x-|------|------"
+    sn: "----|x---|Xxxx--|Xx----"
+    t1: "----|----|----xx|--xx--"
+    ft: "----|----|------|----xx"
+    bd: "x---|----|x-----|x-----"
+    sticking: "----|----|RLRLRL|RLRLRL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+sections:
+  - label: Full-bar fill
+    bars: [groove, groove, groove, fill]
+  - label: Two-beat fill
+    bars: [crash, groove, fill_b, crash]

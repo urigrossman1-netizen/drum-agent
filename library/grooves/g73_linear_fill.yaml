@@ -1,0 +1,38 @@
+# Linear fills: no two limbs ever play together. Groups of three 16ths, R L K
+# (right hand, left hand, kick), cut across the beat from the snare to the
+# toms; then a six-note group, R L R L K K, around the kit.
+title: "G73 Fill: Linear with Sticking"
+chart_type: pattern_study
+rights: original
+tempo: 96
+time: 4/4
+tempo_text: Funk rock
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  linear_3:
+    sn: "xx-x|x-xx|----|----"
+    t1: "----|----|-x--|----"
+    t2: "----|----|--x-|x---"
+    ft: "----|----|----|-x-x"
+    bd: "--x-|-x--|x--x|--x-"
+    sticking: "RL-R|L-RL|-RL-|RL-R"
+  linear_6:
+    hh: "-x-x|----|----|----"
+    sn: "----|xxxx|----|----"
+    t1: "----|----|--xx|----"
+    ft: "----|----|----|xx--"
+    bd: "x---|----|xx--|--xx"
+    sticking: "-R-L|RLRL|--RL|RL--"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+sections:
+  - label: Three-note linear
+    bars: [groove, groove, groove, linear_3]
+  - label: Six-note linear
+    bars: [crash, groove, linear_6, crash]

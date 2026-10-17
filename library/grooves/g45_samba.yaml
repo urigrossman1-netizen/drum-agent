@@ -1,0 +1,34 @@
+# Samba in 2/4: the bass drum plays the surdo rhythm (each beat and the "a"
+# before it), the hi-hat foot on the "&"s, the hands play 16ths on the snare
+# with the sticking R L R R L R L L and accents.
+title: "G45 Samba: 16ths over the Surdo Kick"
+chart_type: pattern_study
+rights: original
+tempo: 100
+time: 2/4
+tempo_text: Samba
+patterns:
+  samba:
+    sn: "Xggx|gXgg"
+    hf: "--x-|--x-"
+    bd: "x--x|x--x"
+    sticking: "RLRR|LRLL"
+  samba_b:
+    sn: "XggX|gXgX"
+    hf: "--x-|--x-"
+    bd: "x--x|x--x"
+    sticking: "RLRR|LRLL"
+  fill:
+    sn: "xxxx|----"
+    t1: "----|xx--"
+    ft: "----|--xx"
+    bd: "x--x|x--x"
+    sticking: "RLRL|RLRL"
+  ending:
+    cr: "x---|----"
+    bd: "x---|----"
+sections:
+  - label: Samba
+    bars: [samba, samba, samba_b, samba, samba, samba_b, samba, fill]
+  - label: Out
+    bars: [ending]

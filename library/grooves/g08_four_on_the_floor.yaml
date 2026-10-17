@@ -1,0 +1,37 @@
+# Four-on-the-floor dance groove: bass drum on every beat, snare (or clap) on 2
+# and 4, open hi-hat on every "&". The foot closes the hi-hat on the beats.
+title: "G08 Dance: Four on the Floor"
+chart_type: pattern_study
+rights: original
+tempo: 124
+time: 4/4
+tempo_text: Dance
+patterns:
+  intro:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    bd: "x---|x---|x---|x---"
+  groove:
+    hh: "--o-|--o-|--o-|--o-"
+    hf: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+  groove_16:
+    hh: "-xo-|-xo-|-xo-|-xox"
+    hf: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+  build:
+    sn: "x-x-|x-x-|xxxx|xxxx"
+    bd: "x---|x---|x---|x---"
+    sticking: "R-L-|R-L-|RLRL|RLRL"
+  drop:
+    cr: "x---|----|----|----"
+    hh: "--o-|--o-|--o-|--o-"
+    hf: "----|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+sections:
+  - label: Intro
+    bars: [intro, intro]
+  - label: Groove
+    bars: [groove, groove, groove_16, build, drop]

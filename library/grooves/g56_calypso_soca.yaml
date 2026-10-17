@@ -1,0 +1,32 @@
+# Soca (calypso-based): four on the floor in the bass drum, the snare on the
+# "a" of 1 and the "&" of 2 and on 4, open hi-hats on the upbeats closed by
+# the foot.
+title: "G56 Soca: Calypso Groove"
+chart_type: pattern_study
+rights: original
+tempo: 124
+time: 4/4
+tempo_text: Soca
+patterns:
+  soca:
+    hh: "--o-|--o-|--o-|--o-"
+    hf: "x---|x---|x---|x---"
+    sn: "---x|--x-|----|x---"
+    bd: "x---|x---|x---|x---"
+  soca_b:
+    hh: "--o-|--o-|--o-|--o-"
+    hf: "x---|x---|x---|x---"
+    sn: "---x|--x-|---x|x-x-"
+    bd: "x---|x---|x---|x---"
+  fill:
+    sn: "x-xx|x-xx|xxxx|xxxx"
+    bd: "x---|x---|x---|x---"
+    sticking: "R-LR|L-RL|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Soca
+    bars: [soca, soca_b, soca, fill]
+  - label: Out
+    bars: [soca_b, ending]

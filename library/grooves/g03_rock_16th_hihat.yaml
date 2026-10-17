@@ -1,0 +1,43 @@
+# 16th notes on the hi-hat. First with one hand, accenting each beat; then with
+# two hands, R L R L on the hi-hat, where the right hand leaves the hi-hat to
+# play the snare on 2 and 4.
+title: "G03 Rock: 16th-Note Hi-Hat"
+chart_type: pattern_study
+rights: original
+tempo: 84
+time: 4/4
+tempo_text: Rock, 16th-note hi-hat
+patterns:
+  one:
+    hh: "Xxxx|Xxxx|Xxxx|Xxxx"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  one_b:
+    hh: "Xxxx|Xxxx|Xxxx|Xxxx"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x--x|----"
+  two:
+    hh: "xxxx|-xxx|xxxx|-xxx"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  two_open:
+    hh: "xxxx|-xxx|xxxx|-xxo"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x--x|----"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  fill:
+    hh: "xxxx|-xxx|----|----"
+    sn: "----|x---|xxxx|----"
+    t1: "----|----|----|xx--"
+    ft: "----|----|----|--xx"
+    bd: "x---|----|x---|x---"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: One hand
+    bars: [one, one, one_b]
+  - label: Two hands
+    bars: [two, two_open, fill, ending]

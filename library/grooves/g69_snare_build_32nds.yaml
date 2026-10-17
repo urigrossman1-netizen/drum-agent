@@ -1,0 +1,34 @@
+# Snare build-up: a two-bar crescendo from 8ths through 16ths and 16th-note
+# triplets to 32nds, alternating hands, landing on a crash. A dance-music build.
+title: "G69 Fill: 32nd-Note Snare Build into a Crash"
+chart_type: pattern_study
+rights: original
+tempo: 120
+time: 4/4
+tempo_text: Build
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+  build_1:
+    sn: "x-x-|x-x-|xxxx|xxxx"
+    bd: "x---|x---|x---|x---"
+    sticking: "R-L-|R-L-|RLRL|RLRL"
+  build_2:
+    sn: "xxxxxx|xxxxxx|xxxxxxxx|xxxxxxxx"
+    bd: "x-----|x-----|x-------|x-------"
+    sticking: "RLRLRL|RLRLRL|RLRLRLRL|RLRLRLRL"
+  drop:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+sections:
+  - label: Groove
+    bars: [groove, groove]
+  - label: Build
+    cue: crescendo
+    bars: [build_1, build_2]
+  - label: Drop
+    bars: [drop, groove]

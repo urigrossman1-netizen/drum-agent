@@ -1,0 +1,23 @@
+# PAS International Drum Rudiment 14: Fifteen Stroke Roll.
+# Seven doubles into an accented single: R R L L R R L L R R L L R R L(>), then the
+# left-hand lead. Doubles as 16ths; the release falls on the 'and' of beat 4.
+title: "R14 Fifteen Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  right_lead:
+    sn:       "xxxx|xxxx|xxxx|xxX-"
+    sticking: "RRLL|RRLL|RRLL|RRL-"
+  left_lead:
+    sn:       "xxxx|xxxx|xxxx|xxX-"
+    sticking: "LLRR|LLRR|LLRR|LLR-"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: right_lead, cue: "Start slow"}
+      - left_lead
+      - right_lead
+      - left_lead

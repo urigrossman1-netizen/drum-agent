@@ -77,3 +77,20 @@ def test_pickup_shares_first_line():
     plan = plan_layout(s)
     assert [b.line_break for b in plan.bars][:2] == [True, False]
     assert plan.printed_numbers[0] == 0 and plan.printed_numbers[1] == 1
+
+
+def test_dense_bars_with_ghosts_and_sticking_take_more_room():
+    # A 16th-note bar with ghost notes and a sticking letter under every hand stroke
+    # needs more width than a plain groove bar: four of them overflowed a line.
+    from drum_agent.layout import _weight
+    plain = compile_spec({"sections": [{"bars": [{"hh": "x-x-x-x-x-x-x-x-", "sn": "----x-------x---",
+                                                  "bd": "x-------x-------"}]}]}).measures[0]
+    dense = compile_spec({"sections": [{"bars": [{
+        "hh": "x-x-|x-x-|x-x-|x-x-", "sn": "-g-g|X--g|-g-g|X--g", "bd": "x---|--x-|-x--|--x-",
+        "sticking": "RLRL|L-RL|RLRL|L-RL"}]}]}).measures[0]
+    assert _weight(plain) == 1.0
+    assert _weight(dense) > 1.0
+    bar = {"hh": "x-x-|x-x-|x-x-|x-x-", "sn": "-g-g|X--g|-g-g|X--g", "bd": "x---|--x-|-x--|--x-",
+           "sticking": "RLRL|L-RL|RLRL|L-RL"}
+    plan = plan_layout(compile_spec({"sections": [{"bars": [bar] * 4}]}), repeats="none")
+    assert [b.index for b in plan.bars if b.line_break] != [0]  # not all four on one line

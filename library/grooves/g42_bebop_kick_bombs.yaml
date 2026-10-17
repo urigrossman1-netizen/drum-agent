@@ -1,0 +1,37 @@
+# Bebop at a fast tempo: the ride pattern, the hi-hat foot on 2 and 4, and
+# "bombs": loud, off-beat bass drum accents that kick the band, answered by
+# the snare.
+title: "G42 Jazz: Bebop Ride with Kick Bombs"
+chart_type: pattern_study
+rights: original
+tempo: 232
+time: 4/4
+swing: true
+tempo_text: Up-tempo swing
+patterns:
+  time:
+    rd: "x-xxx-xx"
+    hf: "--x---x-"
+  bomb_a:
+    rd: "x-xxx-xx"
+    sn: "-----x--"
+    hf: "--x---x-"
+    bd: "-------X"
+  bomb_b:
+    rd: "x-xxx-xx"
+    sn: "-x------"
+    hf: "--x---x-"
+    bd: "---X----"
+  bomb_c:
+    rd: "x-xxx-xx"
+    sn: "---x--x-"
+    hf: "--x---x-"
+    bd: "-X---X--"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Time
+    bars: [time, bomb_a, time, bomb_b]
+  - label: Bombs
+    bars: [bomb_c, bomb_a, bomb_b, ending]

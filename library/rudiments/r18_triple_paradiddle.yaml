@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 18: Triple Paradiddle.
+# R L R L R L R R  L R L R L R L L: six singles and a double, accent on each lead stroke.
+title: "R18 Triple Paradiddle"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  triple:
+    sn:       "Xxxx|xxxx|Xxxx|xxxx"
+    sticking: "RLRL|RLRR|LRLR|LRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: triple, cue: "Start slow"}
+      - triple

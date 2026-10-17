@@ -1,0 +1,32 @@
+# 7/8 grouped 2+2+3: counted "1 2, 1 2, 1 2 3". Hi-hat 8ths, the bass drum on
+# the start of each group's first two, the snare closing the long group.
+title: "G58 Odd Meter: 7/8 (2+2+3)"
+chart_type: pattern_study
+rights: original
+tempo: 180
+time: 7/8
+beat_groups: "2+2+3"
+tempo_text: "7/8, 2+2+3"
+patterns:
+  seven:
+    hh: "xx|xx|xxx"
+    sn: "--|x-|-x-"
+    bd: "x-|--|x--"
+  seven_b:
+    hh: "xx|xx|xxx"
+    sn: "--|x-|-xx"
+    bd: "x-|-x|x--"
+  fill:
+    sn: "xx|xx|---"
+    t1: "--|--|xx-"
+    ft: "--|--|--x"
+    bd: "x-|--|---"
+    sticking: "RL|RL|RLR"
+  ending:
+    cr: "x-|--|---"
+    bd: "x-|--|---"
+sections:
+  - label: "2+2+3"
+    bars: [seven, seven_b, seven, fill]
+  - label: Out
+    bars: [seven_b, ending]

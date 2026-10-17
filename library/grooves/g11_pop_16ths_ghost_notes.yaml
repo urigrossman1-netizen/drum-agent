@@ -1,0 +1,31 @@
+# Pop groove with one-handed 16th notes on the hi-hat and snare ghost notes (g,
+# in parentheses) on the "e" and "a" around the backbeat.
+title: "G11 Pop: 16th Notes with Ghost Notes"
+chart_type: pattern_study
+rights: original
+tempo: 96
+time: 4/4
+tempo_text: Pop, 16ths
+patterns:
+  groove:
+    hh: "xxxx|xxxx|xxxx|xxxx"
+    sn: "----|x--g|-g--|x---"
+    bd: "x---|--x-|x---|----"
+  groove_b:
+    hh: "xxxx|xxxx|xxxx|xxxx"
+    sn: "---g|x--g|-g--|x--g"
+    bd: "x---|--x-|x-x-|----"
+  fill:
+    hh: "xxxx|xxxx|----|----"
+    sn: "----|x--g|xggx|ggX-"
+    ft: "----|----|----|---x"
+    bd: "x---|--x-|x---|----"
+    sticking: "----|----|RLLR|LLRR"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Groove
+    bars: [groove, groove_b, groove, fill]
+  - label: Out
+    bars: [groove_b, ending]

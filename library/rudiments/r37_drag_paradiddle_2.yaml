@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 37: Drag Paradiddle #2.
+# R(>) llR(>) llR L R R  L(>) rrL(>) rrL R L L: two accented 8ths, the second
+# one dragged (D), then a paradiddle with a drag on its first stroke.
+title: "R37 Drag Paradiddle #2"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "8ths and 16ths"
+patterns:
+  drag_paradiddle:
+    sn:       "X-D-|dxxx|X-D-|dxxx"
+    sticking: "R-R-|RLRR|L-L-|LRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: drag_paradiddle, cue: "Start slow"}
+      - drag_paradiddle

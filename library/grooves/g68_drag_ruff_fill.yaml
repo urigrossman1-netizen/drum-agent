@@ -1,0 +1,37 @@
+# Drag (ruff) fill: two grace notes before the main stroke, on the snare and
+# then the toms, accented drags (D) on the beats. The sticking names the main
+# stroke's hand; the grace notes come from the other hand.
+title: "G68 Fill: Drags and Ruffs"
+chart_type: pattern_study
+rights: original
+tempo: 84
+time: 4/4
+tempo_text: Rock
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  drags:
+    sn: "D-x-|D-x-|----|----"
+    t1: "----|----|D-x-|----"
+    ft: "----|----|----|D-x-"
+    bd: "x---|x---|x---|x---"
+    sticking: "R-L-|R-L-|R-L-|R-L-"
+  ruffs:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|x---|d-xx|D---"
+    t2: "----|----|----|--x-"
+    ft: "----|----|----|---x"
+    bd: "x---|----|x---|x---"
+    sticking: "----|----|R-LR|L-RL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+sections:
+  - label: Drags
+    bars: [groove, groove, groove, drags]
+  - label: Ruffs
+    bars: [crash, groove, ruffs, crash]

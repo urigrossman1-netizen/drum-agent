@@ -1,0 +1,40 @@
+# Jazz comping: the ride pattern and the hi-hat on 2 and 4 keep time while the
+# left hand "comps" on the snare (short, syncopated accents and ghost notes)
+# and the bass drum feathers the quarter notes very softly (g).
+title: "G39 Jazz: Ride with Snare Comping and Feathered Kick"
+chart_type: pattern_study
+rights: original
+tempo: 160
+time: 4/4
+swing: true
+tempo_text: Swing
+patterns:
+  comp_a:
+    rd: "x-xxx-xx"
+    sn: "---x----"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  comp_b:
+    rd: "x-xxx-xx"
+    sn: "-g---X--"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  comp_c:
+    rd: "x-xxx-xx"
+    sn: "-----g-X"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  comp_d:
+    rd: "x-xxx-xx"
+    sn: "-X--g--g"
+    hf: "--x---x-"
+    bd: "g-g-g-gx"
+  ending:
+    rd: "x-------"
+    sn: "x-------"
+    bd: "x-------"
+sections:
+  - label: Comping
+    bars: [comp_a, comp_b, comp_c, comp_d]
+  - label: More comping
+    bars: [comp_b, comp_a, comp_d, ending]

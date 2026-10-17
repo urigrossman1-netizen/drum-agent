@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 36: Drag Paradiddle #1.
+# R(>) llR L R R  L(>) rrL R L L: an accented 8th, then a paradiddle with a drag on
+# its first stroke, in 6/8 (one group per dotted-quarter beat).
+title: "R36 Drag Paradiddle #1"
+chart_type: pattern_study
+rights: original
+tempo: "4.=50"
+time: 6/8
+tempo_text: "8th and 16ths"
+patterns:
+  drag_paradiddle:
+    sn:       "X-dxxxX-dxxx"
+    sticking: "R-RLRRL-LRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: drag_paradiddle, cue: "Start slow"}
+      - drag_paradiddle

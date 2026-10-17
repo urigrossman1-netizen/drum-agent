@@ -1,0 +1,35 @@
+# Jazz shuffle in 12/8: the ride plays the full triplet shuffle ("x-x" with the
+# middle triplet played softly in the variation), snare on 2 and 4 with ghosted
+# triplets, the bass drum feathering every beat.
+title: "G43 Jazz: 12/8 Shuffle"
+chart_type: pattern_study
+rights: original
+tempo: "4.=84"
+time: 12/8
+tempo_text: Jazz shuffle
+patterns:
+  shuffle:
+    rd: "x-x|x-x|x-x|x-x"
+    sn: "---|x--|---|x--"
+    hf: "---|x--|---|x--"
+    bd: "g--|g--|g--|g--"
+  shuffle_ghosts:
+    rd: "x-x|x-x|x-x|x-x"
+    sn: "-g-|xg-|-g-|xgg"
+    hf: "---|x--|---|x--"
+    bd: "g--|g--|g--|g--"
+  fill:
+    rd: "x-x|x-x|---|---"
+    sn: "-g-|x--|xxx|X--"
+    t1: "---|---|---|-x-"
+    ft: "---|---|---|--x"
+    bd: "g--|g--|---|---"
+    sticking: "---|---|RLR|LRL"
+  ending:
+    cr: "x--|---|---|---"
+    bd: "x--|---|---|---"
+sections:
+  - label: Shuffle
+    bars: [shuffle, shuffle_ghosts, shuffle, fill]
+  - label: Out
+    bars: [shuffle_ghosts, ending]

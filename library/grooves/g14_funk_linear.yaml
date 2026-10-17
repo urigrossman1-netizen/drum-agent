@@ -1,0 +1,33 @@
+# Linear funk: no two limbs ever play at once. Each 16th is one voice: kick,
+# right hand on the hi-hat, or left hand on the snare (accents and ghosts).
+title: "G14 Funk: Linear Groove"
+chart_type: pattern_study
+rights: original
+tempo: 88
+time: 4/4
+tempo_text: Funk, linear
+patterns:
+  linear:
+    hh: "-x-x|-x-x|-x--|-x-x"
+    sn: "--g-|X---|--g-|X-g-"
+    bd: "x---|--x-|x--x|----"
+    sticking: "-RLR|LR-R|-RL-|LRLR"
+  linear_b:
+    hh: "-x-x|-x--|-x-x|--x-"
+    sn: "--g-|X-g-|----|X--g"
+    bd: "x---|---x|x-x-|-x--"
+    sticking: "-RLR|L-L-|-R-R|L-RL"
+  fill:
+    sn: "X-g-|X-g-|X--g|----"
+    t1: "-x--|-x--|----|----"
+    ft: "---x|---x|----|x-x-"
+    bd: "----|----|-x--|-x-x"
+    sticking: "LRLR|LRLR|L--L|R-R-"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Linear
+    bars: [linear, linear_b, linear, fill]
+  - label: Out
+    bars: [linear_b, ending]

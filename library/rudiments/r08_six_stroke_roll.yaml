@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 8: Six Stroke Roll.
+# Accented single, two doubles, accented single: R(>) L L R R L(>), as six even
+# 16th-note triplets. It does not alternate: every group starts with the right hand.
+title: "R08 Six Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 60
+time: 4/4
+tempo_text: "16th-note triplets"
+patterns:
+  six:
+    sn:       "XxxxxX|XxxxxX|XxxxxX|XxxxxX"
+    sticking: "RLLRRL|RLLRRL|RLLRRL|RLLRRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: six, cue: "Start slow"}
+      - six

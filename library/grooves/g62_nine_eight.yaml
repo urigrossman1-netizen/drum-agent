@@ -1,0 +1,33 @@
+# 9/8 grouped 2+2+2+3 (not the compound 3+3+3): "1 2, 1 2, 1 2, 1 2 3", the
+# lopsided pulse of many Balkan and Turkish rhythms. Bass drum on each group,
+# snare on the third and the long fourth.
+title: "G62 Odd Meter: 9/8 (2+2+2+3)"
+chart_type: pattern_study
+rights: original
+tempo: 200
+time: 9/8
+beat_groups: "2+2+2+3"
+tempo_text: "9/8, 2+2+2+3"
+patterns:
+  nine:
+    hh: "xx|xx|xx|xxx"
+    sn: "--|--|x-|x--"
+    bd: "x-|x-|--|---"
+  nine_b:
+    hh: "xx|xx|xx|xxx"
+    sn: "--|--|x-|x-x"
+    bd: "x-|x-|--|-x-"
+  fill:
+    sn: "xx|xx|--|---"
+    t1: "--|--|xx|---"
+    ft: "--|--|--|xxx"
+    bd: "x-|--|--|---"
+    sticking: "RL|RL|RL|RLR"
+  ending:
+    cr: "x-|--|--|---"
+    bd: "x-|--|--|---"
+sections:
+  - label: "2+2+2+3"
+    bars: [nine, nine_b, nine, fill]
+  - label: Out
+    bars: [nine_b, ending]

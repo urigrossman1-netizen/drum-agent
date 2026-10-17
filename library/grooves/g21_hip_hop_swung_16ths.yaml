@@ -1,0 +1,32 @@
+# Hip-hop with swung 16ths: the 16th notes are written straight but played
+# with a lazy swing (the second 16th of each pair a little late), the feel of
+# a sampled loop. Snare on 2 and 4, a ghost note before the backbeat.
+title: "G21 Hip-Hop: Swung 16ths Feel"
+chart_type: pattern_study
+rights: original
+tempo: 90
+time: 4/4
+tempo_text: Hip-hop, swung 16ths (written straight)
+patterns:
+  swung:
+    hh: "xxxx|xxxx|xxxx|xxxx"
+    sn: "----|x---|---g|x---"
+    bd: "x-x-|---x|-xx-|----"
+  swung_b:
+    hh: "xxxx|xxxx|xxxx|xxxo"
+    sn: "----|x--g|---g|x---"
+    bd: "x-x-|---x|--x-|---x"
+  fill:
+    hh: "xxxx|xxxx|----|----"
+    sn: "----|x---|-gXg|-gX-"
+    bd: "x-x-|---x|x---|x---"
+    sticking: "----|----|-LRL|-LR-"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Swung 16ths
+    cue: lay back
+    bars: [swung, swung_b, swung, fill]
+  - label: Out
+    bars: [swung_b, ending]

@@ -1,0 +1,37 @@
+# Tribal tom groove: the floor tom carries the 8th-note pulse with the right
+# hand, the left hand answers on tom 1 and the snare, the bass drum doubles the
+# floor tom on the beats. No cymbals until the crash at the end.
+title: "G37 Toms: Tribal Floor-Tom Groove"
+chart_type: pattern_study
+rights: original
+tempo: 104
+time: 4/4
+tempo_text: Tribal, toms
+patterns:
+  tribal:
+    ft: "x-x-|x-x-|x-x-|x-x-"
+    t1: "----|--x-|----|---x"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+    hf: "----|x---|----|x---"
+  tribal_b:
+    ft: "x-x-|x-x-|x-x-|x-x-"
+    t1: "-x--|---x|-x--|---x"
+    sn: "----|x---|----|x---"
+    bd: "x---|-x--|x-x-|----"
+    hf: "----|x---|----|x---"
+  fill:
+    ft: "x-x-|x-x-|--xx|--xx"
+    t1: "-x-x|----|----|----"
+    t2: "----|-x-x|xx--|xx--"
+    bd: "x---|x---|x---|x---"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    ft: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Tribal
+    bars: [tribal, tribal_b, tribal, fill]
+  - label: Out
+    bars: [tribal_b, ending]

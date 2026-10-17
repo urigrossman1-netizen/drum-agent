@@ -1,0 +1,32 @@
+# 5/4: a rock groove with five quarter-note beats, felt as 3+2: snare on 2 and
+# 4, the bass drum on 1 and on the "&" of 3.
+title: "G60 Odd Meter: 5/4 Groove"
+chart_type: pattern_study
+rights: original
+tempo: 132
+time: 5/4
+tempo_text: "5/4"
+patterns:
+  five:
+    hh: "xxxxxxxxxx"
+    sn: "--x---x---"
+    bd: "x----x--x-"
+  five_b:
+    hh: "xxxxxxxxxx"
+    sn: "--x---x--x"
+    bd: "x----x--x-"
+  fill:
+    hh: "xxxxxx----"
+    sn: "--x---xx--"
+    t1: "--------x-"
+    ft: "---------x"
+    bd: "x----x----"
+    sticking: "------RLRL"
+  ending:
+    cr: "x---------"
+    bd: "x---------"
+sections:
+  - label: "5/4"
+    bars: [five, five_b, five, fill]
+  - label: Out
+    bars: [five_b, ending]

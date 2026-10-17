@@ -1,0 +1,37 @@
+# The basic rock beat: 8th notes on the closed hi-hat, snare on 2 and 4, bass
+# drum on 1 and 3, then one kick variation and a written-out 8th-note fill.
+title: "G01 Rock: Basic 8th-Note Beat"
+chart_type: pattern_study
+rights: original
+tempo: 100
+time: 4/4
+tempo_text: Rock, straight 8ths
+patterns:
+  beat:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x---x---"
+  beat_and3:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x---xx--"
+  fill:
+    hh: "xxxx----"
+    sn: "--x-xx--"
+    t1: "------x-"
+    ft: "-------x"
+    bd: "x-------"
+    sticking: "----RLRL"
+  crash_beat:
+    cr: "x-------"
+    hh: "-xxxxxxx"
+    sn: "--x---x-"
+    bd: "x---x---"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Groove
+    bars: ["beat*3", fill]
+  - label: Variation
+    bars: [crash_beat, beat_and3, beat, ending]

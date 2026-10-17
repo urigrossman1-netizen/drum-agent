@@ -1,0 +1,32 @@
+# Blues shuffle written in straight 8ths under a "Swing" marking: every pair
+# of 8ths is played long-short (the triplet figure printed at the tempo mark).
+# Hi-hat 8ths, snare on 2 and 4, bass drum walking the quarter notes.
+title: "G18 Blues: Shuffle in Swing 8ths"
+chart_type: pattern_study
+rights: original
+tempo: 112
+time: 4/4
+swing: true
+tempo_text: Swing, blues shuffle
+patterns:
+  shuffle:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x-x-x-x-"
+  shuffle_b:
+    hh: "xxxxxxxx"
+    sn: "--x---xx"
+    bd: "x-x-x-x-"
+  turnaround:
+    hh: "xxxx----"
+    sn: "--x-xxxx"
+    bd: "x-x-x---"
+    sticking: "----RLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Shuffle
+    bars: [shuffle, shuffle, shuffle_b, turnaround]
+  - label: Out
+    bars: [shuffle, ending]

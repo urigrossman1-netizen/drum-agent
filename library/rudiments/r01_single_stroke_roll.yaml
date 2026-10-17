@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 1: Single Stroke Roll.
+# Alternating single strokes, R L R L. No accents: every stroke at the same height.
+title: "R01 Single Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  singles:
+    sn:       "xxxx|xxxx|xxxx|xxxx"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: singles, cue: "Start slow"}
+      - singles

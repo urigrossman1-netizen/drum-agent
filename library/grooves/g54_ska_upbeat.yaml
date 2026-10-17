@@ -1,0 +1,31 @@
+# Ska: the hi-hat (or snare rim) on every upbeat, snare on 2 and 4, bass drum on
+# 1 and 3, at a bright tempo. The variation adds open hi-hats on the upbeats.
+title: "G54 Ska: Upbeat Hi-Hat"
+chart_type: pattern_study
+rights: original
+tempo: 160
+time: 4/4
+tempo_text: Ska
+patterns:
+  ska:
+    hh: "-x-x-x-x"
+    sn: "--x---x-"
+    bd: "x---x---"
+  ska_open:
+    hh: "-o-o-o-o"
+    hf: "x-x-x-x-"
+    sn: "--x---x-"
+    bd: "x---x---"
+  fill:
+    hh: "-x-x----"
+    sn: "--x-xxxx"
+    bd: "x---x---"
+    sticking: "--L-RLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Ska
+    bars: [ska, ska, ska_open, fill]
+  - label: Out
+    bars: [ska_open, ending]

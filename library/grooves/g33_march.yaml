@@ -1,0 +1,32 @@
+# Street march in 2/4: snare and bass drum, with flams, a drag and a
+# five-stroke roll, the sticking under every snare note. Bass drum on the beats.
+title: "G33 March: Snare and Bass Drum"
+chart_type: pattern_study
+rights: original
+tempo: 116
+time: 2/4
+tempo_text: March
+patterns:
+  cadence:
+    sn: "F-xx|x-X-"
+    bd: "x---|x---"
+    sticking: "R-LR|L-R-"
+  cadence_b:
+    sn: "d-xx|F-x-"
+    bd: "x---|x---"
+    sticking: "R-LR|L-R-"
+  rolls:
+    sn: "xxxx|X---"
+    bd: "x---|x---"
+    sticking: "RRLL|R---"
+  rolls_b:
+    sn: "xxxx|X---"
+    bd: "x---|x---"
+    sticking: "LLRR|L---"
+  ending:
+    sn: "F---|----"
+    bd: "x---|----"
+    sticking: "R---|----"
+sections:
+  - label: March
+    bars: [cadence, cadence_b, rolls, rolls_b, cadence, cadence_b, ending]

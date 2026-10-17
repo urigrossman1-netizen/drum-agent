@@ -1,0 +1,45 @@
+# Rock beat with 8th-note hi-hat over bass drum figures that use the 16th-note
+# "e" and "a". Each variation moves one 16th kick; the phrase combines them and
+# ends with a 16th-note fill around the toms.
+title: "G02 Rock: 16th-Note Kick Variations"
+chart_type: pattern_study
+rights: original
+tempo: 92
+time: 4/4
+tempo_text: Rock
+patterns:
+  v1:  # 1, "a" of 1, 3
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x--x|----|x---|----"
+  v2:  # "a" of 2 pushes into 3
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|---x|x---|----"
+  v3:  # "&" of 2 and "e" of 3
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|-x--|----"
+  v4:  # "a" of 1 and 3, "&" of 4
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x--x|----|x--x|--x-"
+  combo:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x--x|---x|-x--|--x-"
+  fill:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|x---|xxxx|----"
+    t1: "----|----|----|xx--"
+    ft: "----|----|----|--xx"
+    bd: "x--x|----|x---|x---"
+    sticking: "----|----|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Kick variations
+    bars: [v1, v2, v3, v4]
+  - label: Phrase
+    bars: [combo, v3, fill, ending]

@@ -1,0 +1,37 @@
+# Shuffle in 12/8: each beat is three 8th notes; the shuffle plays the first
+# and third of each group ("long-short"). Snare on beats 2 and 4, bass drum on
+# 1 and 3, a turnaround fill in 8th-note triplets around the toms.
+title: "G17 Shuffle: 12/8 Feel"
+chart_type: pattern_study
+rights: original
+tempo: "4.=72"
+time: 12/8
+tempo_text: Shuffle
+patterns:
+  shuffle:
+    hh: "x-x|x-x|x-x|x-x"
+    sn: "---|x--|---|x--"
+    bd: "x--|---|x--|---"
+  shuffle_b:
+    hh: "x-x|x-x|x-x|x-x"
+    sn: "---|x--|---|x--"
+    bd: "x-x|---|x-x|--x"
+  ride:
+    rd: "x-x|x-x|x-x|x-x"
+    sn: "---|x--|---|x--"
+    bd: "x--|--x|x--|---"
+  fill:
+    hh: "x-x|x-x|---|---"
+    sn: "---|x--|xxx|x--"
+    t1: "---|---|---|-x-"
+    ft: "---|---|---|--x"
+    bd: "x--|---|x--|---"
+    sticking: "---|---|RLR|LRL"
+  ending:
+    cr: "x--|---|---|---"
+    bd: "x--|---|---|---"
+sections:
+  - label: Hi-hat
+    bars: [shuffle, shuffle_b, shuffle, fill]
+  - label: Ride
+    bars: [ride, ride, ending]

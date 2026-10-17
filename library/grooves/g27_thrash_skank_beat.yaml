@@ -1,0 +1,31 @@
+# Thrash skank beat: fast 8th notes alternating bass drum and snare (kick on
+# the beats, snare on every "&"), the hi-hat or crash riding on the quarters.
+title: "G27 Thrash: Skank Beat"
+chart_type: pattern_study
+rights: original
+tempo: 184
+time: 4/4
+tempo_text: Thrash
+patterns:
+  skank:
+    hh: "x-x-x-x-"
+    sn: "-x-x-x-x"
+    bd: "x-x-x-x-"
+  skank_crash:
+    cr: "x-x-x-x-"
+    sn: "-x-x-x-x"
+    bd: "x-x-x-x-"
+  fill:
+    sn: "xxxx----"
+    t2: "----xx--"
+    ft: "------xx"
+    bd: "x---x---"
+    sticking: "RLRLRLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Skank
+    bars: [skank, skank, skank_crash, fill]
+  - label: Out
+    bars: [skank_crash, ending]

@@ -1,0 +1,35 @@
+# 6/8 rock: heavier, with the snare on 4, a kick pattern that pushes beat 4,
+# 16th notes on the bass drum in the variation, and a 16th tom fill.
+title: "G36 Rock: 6/8 Groove"
+chart_type: pattern_study
+rights: original
+tempo: "4.=66"
+time: 6/8
+tempo_text: Rock in 6/8
+patterns:
+  rock:
+    hh: "xxxxxx"
+    sn: "---x--"
+    bd: "x-x---"
+  rock_b:
+    hh: "xxxxxx"
+    sn: "---x--"
+    bd: "x-x--x"
+  rock_16:
+    hh: "x-x-x-|x-x-x-"
+    sn: "------|x-----"
+    bd: "x--xx-|------"
+  fill:
+    sn: "xxxxxx|------"
+    t1: "------|xx----"
+    ft: "------|--xxxx"
+    bd: "x-----|x-----"
+    sticking: "RLRLRL|RLRLRL"
+  ending:
+    cr: "x-----"
+    bd: "x-----"
+sections:
+  - label: 6/8 rock
+    bars: [rock, rock_b, rock_16, fill]
+  - label: Out
+    bars: [rock_b, ending]

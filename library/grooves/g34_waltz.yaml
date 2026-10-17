@@ -1,0 +1,29 @@
+# Waltz in 3/4: bass drum on 1, snare (or cross-stick) on 2 and 3, the hi-hat
+# on the quarter notes, then 8th notes on the ride for the second strain.
+title: "G34 Waltz: 3/4"
+chart_type: pattern_study
+rights: original
+tempo: 132
+time: 3/4
+tempo_text: Waltz
+patterns:
+  waltz:
+    hh: "x-x-x-"
+    cs: "--x-x-"
+    bd: "x-----"
+  waltz_ride:
+    rd: "xxxxxx"
+    sn: "--x-x-"
+    bd: "x-----"
+  turn:
+    sn: "x-xxxx"
+    bd: "x-----"
+    sticking: "R-LRLR"
+  ending:
+    cr: "x-----"
+    bd: "x-----"
+sections:
+  - label: Waltz
+    bars: [waltz, waltz, waltz, turn]
+  - label: Ride
+    bars: [waltz_ride, waltz_ride, ending]

@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 34: Lesson 25.
+# llR L R(>): a dragged 16th, a 16th, and an accented 8th. The same lead repeats.
+title: "R34 Lesson 25"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths and 8ths"
+patterns:
+  lesson:
+    sn:       "dxX-|dxX-|dxX-|dxX-"
+    sticking: "RLR-|RLR-|RLR-|RLR-"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: lesson, cue: "Start slow"}
+      - lesson

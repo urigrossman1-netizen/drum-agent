@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 40: Triple Ratamacue.
+# llR llR llR L R L(>): two dragged 8ths, then the single-ratamacue figure; then the
+# same with the left hand leading.
+title: "R40 Triple Ratamacue"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "8ths and 16th-note triplets"
+patterns:
+  ratamacue:
+    sn:       "dd|dxxX--|dd|dxxX--"
+    sticking: "RR|RLRL--|LL|LRLR--"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: ratamacue, cue: "Accent the last note"}
+      - ratamacue

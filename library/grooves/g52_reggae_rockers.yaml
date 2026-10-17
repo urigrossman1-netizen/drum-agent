@@ -1,0 +1,30 @@
+# Reggae rockers: the bass drum on 1 and 3 drives the groove, the snare on 3
+# (the half-time backbeat), the hi-hat on straight 8ths with 16th pickups.
+title: "G52 Reggae: Rockers"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: Reggae, rockers
+patterns:
+  rockers:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|----|x---|----"
+    bd: "x---|----|x---|----"
+  rockers_b:
+    hh: "x-x-|x-xx|x-x-|x-xx"
+    sn: "----|----|x---|----"
+    bd: "x---|----|x---|----"
+  fill:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|----|x-xx|xxxx"
+    bd: "x---|----|x---|----"
+    sticking: "----|----|R-LR|LRLR"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Rockers
+    bars: [rockers, rockers_b, rockers, fill]
+  - label: Out
+    bars: [rockers_b, ending]

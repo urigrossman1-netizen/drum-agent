@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 4: Multiple Bounce Roll.
+# Alternating buzz strokes: each hand presses the stick into the head for several
+# bounces. Written as 8th notes with roll slashes, one buzz per note.
+title: "R04 Multiple Bounce Roll"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "Buzz 8ths"
+patterns:
+  buzz:
+    sn:       "r~r~|r~r~|r~r~|r~r~"
+    sticking: "R-L-|R-L-|R-L-|R-L-"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: buzz, cue: "Buzz every stroke"}
+      - buzz

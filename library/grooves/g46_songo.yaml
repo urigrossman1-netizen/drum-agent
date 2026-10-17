@@ -1,0 +1,36 @@
+# Songo, one common drum-set version: the right hand on the cowbell (quarter
+# notes), the left hand on the snare with ghost notes and rim accents, the bass
+# drum on the "&" of 2 and on 4, the hi-hat foot on 1 and 3.
+title: "G46 Songo: Drum-Set Groove"
+chart_type: pattern_study
+rights: original
+tempo: 104
+time: 4/4
+tempo_text: Songo
+patterns:
+  songo:
+    cb: "x---|x---|x---|x---"
+    sn: "-gg-|Xg-g|-gX-|-g-g"
+    hf: "x---|----|x---|----"
+    bd: "----|--x-|----|x---"
+  songo_b:
+    cb: "x---|x---|x---|x---"
+    sn: "-gX-|Xg-g|-gX-|-gXg"
+    hf: "x---|----|x---|----"
+    bd: "----|--x-|----|x---"
+  fill:
+    cb: "x---|x---|----|----"
+    sn: "-gg-|Xg-g|X-gg|X---"
+    t1: "----|----|-x--|--x-"
+    ft: "----|----|----|---x"
+    hf: "x---|----|----|----"
+    bd: "----|--x-|----|x---"
+    sticking: "----|----|LRLL|R-RL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Songo
+    bars: [songo, songo_b, songo, fill]
+  - label: Out
+    bars: [songo_b, ending]

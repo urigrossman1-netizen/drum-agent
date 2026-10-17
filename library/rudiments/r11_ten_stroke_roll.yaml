@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 11: Ten Stroke Roll.
+# Four doubles into two accented singles: R R L L R R L L R(>) L(>), then a rest.
+# It does not alternate: every roll starts with the right hand. Doubles as 16ths.
+title: "R11 Ten Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 3/4
+tempo_text: "16ths"
+patterns:
+  ten:
+    sn:       "xxxx|xxxx|XX--"
+    sticking: "RRLL|RRLL|RL--"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: ten, cue: "Start slow"}
+      - ten

@@ -1,0 +1,37 @@
+# A one-bar 16th-note fill around the toms: four on the snare, four on tom 1,
+# four on tom 2, four on the floor tom, alternating sticking, kick on the beats.
+title: "G64 Fill: 16th Notes Around the Toms"
+chart_type: pattern_study
+rights: original
+tempo: 100
+time: 4/4
+tempo_text: Rock
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  fill:
+    sn: "Xxxx|----|----|----"
+    t1: "----|Xxxx|----|----"
+    t2: "----|----|Xxxx|----"
+    ft: "----|----|----|Xxxx"
+    bd: "x---|x---|x---|x---"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  half_fill:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|x---|xxxx|----"
+    t1: "----|----|----|xx--"
+    ft: "----|----|----|--xx"
+    bd: "x---|----|x---|x---"
+    sticking: "----|----|RLRL|RLRL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+sections:
+  - label: Full-bar fill
+    bars: [groove, groove, groove, fill]
+  - label: Two-beat fill
+    bars: [crash, groove, half_fill, crash]

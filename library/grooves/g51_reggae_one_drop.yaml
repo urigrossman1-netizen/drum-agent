@@ -1,0 +1,32 @@
+# Reggae one drop: beat 1 is empty; the bass drum and the cross-stick land
+# together on beat 3 (counting the bar in half time), the hi-hat plays swung
+# 8ths with a lift on the "&" of 4.
+title: "G51 Reggae: One Drop"
+chart_type: pattern_study
+rights: original
+tempo: 76
+time: 4/4
+swing: true
+tempo_text: Reggae, swing
+patterns:
+  drop:
+    hh: "xxxxxxxx"
+    cs: "----x---"
+    bd: "----x---"
+  drop_b:
+    hh: "xxxxxxxo"
+    cs: "----x---"
+    bd: "----x---"
+  fill:
+    hh: "xxxx----"
+    sn: "----xxxx"
+    bd: "----x---"
+    sticking: "----RLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: One drop
+    bars: [drop, drop, drop_b, fill]
+  - label: Out
+    bars: [drop_b, ending]

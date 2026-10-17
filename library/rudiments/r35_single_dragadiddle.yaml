@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 35: Single Dragadiddle.
+# R(>)R L R R  L(>)L R L L: a paradiddle whose lead is a same-hand double written as
+# two 32nds, accent on the first stroke.
+title: "R35 Single Dragadiddle"
+chart_type: pattern_study
+rights: original
+tempo: 60
+time: 4/4
+tempo_text: "16ths and 32nds"
+patterns:
+  dragadiddle:
+    sn:       "Xxx-x-x-|Xxx-x-x-|Xxx-x-x-|Xxx-x-x-"
+    sticking: "RRL-R-R-|LLR-L-L-|RRL-R-R-|LLR-L-L-"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: dragadiddle, cue: "Start slow"}
+      - dragadiddle

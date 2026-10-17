@@ -1,0 +1,32 @@
+# Slow 6/8 ballad: 8th notes on the hi-hat, bass drum on 1, snare on 4 (the
+# second dotted-quarter beat). Counted in two big beats, "1 2 3 4 5 6".
+title: "G35 Ballad: Slow 6/8"
+chart_type: pattern_study
+rights: original
+tempo: "4.=50"
+time: 6/8
+tempo_text: Ballad
+patterns:
+  ballad:
+    hh: "xxxxxx"
+    sn: "---x--"
+    bd: "x-----"
+  ballad_b:
+    hh: "xxxxxx"
+    sn: "---x--"
+    bd: "x----x"
+  fill:
+    hh: "xxx---"
+    sn: "---x--"
+    t1: "----x-"
+    ft: "-----x"
+    bd: "x-----"
+    sticking: "---RLR"
+  ending:
+    cr: "x-----"
+    bd: "x-----"
+sections:
+  - label: Ballad
+    bars: [ballad, ballad_b, ballad, fill]
+  - label: Out
+    bars: [ballad_b, ending]

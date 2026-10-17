@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 16: Single Paradiddle.
+# R L R R  L R L L: two singles and a double, accent on each lead stroke. Self-alternating.
+title: "R16 Single Paradiddle"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  paradiddle:
+    sn:       "Xxxx|Xxxx|Xxxx|Xxxx"
+    sticking: "RLRR|LRLL|RLRR|LRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: paradiddle, cue: "Start slow"}
+      - paradiddle

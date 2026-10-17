@@ -1,0 +1,33 @@
+# The hi-hat foot as a voice: 8th notes with the pedal under a ride pattern,
+# then foot splashes (the foot opens the hat with a "chick" that rings), on 2
+# and 4 and on the upbeats.
+title: "G71 Hi-Hat Foot: Pedal 8ths and Splashes"
+chart_type: pattern_study
+rights: original
+tempo: 104
+time: 4/4
+tempo_text: Hi-hat foot
+patterns:
+  pedal:
+    rd: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    hf: "x-x-|x-x-|x-x-|x-x-"
+    bd: "x---|----|x---|----"
+  splash_24:
+    rd: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    hhs: "----|x---|----|x---"
+    bd: "x---|----|x---|----"
+  splash_up:
+    rd: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    hhs: "--x-|--x-|--x-|--x-"
+    bd: "x---|----|x---|----"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Pedal 8ths
+    bars: [pedal, pedal]
+  - label: Splashes
+    bars: [splash_24, splash_24, splash_up, ending]

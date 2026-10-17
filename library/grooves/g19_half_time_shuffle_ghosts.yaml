@@ -1,0 +1,33 @@
+# Half-time shuffle, written out in 8th-note triplets: the hi-hat plays the
+# first and third triplet of each beat, ghost notes fill the middle triplets,
+# the backbeat falls on beat 3.
+title: "G19 Shuffle: Half-Time with Ghost Notes"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: Half-time shuffle
+patterns:
+  half:
+    hh: "x-x|x-x|x-x|x-x"
+    sn: "-g-|-g-|X--|-g-"
+    bd: "x--|--x|---|--x"
+  half_b:
+    hh: "x-x|x-x|x-x|x-x"
+    sn: "-g-|-g-|X--|-gg"
+    bd: "x--|---|--x|---"
+  fill:
+    hh: "x-x|x-x|---|---"
+    sn: "-g-|-g-|Xgg|X--"
+    t1: "---|---|---|-x-"
+    ft: "---|---|---|--x"
+    bd: "x--|--x|---|---"
+    sticking: "---|---|RLL|RLR"
+  ending:
+    cr: "x--|---|---|---"
+    bd: "x--|---|---|---"
+sections:
+  - label: Half-time shuffle
+    bars: [half, half_b, half, fill]
+  - label: Out
+    bars: [half_b, ending]

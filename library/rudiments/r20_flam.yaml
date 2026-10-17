@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 20: Flam.
+# A soft grace note just before a full stroke with the other hand, alternating:
+# lR rL. The sticking names the main stroke.
+title: "R20 Flam"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "Quarter notes"
+patterns:
+  flams:
+    sn:       "f|f|f|f"
+    sticking: "R|L|R|L"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: flams, cue: "Grace note low"}
+      - flams

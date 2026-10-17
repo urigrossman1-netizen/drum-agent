@@ -1,0 +1,35 @@
+# Funk with a syncopated bass drum: the kick lands on the "e" and "a" of the
+# beat, against straight 16ths on the hi-hat with accents on the beats.
+title: "G15 Funk: Syncopated Bass Drum"
+chart_type: pattern_study
+rights: original
+tempo: 100
+time: 4/4
+tempo_text: Funk
+patterns:
+  sync:
+    hh: "Xxxx|Xxxx|Xxxx|Xxxx"
+    sn: "----|x---|----|x---"
+    bd: "x--x|---x|-x-x|----"
+  sync_b:
+    hh: "Xxxx|Xxxx|Xxxx|Xxxo"
+    sn: "----|x---|----|x---"
+    bd: "x-xx|---x|--x-|-x--"
+  sync_c:
+    hh: "Xxxx|Xxxx|Xxxx|Xxxx"
+    sn: "----|x--x|----|x---"
+    bd: "-x-x|----|x--x|--x-"
+  fill:
+    hh: "Xxxx|Xxxx|----|----"
+    sn: "----|x---|X-xx|X-xx"
+    ft: "----|----|-x--|-x--"
+    bd: "x--x|---x|----|----"
+    sticking: "----|----|RRLR|RRLR"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Syncopation
+    bars: [sync, sync_b, sync_c, fill]
+  - label: Out
+    bars: [sync_b, ending]

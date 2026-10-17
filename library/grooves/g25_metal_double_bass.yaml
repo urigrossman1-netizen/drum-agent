@@ -1,0 +1,41 @@
+# Metal with double bass: 16th notes alternating right and left foot (bass
+# drum 2 on the left pedal, written on its own line below the bass drum),
+# under a quarter-note crash or ride and a backbeat snare.
+title: "G25 Metal: Double Bass 16ths"
+chart_type: pattern_study
+rights: original
+tempo: 150
+time: 4/4
+tempo_text: Metal, double bass
+patterns:
+  gallop:
+    cr: "x---|----|----|----"
+    rd: "----|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x-x-|x-x-|x-x-|x-x-"
+    bd2: "-x-x|-x-x|-x-x|-x-x"
+  steady:
+    rd: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x-x-|x-x-|x-x-|x-x-"
+    bd2: "-x-x|-x-x|-x-x|-x-x"
+  bursts:
+    rd: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x-x-|x---|x-x-|x---"
+    bd2: "-x-x|----|-x-x|----"
+  fill:
+    sn: "xxxx|----|xxxx|----"
+    t1: "----|xx--|----|----"
+    ft: "----|--xx|----|xxxx"
+    bd: "x-x-|x-x-|x-x-|x-x-"
+    bd2: "-x-x|-x-x|-x-x|-x-x"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Double bass
+    bars: [gallop, steady, bursts, fill]
+  - label: Out
+    bars: [gallop, ending]

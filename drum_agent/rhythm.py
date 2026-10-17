@@ -533,6 +533,14 @@ def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
     return SpelledMeasure({v: spell_voice(measure, hs) for v, hs in by_voice.items()}, shared_rest=False)
 
 
+def silent_voices(measures: list[Measure], kit: Kit = DEFAULT_KIT) -> set[int]:
+    """Voices with no stroke in any bar: a snare-only rudiment has no cymbal voice and a
+    march written for snare and bass drum none either. They are engraved as one voice,
+    without a column of rests for the empty one."""
+    sounding = {v for m in measures for v, hs in assign_voices(m, kit).items() if hs}
+    return {1, 2} - sounding if sounding else set()
+
+
 def check_tokens(tokens: list[Token], measure: Measure) -> None:
     """Assert the tokens tile the bar exactly (used by exporters and tests)."""
     total = sum((t.dur for t in tokens), Fraction(0))

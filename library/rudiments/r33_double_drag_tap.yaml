@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 33: Double Drag Tap.
+# llR llR L(>)  rrL rrL R(>): two dragged strokes on one hand, then an accented tap
+# on the other, in 8th-note triplet feel (written in 6/8).
+title: "R33 Double Drag Tap"
+chart_type: pattern_study
+rights: original
+tempo: "4.=50"
+time: 6/8
+tempo_text: "8ths (triplet feel)"
+patterns:
+  double_drag_tap:
+    sn:       "ddXddX"
+    sticking: "RRLLLR"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: double_drag_tap, cue: "Accent the tap"}
+      - double_drag_tap

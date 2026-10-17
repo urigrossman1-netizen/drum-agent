@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 30: Flam Drag.
+# lR(>) L L R  rL(>) R R L: an accented flam, a double on the other hand written out
+# as two 16ths, and a tap; one group per dotted-quarter beat in 6/8.
+title: "R30 Flam Drag"
+chart_type: pattern_study
+rights: original
+tempo: "4.=50"
+time: 6/8
+tempo_text: "8ths and 16ths"
+patterns:
+  flam_drag:
+    sn:       "F-xxx-F-xxx-"
+    sticking: "R-LLR-L-RRL-"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: flam_drag, cue: "Start slow"}
+      - flam_drag

@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 29: Inverted Flam Tap.
+# lR(>) L  rL(>) R: an accented flam, then a tap on the opposite hand, in 16ths.
+# The tap hand plays the next flam.
+title: "R29 Inverted Flam Tap"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  inverted:
+    sn:       "FxFx|FxFx|FxFx|FxFx"
+    sticking: "RLLR|RLLR|RLLR|RLLR"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: inverted, cue: "Start slow"}
+      - inverted

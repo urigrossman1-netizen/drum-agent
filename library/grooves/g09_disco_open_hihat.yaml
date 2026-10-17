@@ -1,0 +1,33 @@
+# Disco: 16th notes on the hi-hat with the hat open on every "&", four on the
+# floor, snare on 2 and 4. The open hat closes on the next stroke.
+title: "G09 Disco: Open Hi-Hat on the Offbeats"
+chart_type: pattern_study
+rights: original
+tempo: 118
+time: 4/4
+tempo_text: Disco
+patterns:
+  disco:
+    hh: "x-o-|x-o-|x-o-|x-o-"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+  disco_16:
+    hh: "xxox|xxox|xxox|xxox"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  fill:
+    hh: "xxox|xxox|----|----"
+    sn: "----|x---|xxxx|xx--"
+    t1: "----|----|----|--x-"
+    ft: "----|----|----|---x"
+    bd: "x---|x---|x---|x---"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--o-|x-o-|x-o-|x-o-"
+    sn: "----|x---|----|x---"
+    bd: "x---|x---|x---|x---"
+sections:
+  - label: Disco
+    bars: [disco, disco, disco_16, fill, crash, disco_16]

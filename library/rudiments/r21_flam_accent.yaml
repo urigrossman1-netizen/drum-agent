@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 21: Flam Accent.
+# lR(>) L R  rL(>) R L: an accented flam and two taps, in 8th-note triplet feel
+# (written in 6/8, one group per dotted-quarter beat). Self-alternating.
+title: "R21 Flam Accent"
+chart_type: pattern_study
+rights: original
+tempo: "4.=60"
+time: 6/8
+tempo_text: "8ths (triplet feel)"
+patterns:
+  accent:
+    sn:       "FxxFxx"
+    sticking: "RLRLRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: accent, cue: "Start slow"}
+      - accent

@@ -158,14 +158,32 @@ def _vel(rng, base, spread=10):
 
 
 STYLES = ("rock", "pop", "funk", "disco", "jazz", "jazz_ballad", "shuffle", "metal", "punk", "reggae", "latin",
-          "hiphop", "halftime", "ballad", "train", "electronic", "isolated", "chaos")
-STYLE_WEIGHTS = (10, 8, 8, 4, 8, 4, 5, 6, 4, 4, 5, 5, 4, 5, 3, 3, 6, 4)
+          "hiphop", "halftime", "ballad", "train", "electronic", "isolated", "chaos", "toms")
+STYLE_WEIGHTS = (10, 8, 8, 4, 8, 4, 5, 6, 4, 4, 5, 5, 4, 5, 3, 3, 6, 4, 4)
+
+
+def style_mix() -> tuple[tuple[str, ...], tuple[float, ...]]:
+    """Styles and weights to draw from: DRUM_AGENT_STYLES="toms:5,rock:1" overrides the
+    default mix (a supplementary build that concentrates on what a model gets wrong)."""
+    spec = os.environ.get("DRUM_AGENT_STYLES")
+    if not spec:
+        return STYLES, STYLE_WEIGHTS
+    names, weights = [], []
+    for item in spec.split(","):
+        name, _, w = item.strip().partition(":")
+        if name not in STYLES:
+            raise ValueError(f"unknown style {name!r} in DRUM_AGENT_STYLES (known: {', '.join(STYLES)})")
+        names.append(name)
+        weights.append(float(w or 1))
+    return tuple(names), tuple(weights)
 
 
 def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -> tuple[list[Ev], float, dict]:
     """A random performance; returns events, duration (s) and a description."""
-    style = style or rng.choices(STYLES, STYLE_WEIGHTS)[0]
+    style = style or rng.choices(*style_mix())[0]
     n_toms = len(kit.toms)
+    if style == "toms" and not n_toms:
+        style = "rock"
     has = set(kit.voices)
     if style == "isolated":
         return _isolated(rng, kit), 0.0, {"style": style}
@@ -192,6 +210,11 @@ def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -
     ghost_p = {"funk": 0.35, "rock": 0.08, "pop": 0.06, "hiphop": 0.15, "jazz": 0.25, "shuffle": 0.2,
                "halftime": 0.25, "latin": 0.1, "ballad": 0.05}.get(style, 0.03)
     loud = rng.uniform(70, 118)
+    # Tom grooves: an ostinato on the floor tom (or floor tom and the tom above),
+    # with kick and snare landing on its strokes; the unisons are what make
+    # kick-under-floor-tom and snare-over-floor-tom learnable.
+    ostinato = rng.choice(["8ths", "8ths", "16ths", "quarters"])
+    alternate = n_toms > 1 and rng.random() < 0.4
 
     def at(bar, beat, frac=0.0):
         sub = frac
@@ -239,6 +262,12 @@ def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -
                         add(t, cym, _vel(rng, loud - 10))
                 elif style == "train":
                     pass
+                elif style == "toms":
+                    if ostinato == "16ths" or (ostinato == "8ths" and eighth) or on_beat:
+                        k = n_toms - 1 if not alternate or round(f * 4) % 2 == 0 else n_toms - 2
+                        add(t, f"tom{k}", _vel(rng, loud - (0 if on_beat else 10)))
+                    if on_beat and beat % 2 == 1 and rng.random() < 0.3:
+                        add(t, "hihat_pedal", _vel(rng, 70))
                 else:
                     dens = {"funk": 16, "hiphop": 16, "pop": 8, "rock": 8, "metal": 8, "punk": 8, "ballad": 8,
                             "halftime": 16, "latin": 8, "shuffle": 8}.get(style, 8)
@@ -264,6 +293,8 @@ def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -
                     kp = 0.12 if eighth else 0.02
                 elif style == "train":
                     kp = 0.9 if on_beat and beat % 2 == 0 else 0.0
+                elif style == "toms":
+                    kp = 0.7 if on_beat else 0.3 if eighth else 0.1
                 elif style == "halftime":
                     kp = 0.95 if (beat == 0 and on_beat) else 0.25 if eighth and beat != 2 else 0.08
                 elif kick_p is not None:

@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 25: Single Flammed Mill.
+# lR(>) R L R  rL(>) L R L: a flammed double into two singles (an inverted
+# paradiddle with the flam on the first note of the double).
+title: "R25 Single Flammed Mill"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  mill:
+    sn:       "Fxxx|Fxxx|Fxxx|Fxxx"
+    sticking: "RRLR|LLRL|RRLR|LLRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: mill, cue: "Start slow"}
+      - mill

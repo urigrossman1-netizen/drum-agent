@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 28: Swiss Army Triplet.
+# lR(>) R L in 8th-note triplets: a flam and a tap on the same hand, then the other
+# hand. The same lead repeats every beat.
+title: "R28 Swiss Army Triplet"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "8th-note triplets"
+patterns:
+  swiss:
+    sn:       "Fxx|Fxx|Fxx|Fxx"
+    sticking: "RRL|RRL|RRL|RRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: swiss, cue: "Start slow"}
+      - swiss

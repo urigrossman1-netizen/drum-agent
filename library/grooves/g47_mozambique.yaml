@@ -1,0 +1,32 @@
+# Mozambique-style groove: the right hand plays a 16th-based bell part on the
+# cowbell, the left hand moves between snare and toms, the bass drum marks the
+# "&" of 2 and beat 4. A two-bar phrase, felt in cut time.
+title: "G47 Mozambique: Bell and Toms"
+chart_type: pattern_study
+rights: original
+tempo: 112
+time: 4/4
+tempo_text: Mozambique
+patterns:
+  bar_a:
+    cb: "x-x-|x-xx|-x-x|x-x-"
+    sn: "-x--|----|x---|-x--"
+    t1: "---x|-x--|----|----"
+    ft: "----|----|--x-|---x"
+    bd: "----|--x-|----|x---"
+    hf: "x---|x---|x---|x---"
+  bar_b:
+    cb: "x-xx|-x-x|x-x-|x-xx"
+    sn: "-x--|x---|-x--|----"
+    t1: "----|--x-|----|-x--"
+    ft: "----|----|---x|----"
+    bd: "----|--x-|----|x---"
+    hf: "x---|x---|x---|x---"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Mozambique
+    bars: [bar_a, bar_b, bar_a, bar_b]
+  - label: Out
+    bars: [bar_a, ending]

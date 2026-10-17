@@ -84,6 +84,7 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
                          with_legend=opts.legend)
         if "pdf" in opts.formats:
             res = render(ly, out, stem, png=True)
+            plan, res = _fix_overflow(score, kit, plan, opts, res, out, stem, report)
             fitted = _fit_fewer_pages(score, kit, plan, opts, res, out, stem)
             if fitted is not None:
                 res = fitted
@@ -196,6 +197,59 @@ def _fit_fewer_pages(score, kit, plan, opts, res, out: Path, stem: str):
         if len(trial.pngs) != n - 1 or _compression(trial.warnings) > MAX_COMPRESSION:
             return None
     return render(ly, out, stem, png=True)
+
+
+PAPER_WIDTH_MM = {"letter": 215.9, "legal": 215.9, "a4": 210.0, "a5": 148.0, "a3": 297.0, "tabloid": 279.4}
+RIGHT_MARGIN_MM = 14.0  # export/lilypond.py paper()
+OVERFLOW_MM = 2.0  # ink this far into the right margin: a line too full to fit
+
+
+def _overflow_mm(pngs: list[Path], paper: str) -> float:
+    """How far the widest line's ink reaches past the right margin, in mm (0 if it fits).
+
+    LilyPond gives no warning when a forced line holds more than its minimum
+    width allows (dense 16ths, ghost notes, a sticking letter under every
+    note): the line simply runs off the page. The rendered page shows it."""
+    width = PAPER_WIDTH_MM.get(paper.lower())
+    if width is None or not pngs:
+        return 0.0
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        return 0.0
+    worst = 0.0
+    for png in pngs:
+        ink = np.asarray(Image.open(png).convert("L")) < 128
+        cols = np.nonzero(ink.any(axis=0))[0]
+        if not len(cols):
+            continue
+        px_per_mm = ink.shape[1] / width
+        worst = max(worst, (cols[-1] + 1) / px_per_mm - (width - RIGHT_MARGIN_MM))
+    return max(0.0, worst)
+
+
+def _fix_overflow(score, kit, plan, opts, res, out: Path, stem: str, report: ExportReport):
+    """Re-plan with fewer bars per line when a line runs past the right margin."""
+    from .export.lilypond import to_lilypond
+    from .export.render import render
+
+    over = _overflow_mm(res.pngs, opts.paper)
+    if over <= OVERFLOW_MM:
+        return plan, res
+    tighter = plan_layout(score, repeats=opts.repeats, bars_per_line=opts.bars_per_line * 0.75)
+    ly = to_lilypond(score, kit, tighter, paper_size=opts.paper, staff_size=opts.staff_size,
+                     with_legend=opts.legend)
+    with tempfile.TemporaryDirectory(dir=out) as td:
+        trial_over = _overflow_mm(render(ly, td, stem, png=True).pngs, opts.paper)
+    if trial_over < over:
+        report.notes.append(f"Fewer bars per line: the planned lines were too dense to fit "
+                            f"({over:.0f} mm past the margin).")
+        plan, res, over = tighter, render(ly, out, stem, png=True), trial_over
+    if over > OVERFLOW_MM:
+        report.warnings.append(f"Layout: a line runs {over:.0f} mm past the right margin; "
+                               f"pass --bars-per-line with a smaller number")
+    return plan, res
 
 
 def _without_compression(warnings: list[str]) -> list[str]:

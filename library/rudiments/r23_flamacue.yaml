@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 23: Flamacue.
+# lR L(>) R L lR: a flam, three 16ths with the accent on the second note, and a
+# closing flam on the next beat. Then the same with the left hand leading.
+title: "R23 Flamacue"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  flamacue:
+    sn:       "fXxx|f|fXxx|f"
+    sticking: "RLRL|R|LRLR|L"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: flamacue, cue: "Accent the 2nd note"}
+      - flamacue

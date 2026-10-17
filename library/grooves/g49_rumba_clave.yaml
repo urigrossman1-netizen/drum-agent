@@ -1,0 +1,27 @@
+# 2-3 rumba clave: the cross-stick plays rumba clave (in the 3 side the last
+# note moves to the "&" of 4), the cowbell plays quarter notes, the bass drum
+# the tumbao "&" of 2 and 4.
+title: "G49 Rumba Clave: 2-3 with Cowbell"
+chart_type: pattern_study
+rights: original
+tempo: 96
+time: 4/4
+tempo_text: Afro-Cuban, 2-3 rumba clave
+patterns:
+  two:
+    cb: "x-x-x-x-"
+    cs: "--x-x---"
+    bd: "---x---x"
+  three:
+    cb: "x-x-x-x-"
+    cs: "x--x---x"
+    bd: "---x---x"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Rumba clave
+    cue: 2 side
+    bars: [two, three, two, three]
+  - label: Out
+    bars: [two, ending]

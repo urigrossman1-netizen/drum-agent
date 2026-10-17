@@ -78,6 +78,7 @@ def track_beats(onset_env: np.ndarray, duration: float, bpm_hint: float | None =
             scored.append((0.0, t0, float(np.atleast_1d(tc)[0]), bc))
             notes.append("tempo varies strongly; beats were tracked freely (check the tempo marks)")
         scored.sort(key=lambda x: -x[0])
+        scored = _rescore_ties(scored, hits or [])
         best_score, _, tempo, beats = scored[0]
         for sc, _, tc, _ in scored[1:]:
             ratio = tc / tempo
@@ -109,6 +110,35 @@ def track_beats(onset_env: np.ndarray, duration: float, bpm_hint: float | None =
             beats = shifted
             notes.append("beat phase corrected by half a beat (syncopated pattern)")
     return tempo, beats, notes
+
+
+TIE = 0.85  # a tempo candidate within this share of the best score is a near tie
+STEADY = 0.95  # a regular grid explaining this share of the DP beats' fit: steady music
+
+
+def _rescore_ties(scored: list, hits: list[DrumHit]) -> list:
+    """Re-rank near-tied tempo candidates by their best regular grid.
+
+    DP beats bend toward the strokes, and at double tempo they have twice as many
+    beats to bend, so a dense take (ghost notes, rolls, a band) can score the
+    double-time reading as high as the true one. A constant grid can't bend. If
+    one candidate's constant grid explains the strokes nearly as well as its DP
+    beats, the music is steady and the tied candidates are ranked by their
+    constant grids; music whose tempo moves keeps the DP ranking."""
+    if len(hits) < 8 or len(scored) < 2:
+        return scored
+    tied = [s for s in scored if s[0] > TIE * scored[0][0]]
+    if len(tied) < 2:
+        return scored
+    regs = []
+    for sc, c, tc, bc in tied:
+        reg = _regular_grid(hits, bc, tc)
+        regs.append(reg[2] if reg else 0.0)
+    j = int(np.argmax(regs))
+    if regs[j] < STEADY * tied[j][0]:
+        return scored
+    rescored = sorted(((r, c, tc, bc) for r, (_, c, tc, bc) in zip(regs, tied)), key=lambda x: -x[0])
+    return rescored + scored[len(tied):]
 
 
 def _regular_grid(hits: list[DrumHit], beats: np.ndarray, tempo: float):

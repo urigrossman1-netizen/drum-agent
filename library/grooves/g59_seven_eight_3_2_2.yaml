@@ -1,0 +1,32 @@
+# 7/8 grouped 3+2+2: counted "1 2 3, 1 2, 1 2", the long group first. The
+# bass drum marks each group, the snare the second and third.
+title: "G59 Odd Meter: 7/8 (3+2+2)"
+chart_type: pattern_study
+rights: original
+tempo: 176
+time: 7/8
+beat_groups: "3+2+2"
+tempo_text: "7/8, 3+2+2"
+patterns:
+  seven:
+    hh: "xxx|xx|xx"
+    sn: "---|x-|x-"
+    bd: "x-x|--|--"
+  seven_b:
+    rd: "xxx|xx|xx"
+    sn: "---|x-|x-"
+    bd: "x--|-x|--"
+  fill:
+    sn: "xxx|--|--"
+    t1: "---|xx|--"
+    ft: "---|--|xx"
+    bd: "x--|--|--"
+    sticking: "RLR|LR|LR"
+  ending:
+    cr: "x--|--|--"
+    bd: "x--|--|--"
+sections:
+  - label: "3+2+2"
+    bars: [seven, seven, seven_b, fill]
+  - label: Out
+    bars: [seven_b, ending]

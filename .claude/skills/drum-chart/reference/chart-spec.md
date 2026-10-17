@@ -68,7 +68,7 @@ means "written, not detected": nobody has checked it against a recording.
 
 ## Symbols
 `- .` rest · `x` stroke · `X >` accent · `g` ghost · `o` open hi-hat (hh line) ·
-`h` half-open hi-hat · `f` flam · `F` accented flam · `d` drag · `r` roll (`~`
+`h` half-open hi-hat · `f` flam · `F` accented flam · `d` drag · `D` accented drag · `r` roll (`~`
 extends it) · `c` choke.
 
 ## Validation (errors are explicit)

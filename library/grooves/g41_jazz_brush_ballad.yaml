@@ -1,0 +1,31 @@
+# Jazz ballad in the brush style, written for sticks: soft 8th notes on the
+# snare stand for the left hand's sweep, the ride (or a right-hand brush) plays
+# the quarter notes, the hi-hat foot closes on 2 and 4.
+title: "G41 Jazz: Ballad, Brush Style"
+chart_type: pattern_study
+rights: original
+tempo: 62
+time: 4/4
+swing: true
+tempo_text: Swing ballad
+patterns:
+  ballad:
+    rd: "x-x-x-x-"
+    sn: "gggggggg"
+    hf: "--x---x-"
+    bd: "g-------"
+  ballad_b:
+    rd: "x-xxx-xx"
+    sn: "ggggggXg"
+    hf: "--x---x-"
+    bd: "g---g---"
+  ending:
+    rd: "x-------"
+    sn: "x-------"
+    bd: "g-------"
+sections:
+  - label: Ballad
+    cue: brushes
+    bars: [ballad, ballad, ballad_b, ballad]
+  - label: Out
+    bars: [ballad_b, ending]

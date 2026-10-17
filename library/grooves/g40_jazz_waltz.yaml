@@ -1,0 +1,33 @@
+# Jazz waltz in 3/4: the ride plays 1, 2, the swung "&" of 2, 3; the hi-hat foot
+# closes on 2 (or 2 and 3), the bass drum feathers beat 1, the snare comps.
+title: "G40 Jazz: Waltz"
+chart_type: pattern_study
+rights: original
+tempo: 150
+time: 3/4
+swing: true
+tempo_text: Jazz waltz, swing
+patterns:
+  waltz:
+    rd: "x-xxx-"
+    hf: "--x---"
+    bd: "g-----"
+  waltz_comp:
+    rd: "x-xxx-"
+    sn: "-----x"
+    hf: "--x---"
+    bd: "g-----"
+  waltz_b:
+    rd: "x-xxx-"
+    sn: "---x--"
+    hf: "--x-x-"
+    bd: "g-----"
+  ending:
+    rd: "x-----"
+    sn: "x-----"
+    bd: "x-----"
+sections:
+  - label: Waltz
+    bars: [waltz, waltz_comp, waltz, waltz_b]
+  - label: Out
+    bars: [waltz_comp, ending]

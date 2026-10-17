@@ -1,0 +1,35 @@
+# Bossa nova: 8th notes on the closed hi-hat (or ride), the cross-stick playing
+# the two-bar bossa clave, the bass drum on 1 and the "&" of 2, 3 and the "&" of
+# 4 (the surdo feel), the hi-hat foot on 2 and 4.
+title: "G44 Bossa Nova: Cross-Stick Clave"
+chart_type: pattern_study
+rights: original
+tempo: 132
+time: 4/4
+tempo_text: Bossa nova
+patterns:
+  clave_a:
+    hh: "xxxxxxxx"
+    cs: "x--x--x-"
+    bd: "x--xx--x"
+  clave_b:
+    hh: "xxxxxxxx"
+    cs: "--x--x--"
+    bd: "x--xx--x"
+  ride_a:
+    rd: "xxxxxxxx"
+    cs: "x--x--x-"
+    bd: "x--xx--x"
+  ride_b:
+    rd: "xxxxxxxx"
+    cs: "--x--x--"
+    bd: "x--xx--x"
+  ending:
+    rd: "x-------"
+    cs: "x-------"
+    bd: "x-------"
+sections:
+  - label: Hi-hat
+    bars: [clave_a, clave_b, clave_a, clave_b]
+  - label: Ride
+    bars: [ride_a, ride_b, ride_a, ending]

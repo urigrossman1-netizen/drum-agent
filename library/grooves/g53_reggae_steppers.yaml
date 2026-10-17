@@ -1,0 +1,30 @@
+# Reggae steppers: four on the floor in the bass drum, the cross-stick or
+# snare on 3, the hi-hat on the upbeats.
+title: "G53 Reggae: Steppers"
+chart_type: pattern_study
+rights: original
+tempo: 78
+time: 4/4
+tempo_text: Reggae, steppers
+patterns:
+  steppers:
+    hh: "-x-x-x-x"
+    cs: "----x---"
+    bd: "x-x-x-x-"
+  steppers_b:
+    hh: "-x-x-x-o"
+    sn: "----x---"
+    bd: "x-x-x-x-"
+  fill:
+    hh: "-x-x----"
+    sn: "----xxxx"
+    bd: "x-x-x-x-"
+    sticking: "----RLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Steppers
+    bars: [steppers, steppers, steppers_b, fill]
+  - label: Out
+    bars: [steppers_b, ending]

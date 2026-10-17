@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 27: Pataflafla.
+# lR(>) L R rL(>): four alternating 16ths with accented flams on the first and
+# last notes. Every group starts with the right hand.
+title: "R27 Pataflafla"
+chart_type: pattern_study
+rights: original
+tempo: 60
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  pataflafla:
+    sn:       "FxxF|FxxF|FxxF|FxxF"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: pataflafla, cue: "Start slow"}
+      - pataflafla

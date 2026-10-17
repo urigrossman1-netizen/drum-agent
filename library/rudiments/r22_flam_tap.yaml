@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 22: Flam Tap.
+# lR(>) R  rL(>) L: an accented flam and a tap on the same hand, in 16ths.
+title: "R22 Flam Tap"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  taps:
+    sn:       "FxFx|FxFx|FxFx|FxFx"
+    sticking: "RRLL|RRLL|RRLL|RRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: taps, cue: "Start slow"}
+      - taps

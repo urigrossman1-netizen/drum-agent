@@ -1,0 +1,30 @@
+# Country train beat: 16th notes on the snare, alternating hands, accents on 2
+# and 4 (and the "a" in the variation), the bass drum on 1 and 3. Often played
+# with brushes or sticks on a snare with the snares on.
+title: "G30 Country: Train Beat"
+chart_type: pattern_study
+rights: original
+tempo: 150
+time: 4/4
+tempo_text: Country, train beat
+patterns:
+  train:
+    sn: "gggg|Xggg|gggg|Xggg"
+    bd: "x---|----|x---|----"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  train_b:
+    sn: "gggX|Xggg|gggX|Xggg"
+    bd: "x---|----|x---|----"
+    sticking: "RLRL|RLRL|RLRL|RLRL"
+  fill:
+    sn: "gggg|Xggg|X-X-|X-X-"
+    bd: "x---|----|x---|x---"
+    sticking: "RLRL|RLRL|R-L-|R-L-"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Train beat
+    bars: [train, train, train_b, fill]
+  - label: Out
+    bars: [train_b, ending]

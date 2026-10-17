@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 17: Double Paradiddle.
+# R L R L R R  L R L R L L: four singles and a double, accent on each lead stroke.
+# Six strokes to the dotted-quarter beat, so it is written in 16ths in 6/8.
+title: "R17 Double Paradiddle"
+chart_type: pattern_study
+rights: original
+tempo: "4.=60"
+time: 6/8
+tempo_text: "16ths"
+patterns:
+  double:
+    sn:       "XxxxxxXxxxxx"
+    sticking: "RLRLRRLRLRLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: double, cue: "Start slow"}
+      - double

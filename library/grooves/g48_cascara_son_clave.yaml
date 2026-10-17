@@ -1,0 +1,27 @@
+# Cascara with 3-2 son clave: the right hand plays cascara on the shell (here
+# the ride), the left hand plays son clave on the cross-stick, the bass drum
+# marks the "&" of 2 and beat 4 (bombo and ponche).
+title: "G48 Cascara: with 3-2 Son Clave"
+chart_type: pattern_study
+rights: original
+tempo: 100
+time: 4/4
+tempo_text: Afro-Cuban, 3-2 son clave
+patterns:
+  three:
+    rd: "x-xx-x-x"
+    cs: "x--x--x-"
+    bd: "---x---x"
+  two:
+    rd: "x-x-xx-x"
+    cs: "--x-x---"
+    bd: "---x---x"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Cascara
+    cue: 3 side
+    bars: [three, two, three, two]
+  - label: Out
+    bars: [three, ending]

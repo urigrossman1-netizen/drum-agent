@@ -1,0 +1,42 @@
+# Half-time feel: the snare moves to beat 3, so the groove feels half as fast
+# while the cymbal keeps 8th notes at the full tempo. Hi-hat first, then ride.
+title: "G04 Rock: Half-Time Feel"
+chart_type: pattern_study
+rights: original
+tempo: 136
+time: 4/4
+tempo_text: Rock, half-time feel
+patterns:
+  half:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|----|x---|----"
+    bd: "x---|--x-|----|----"
+  half_b:
+    hh: "x-x-|x-x-|x-x-|x-o-"
+    sn: "----|----|x---|---g"
+    bd: "x---|--xx|----|x---"
+  fill:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|----|x---|xx--"
+    t1: "----|----|--x-|----"
+    t2: "----|----|----|--x-"
+    ft: "----|----|----|---x"
+    bd: "x---|--x-|----|----"
+    sticking: "----|----|L-R-|RLRL"
+  ride_crash:
+    cr: "x---|----|----|----"
+    rd: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|----|x---|----"
+    bd: "x---|--x-|----|----"
+  ride:
+    rd: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|----|x---|---g"
+    bd: "x---|--xx|----|x---"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Hi-hat
+    bars: [half, half, half_b, fill]
+  - label: Ride
+    bars: [ride_crash, ride, half_b, ending]

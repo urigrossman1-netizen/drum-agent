@@ -1,0 +1,27 @@
+# Mambo bell pattern on the cowbell over 2-3 son clave: the bell's two-bar
+# figure (one common version) with cross-stick clave and the bass drum on the
+# "&" of 2 and on 4; felt in cut time.
+title: "G50 Mambo: Bell Pattern"
+chart_type: pattern_study
+rights: original
+tempo: 108
+time: 4/4
+tempo_text: Mambo, 2-3 clave
+patterns:
+  two:
+    cb: "x-x-xx-x"
+    cs: "--x-x---"
+    bd: "---x---x"
+  three:
+    cb: "x-xx-xx-"
+    cs: "x--x--x-"
+    bd: "---x---x"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Mambo
+    cue: 2 side
+    bars: [two, three, two, three]
+  - label: Out
+    bars: [two, ending]

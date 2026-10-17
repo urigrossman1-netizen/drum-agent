@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 7: Five Stroke Roll.
+# Two doubles into an accented single: R R L L R(>), then L L R R L(>).
+# Doubles written out as 16ths, the release on the next beat.
+title: "R07 Five Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "16ths"
+patterns:
+  five:
+    sn:       "xxxx|X|xxxx|X"
+    sticking: "RRLL|R|LLRR|L"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: five, cue: "Start slow"}
+      - five

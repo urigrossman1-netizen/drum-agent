@@ -13,7 +13,7 @@ from fractions import Fraction
 from ..kit import DEFAULT_KIT, Kit
 from ..layout import LayoutPlan, PrintedBar, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import SpelledMeasure, Token, check_tokens, spell_measure
+from ..rhythm import SpelledMeasure, Token, check_tokens, silent_voices, spell_measure
 
 LY_VERSION = "2.24.0"  # minimum syntax level; rendered with 2.26 where available
 
@@ -412,6 +412,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     repeat structure, and the texts the sticking line prints in order."""
     w = _Writer(score, kit, plan)
     spelled: dict[int, SpelledMeasure] = {}
+    silent = silent_voices(score.measures, kit)
 
     def spelled_bar(idx: int) -> SpelledMeasure:
         if idx not in spelled:
@@ -475,6 +476,10 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             down = _skip(m.actual_length)
         else:
             down = w.voice_bar(sm.voices[2], 2, m)
+        if 1 in silent:  # one-voice chart: the lower voice carries everything, rests included
+            up, down = _skip(m.actual_length), (up if sm.shared_rest else down)
+        elif 2 in silent:
+            down = _skip(m.actual_length)
         if grace and not g_up:
             up = f"\\tag #'graces \\grace {{ {grace} }} " + up
         if grace and not g_down:
@@ -514,6 +519,13 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             open_volta = False
     if open_volta:
         raise AssertionError("unterminated volta in layout plan")
+    # The only voice left is engraved as one voice, stems up and accents above (as a snare
+    # part or rudiment sheet is; below, they would sit under the bass drum).
+    one = "\\oneVoice \\stemUp \\override Script.direction = #UP"
+    if 1 in silent:
+        down_out.insert(0, one)
+    elif 2 in silent:
+        up_out.insert(0, one)
     return ("\n  ".join(g_out), "\n  ".join(up_out), "\n  ".join(down_out), "\n  ".join(stick_out),
             syllables)
 

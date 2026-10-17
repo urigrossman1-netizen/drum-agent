@@ -1,0 +1,43 @@
+# Open hi-hat "barks": the hi-hat opens on an upbeat (o) and the next stick
+# stroke closes it (+). In the second half the foot closes it on 2 and 4
+# (x below the staff), so the stick stroke after it needs no "+".
+title: "G06 Rock: Open Hi-Hat Barks"
+chart_type: pattern_study
+rights: original
+tempo: 108
+time: 4/4
+tempo_text: Rock
+patterns:
+  bark4:
+    hh: "xxxxxxxo"
+    sn: "--x---x-"
+    bd: "x---x---"
+  bark24:
+    hh: "xxxoxxxo"
+    sn: "--x---x-"
+    bd: "x--xx---"
+  bark16:
+    hh: "x-x-|x-x-|x-x-|x-xo"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x--x|----"
+  foot:
+    hh: "xo-xxo-x"
+    hf: "--x---x-"
+    sn: "--x---x-"
+    bd: "x---x---"
+  foot_fill:
+    hh: "x-o-|--x-|----|----"
+    hf: "----|x---|----|----"
+    sn: "----|x---|xxxx|----"
+    t1: "----|----|----|xx--"
+    ft: "----|----|----|--xx"
+    bd: "x---|----|x---|x---"
+    sticking: "----|----|RLRL|RLRL"
+  ending:
+    cr: "x-------"
+    bd: "x-------"
+sections:
+  - label: Stick closes
+    bars: [bark4, bark24, bark4, bark16]
+  - label: Foot closes
+    bars: [foot, foot, foot_fill, ending]

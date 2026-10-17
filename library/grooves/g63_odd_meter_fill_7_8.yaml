@@ -1,0 +1,31 @@
+# A fill in 7/8 (2+2+3) that follows the grouping: 16ths around the kit, the
+# accents on the start of each group, ending into a crash on the next 1.
+title: "G63 Odd Meter: Fill in 7/8"
+chart_type: pattern_study
+rights: original
+tempo: 132
+time: 7/8
+beat_groups: "2+2+3"
+tempo_text: "7/8, 2+2+3"
+patterns:
+  groove:
+    hh: "xx|xx|xxx"
+    sn: "--|x-|-x-"
+    bd: "x-|-x|x--"
+  fill:
+    sn: "Xxxx|----|------"
+    t1: "----|Xxxx|------"
+    t2: "----|----|Xx----"
+    ft: "----|----|--Xxxx"
+    bd: "x---|----|------"
+    sticking: "RLRL|RLRL|RLRLRL"
+  crash:
+    cr: "x-|--|---"
+    hh: "-x|xx|xxx"
+    sn: "--|x-|-x-"
+    bd: "x-|-x|x--"
+sections:
+  - label: Groove
+    bars: [groove, groove, groove, fill]
+  - label: Crash
+    bars: [crash, groove, fill, crash]

@@ -1,16 +1,18 @@
 ---
 name: drum-chart
 description: >-
-  Create professionally engraved drum sheet music (PDF, MusicXML, MIDI) from an
-  audio recording, a MIDI drum track, or a described groove or arrangement, and
-  verify it. Use when the user asks for a drum chart, drum transcription, drum
-  sheet music, drum notation, a drum part or drum-book page for a song, or wants
-  an existing drum chart checked or fixed.
+  Create professionally engraved drum sheet music (PDF, MusicXML, MIDI) from a
+  song name, an audio recording, a MIDI drum track, a Rock Band/Clone Hero
+  chart, or a described groove, rudiment or arrangement, and verify it. Use when
+  the user asks for a drum chart, drum transcription, drum sheet music, drum
+  notation, a drum part or drum-book page for a song, a groove or rudiment
+  written out, or wants an existing drum chart checked or fixed.
 when_to_use: >-
-  Requests like: transcribe the drums in this song; write out this beat; make a
-  drum chart for my song; drum sheet music; notate this groove; turn this MIDI
-  drum track into a chart; my chart has the wrong kick pattern in bar 12.
-argument-hint: "[audio/MIDI/chart file or description]"
+  Requests like: give me the drum chart for <song>; transcribe the drums in this
+  song; write out this beat; make a drum chart for my song; drum sheet music;
+  notate this groove; show me a paradiddle; turn this MIDI drum track or Clone
+  Hero chart into sheet music; my chart has the wrong kick pattern in bar 12.
+argument-hint: "[song name, audio/MIDI/game-chart file, or description]"
 ---
 
 # Drum chart
@@ -36,7 +38,10 @@ MusicXML and MIDI, which are checked against each other automatically.
    they accept or only asked for those, and offer to help find a licensed chart
    (ask for title and artist; suggest the publisher's official transcription or
    an authorised sheet-music retailer; don't claim a specific chart exists
-   unless you checked). Never download from streaming sites or bypass DRM.
+   unless you checked). Never take audio from DRM services (Spotify, Apple
+   Music, Tidal, Deezer, Amazon Music: metadata only) or bypass DRM. Video
+   pages only through the user's own yt-dlp (`song`), and a download is never
+   a rights basis.
 4. **Rendering correctness is not transcription correctness.** "All checks OK"
    means the formats agree with score.json. It does not mean the notes match the
    recording. Say which one you've verified.
@@ -61,14 +66,40 @@ Don't work around a missing engine.
 
 | The user has... | Do | Chart type / status |
 |---|---|---|
+| Only a song name | research it, then `song "TITLE" --artist A` (see "A song by name") | analysis only, or full_transcription / unverified_auto with `--rights` |
 | Audio they may transcribe (rights stated) | `transcribe AUDIO --rights R -o OUT` | full_transcription / unverified_auto |
 | Audio, rights unclear | ask; offer `analyze AUDIO` (see rule 3) | none |
 | A MIDI drum track (e-kit, DAW) | `midi FILE.mid -o OUT` (add `--rights own` etc. when the user states it, so the report records it): exact strokes, but the bar grid still needs checking | full_transcription / unverified_import |
-| A described groove or arrangement | write a chart spec, `render SPEC.yaml -o OUT` | performance_chart or pattern_study / entered |
+| A Rock Band / Clone Hero chart (notes.mid, notes.chart, song folder) | `gamechart PATH -o OUT` ([GAMECHARTS](../../../docs/GAMECHARTS.md)): one lane per colour, so cymbal identity, open hi-hat and ghosts are approximations | full_transcription / unverified_import |
+| A described groove, rudiment or arrangement | start from the closest `library/` chart, write a chart spec, `render SPEC.yaml -o OUT` | performance_chart or pattern_study / entered |
 | An existing score.json to fix | `edit score.json ... --render OUT` | unchanged |
 
 If the request is ambiguous (full transcription or performance chart? paper
 size? section names?), choose the conventional default and say so.
+
+### A song by name
+1. **Identify and research.** Ask for the artist if the title is ambiguous. With
+   WebSearch, look up the song's tempo, time signature, form (intro, verses,
+   choruses, bridge, bar counts) and any meter or tempo changes; prefer two
+   agreeing sources and keep their links. A Spotify search (when connected)
+   confirms the canonical title, artist and length. This is context for hints,
+   never a substitute for listening: nothing from research goes on the page
+   as notes.
+2. **Find audio and analyse:** `python -m drum_agent song "TITLE" --artist "ARTIST"`
+   lists the identified recordings, picks audio (the user's file or library,
+   a direct link, or the user's own yt-dlp), checks its length against the
+   identified recording, and without `--rights` prints tempo, meter and
+   sections only. Read every step it prints; a length mismatch means another
+   version.
+3. **Transcribe only on a stated basis** (rule 3), with the researched hints
+   when the analysis disagrees with them:
+   ```bash
+   python -m drum_agent song "Song Title" --artist "Band" --rights own -o out/song --bpm 96 --sections "Intro:1,Verse:5,Chorus:13"
+   ```
+   `--audio FILE` uses a file the user gave you; `--pick N` another candidate.
+   Details: [docs/SONG_LOOKUP.md](../../../docs/SONG_LOOKUP.md).
+4. Continue with step 3 below (report, pages, QC). In the delivery, list which
+   hints came from research (with the links) and which came from the audio.
 
 ### 2. Produce the score
 Audio:
@@ -80,6 +111,8 @@ Hints that change the result; use them when you have evidence:
 `--time-signature 6/8`, `--downbeat 1.23` (seconds of a beat 1),
 `--sections "Intro:1,Verse:5,Chorus:13"` (score.json bar numbers),
 `--start/--end` (a passage), `--sensitivity 1.3` (soft playing).
+Strokes are labelled by a trained onset classifier ([docs/MODELS.md](../../../docs/MODELS.md));
+`--detector nmf` runs the older template detector for comparison.
 Read [reference/transcription-guide.md](reference/transcription-guide.md)
 before your first audio transcription in a session: it lists what the
 detector misses.
@@ -104,7 +137,10 @@ the console lines. Check, in this order:
 2. **The grid**: `tempo ambiguous`, `meter uncertain`, `downbeat placement
    uncertain`, a `pickup` line, and any "falls inside a bar" warning. A wrong
    grid is the most damaging error, because every bar inherits it.
-3. **Warnings**, e.g. the kick-density (bass bleed) warning.
+3. **Warnings**, e.g. the kick-density (bass bleed) warning, and the
+   **Playability** section: strokes one drummer can't play together (three
+   hands, an open hi-hat as the foot closes it) mean a stroke on the wrong
+   instrument in a transcription, or a typo in a chart spec.
 4. **Flagged bars**, listed as `printed (score.json)` pairs with reasons.
 5. **Instrument counts** for plausibility: toms in a song with no fills?
    Hundreds of kicks?
@@ -170,13 +206,26 @@ format, symbols and examples from simple to full song are in
   go through the QC checklist, deliver with assumptions.
 
 ## Notation standard
-Weinberg / Percussive Arts Society layout: hands stems up, feet stems down.
-The full map is in [reference/notation.md](reference/notation.md); the
-authoritative spec is `docs/NOTATION_SPEC.md`. Don't override positions unless
-the user asks; then use `--kit my_kit.json`, and the Drum Key on page 1 will
-show the change.
+The user's reference chart sets the house style (`--voicing cymbals-up`, the
+default): hi-hat and cymbals stems up; snare, toms and kick together stems
+down, as in Guitar Pro and Songsterr charts; sticking under the staff, cues
+above it, "Swing" with its rhythm. `--voicing hands-up` gives the
+Weinberg/PAS drum-book layout (hands up, feet down) when asked for. The full
+map is in [reference/notation.md](reference/notation.md); the authoritative
+spec is `docs/NOTATION_SPEC.md`. Don't override positions unless the user
+asks; then use `--kit my_kit.json`, and the Drum Key on page 1 will show the
+change.
+
+## The chart library
+`library/rudiments/` (the 40 PAS rudiments, with sticking) and
+`library/grooves/` (73 grooves and fills across styles) are original pattern
+studies that render as they are. For "write out a <style> groove" or "show me
+a <rudiment>", start from the closest one, adapt it to what was asked, and say
+which chart you started from.
 
 ## When things go wrong
 See [reference/troubleshooting.md](reference/troubleshooting.md): LilyPond
 errors, verification mismatches, unsupported rhythms (quintuplets), chart-spec
 grid errors, MIDI without channel 10 or with a pickup, slow or noisy audio.
+`song` problems (nothing identified, no audio, yt-dlp missing, wrong version)
+are explained in the lines it prints and in [docs/SONG_LOOKUP.md](../../../docs/SONG_LOOKUP.md).

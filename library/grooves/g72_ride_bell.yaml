@@ -1,0 +1,30 @@
+# Ride bell patterns: quarter notes on the bell (diamond heads), then the bell
+# on the beats with the bow on the "&"s, then a Latin-rock bell figure.
+title: "G72 Ride Bell: Patterns"
+chart_type: pattern_study
+rights: original
+tempo: 116
+time: 4/4
+tempo_text: Rock, ride bell
+patterns:
+  quarters:
+    rb: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  bell_bow:
+    rb: "x---|x---|x---|x---"
+    rd: "--x-|--x-|--x-|--x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  latin_rock:
+    rb: "x--x|--x-|x--x|--x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|---x|x---|----"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Bell
+    bars: [quarters, quarters, bell_bow, bell_bow]
+  - label: Latin rock
+    bars: [latin_rock, latin_rock, latin_rock, ending]

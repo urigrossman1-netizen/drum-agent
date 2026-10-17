@@ -15,13 +15,14 @@ def one_bar(pattern, **kw):
 
 
 def test_symbols():
-    m = one_bar({"sn": "xXgf" "Fdr~" "----" "----", "hh": "o---h---x-------", "cr": "c---------------"})
+    m = one_bar({"sn": "xXgf" "Fdr~" "D---" "----", "hh": "o---h---x-------", "cr": "c---------------"})
     by = {(h.pos, h.inst): h for h in m.hits}
     assert by[(F(1, 16), "snare")].accent
     assert by[(F(2, 16), "snare")].ghost
     assert by[(F(3, 16), "snare")].flam
     assert by[(F(4, 16), "snare")].flam and by[(F(4, 16), "snare")].accent
-    assert by[(F(5, 16), "snare")].drag
+    assert by[(F(5, 16), "snare")].drag and not by[(F(5, 16), "snare")].accent
+    assert by[(F(8, 16), "snare")].drag and by[(F(8, 16), "snare")].accent  # D: accented drag
     assert by[(F(6, 16), "snare")].roll == F(2, 16)
     assert (F(0), "hihat_open") in by and (F(1, 4), "hihat_half") in by
     assert by[(F(0), "crash")].choke

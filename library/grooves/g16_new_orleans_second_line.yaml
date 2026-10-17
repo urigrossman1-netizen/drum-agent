@@ -1,0 +1,32 @@
+# New Orleans second line: a marching street beat on the snare with accents,
+# ghost notes and press rolls (buzz, r~), over a bass drum that pushes the
+# "a" of 2 and lands on 4. Played with a loose, slightly swung 16th feel.
+title: "G16 New Orleans: Second Line"
+chart_type: pattern_study
+rights: original
+tempo: 96
+time: 4/4
+tempo_text: Second line, loose 16ths
+patterns:
+  street:
+    sn: "X-gX|-gX-|gXgg|r~X-"
+    bd: "x---|---x|----|x---"
+    sticking: "R-LR|-LR-|LRLR|R-L-"
+  street_b:
+    sn: "X-gX|-gX-|r~X-|gXgX"
+    bd: "x---|---x|--x-|x---"
+    sticking: "R-LR|-LR-|L-R-|LRLR"
+  cymbal:
+    cr: "x---|----|----|----"
+    sn: "--gX|-gX-|gXgg|r~X-"
+    bd: "x---|---x|----|x---"
+    sticking: "--LR|-LR-|LRLR|R-L-"
+  ending:
+    sn: "r~~~|X---|----|----"
+    bd: "----|x---|----|----"
+    sticking: "R---|L---|----|----"
+sections:
+  - label: Street beat
+    bars: [street, street_b, street, cymbal]
+  - label: Out
+    bars: [street_b, ending]

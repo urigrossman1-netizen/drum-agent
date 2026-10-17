@@ -1,0 +1,28 @@
+# Polka in 2/4: bass drum on the beats, snare on the "&"s ("oom-pah"),
+# bright and fast, with a snare pickup into the repeat.
+title: "G32 Polka: Oom-Pah in 2/4"
+chart_type: pattern_study
+rights: original
+tempo: 120
+time: 2/4
+tempo_text: Polka
+patterns:
+  polka:
+    sn: "-x-x"
+    bd: "x-x-"
+  polka_cr:
+    cr: "x---"
+    sn: "-x-x"
+    bd: "x-x-"
+  pickup:
+    sn: "-xxx|xxxx"
+    bd: "x---|----"
+    sticking: "-RLR|LRLR"
+  ending:
+    cr: "x---"
+    bd: "x---"
+sections:
+  - label: Polka
+    bars: [polka_cr, polka, polka, polka, polka_cr, polka, polka, pickup]
+  - label: Out
+    bars: [polka_cr, ending]

@@ -1,0 +1,30 @@
+# Baião (northeast Brazil) in 2/4: the bass drum plays the zabumba rhythm
+# (1, the "a" of 1, the "&" of 2), 16ths on the hi-hat like the triangle with
+# the hat opening on the "a", the cross-stick on 2.
+title: "G57 Baião: Zabumba Kick"
+chart_type: pattern_study
+rights: original
+tempo: 92
+time: 2/4
+tempo_text: Baião
+patterns:
+  baiao:
+    hh: "xxxo|xxxo"
+    cs: "----|x---"
+    bd: "x--x|--x-"
+  baiao_b:
+    hh: "xxxo|xxxx"
+    cs: "----|x---"
+    bd: "x--x|--x-"
+  fill:
+    sn: "xxxx|x-x-"
+    bd: "x--x|--x-"
+    sticking: "RLRL|R-L-"
+  ending:
+    cr: "x---|----"
+    bd: "x---|----"
+sections:
+  - label: Baião
+    bars: [baiao, baiao, baiao_b, baiao, baiao, baiao_b, baiao, fill]
+  - label: Out
+    bars: [ending]

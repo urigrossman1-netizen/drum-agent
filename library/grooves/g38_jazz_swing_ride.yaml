@@ -1,0 +1,32 @@
+# The jazz ride pattern: "ding, ding-a ding, ding-a" on the ride (1, 2, the
+# swung "&" of 2, 3, 4, the "&" of 4), the hi-hat foot closing on 2 and 4.
+# Written in straight 8ths under the Swing marking.
+title: "G38 Jazz: Swing Ride Pattern"
+chart_type: pattern_study
+rights: original
+tempo: 144
+time: 4/4
+swing: true
+tempo_text: Swing
+patterns:
+  ride:
+    rd: "x-xxx-xx"
+    hf: "--x---x-"
+  ride_kick:
+    rd: "x-xxx-xx"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  turn:
+    rd: "x-xxx-xx"
+    sn: "-----x-x"
+    hf: "--x---x-"
+    bd: "g-g-g-g-"
+  ending:
+    rd: "x-------"
+    sn: "x-------"
+    bd: "x-------"
+sections:
+  - label: Ride and hi-hat
+    bars: [ride, ride, ride_kick, turn]
+  - label: Out
+    bars: [ride_kick, ending]

@@ -1,0 +1,17 @@
+# PAS International Drum Rudiment 5: Triple Stroke Roll.
+# Three strokes per hand, R R R L L L, in 8th-note triplets.
+title: "R05 Triple Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 4/4
+tempo_text: "8th-note triplets"
+patterns:
+  triples:
+    sn:       "xxx|xxx|xxx|xxx"
+    sticking: "RRR|LLL|RRR|LLL"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: triples, cue: "Start slow"}
+      - triples

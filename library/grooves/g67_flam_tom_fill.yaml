@@ -1,0 +1,38 @@
+# Flam fill on the toms: 8th-note flams moving down the kit, then flam accents
+# in triplets. The grace note is played by the other hand; the sticking names
+# the hand of the main stroke.
+title: "G67 Fill: Flams on the Toms"
+chart_type: pattern_study
+rights: original
+tempo: 88
+time: 4/4
+tempo_text: Rock
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  flams:
+    sn: "f-f-|----|----|----"
+    t1: "----|f-f-|----|----"
+    t2: "----|----|f-f-|----"
+    ft: "----|----|----|f-f-"
+    bd: "x---|x---|x---|x---"
+    sticking: "R-L-|R-L-|R-L-|R-L-"
+  flam_accents:
+    hh: "x-x-|x-x-|---|---"
+    sn: "----|x---|Fxx|---"
+    t1: "----|----|---|F--"
+    ft: "----|----|---|-xx"
+    bd: "x---|----|x--|x--"
+    sticking: "----|----|RLR|LRL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+sections:
+  - label: Flams
+    bars: [groove, groove, groove, flams]
+  - label: Flam accents
+    bars: [crash, groove, flam_accents, crash]

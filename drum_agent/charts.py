@@ -24,7 +24,7 @@ Pattern strings: characters divide the bar evenly, or, if the string contains
     - .   no stroke             x  stroke              X >  accent
     g     ghost note            o  open hi-hat (hh line only)
     h     half-open hi-hat      f  flam   F accented flam
-    d     drag (ruff)           r  roll; extend it with ~ ("r~~~")
+    d     drag (ruff)   D accented drag   r  roll; extend it with ~ ("r~~~")
     c     cymbal choke
 """
 
@@ -39,7 +39,7 @@ from typing import Any
 from .kit import DEFAULT_KIT, Kit
 from .model import CHART_TYPES, Hit, Measure, Score, ScoreError, TimeSig
 
-_SYMBOLS = set("-.xX>goh fFdrc~")
+_SYMBOLS = set("-.xX>goh fFdDrc~")
 
 
 class ChartSpecError(ScoreError):
@@ -198,8 +198,9 @@ def _hits_from_pattern(pattern: dict[str, str], ts: TimeSig, length: Fraction | 
             elif ch in "fF":
                 h.flam = True
                 h.accent = ch == "F"
-            elif ch == "d":
+            elif ch in "dD":
                 h.drag = True
+                h.accent = ch == "D"
             elif ch == "r":
                 h.roll = roll
             elif ch == "c":

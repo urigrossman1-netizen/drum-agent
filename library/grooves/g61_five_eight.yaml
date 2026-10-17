@@ -1,0 +1,31 @@
+# 5/8 grouped 3+2: one long and one short beat, "1 2 3, 1 2". The bass drum on
+# the long beat, the snare on the short one.
+title: "G61 Odd Meter: 5/8 Groove"
+chart_type: pattern_study
+rights: original
+tempo: 184
+time: 5/8
+beat_groups: "3+2"
+tempo_text: "5/8, 3+2"
+patterns:
+  five:
+    hh: "xxx|xx"
+    sn: "---|x-"
+    bd: "x--|--"
+  five_b:
+    hh: "xxx|xx"
+    sn: "---|xx"
+    bd: "x-x|--"
+  fill:
+    sn: "xxx|--"
+    ft: "---|xx"
+    bd: "x--|--"
+    sticking: "RLR|LR"
+  ending:
+    cr: "x--|--"
+    bd: "x--|--"
+sections:
+  - label: "3+2"
+    bars: [five, five_b, five, five_b, five, fill]
+  - label: Out
+    bars: [ending]

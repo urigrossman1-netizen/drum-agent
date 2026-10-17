@@ -99,6 +99,11 @@ def _weight(m: Measure) -> float:
         w = 2.0
     if tuplets and n > 10:
         w = max(w, 1.4)
+    # Parenthesized ghost notes are wider than plain heads, and a sticking letter
+    # under every 16th needs its own room: four such bars overflow a line.
+    ghosts = sum(1 for h in m.hits if h.ghost)
+    letters = sum(1 for h in m.hits if h.sticking)
+    w = max(w, (n + 0.5 * ghosts) / 16, letters / 13)
     length = float(m.actual_length)
     if length > 1:  # long bars (5/4, 12/8 ...)
         w *= length

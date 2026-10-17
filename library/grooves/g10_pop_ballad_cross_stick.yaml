@@ -1,0 +1,38 @@
+# Pop ballad: 8th notes on the hi-hat, cross-stick on 2 and 4 in the verse
+# (the stick laid across the snare, clicking on the rim), full snare in the
+# chorus with a crash on 1.
+title: "G10 Pop Ballad: Cross-Stick Verse"
+chart_type: pattern_study
+rights: original
+tempo: 72
+time: 4/4
+tempo_text: Pop ballad
+patterns:
+  verse:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    cs: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  verse_b:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    cs: "----|x---|----|x---"
+    bd: "x---|---x|x---|--x-"
+  fill:
+    hh: "x-x-|x-x-|----|----"
+    cs: "----|x---|----|----"
+    sn: "----|----|x-xx|x-xx"
+    bd: "x---|----|x---|----"
+    sticking: "----|----|R-LR|L-RL"
+  chorus:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|---x|x---|----"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Verse
+    cue: Cross-stick
+    bars: [verse, verse_b, verse, fill]
+  - label: Chorus
+    bars: [chorus, chorus, ending]

@@ -1,0 +1,31 @@
+# Motown: the snare on every beat, hi-hat 8ths, a busy bass drum. The snare
+# quarters drive the groove; the bass drum dances around them.
+title: "G12 Motown: Snare on Every Beat"
+chart_type: pattern_study
+rights: original
+tempo: 120
+time: 4/4
+tempo_text: Motown
+patterns:
+  four:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "x---|x---|x---|x---"
+    bd: "x--x|--x-|x--x|--x-"
+  four_b:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "x---|X---|x---|X---"
+    bd: "x---|--xx|x---|--x-"
+  pickup:
+    hh: "x-x-|x-x-|x-x-|----"
+    sn: "x---|X---|x---|xxxx"
+    bd: "x--x|--x-|x---|----"
+    sticking: "----|----|----|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    sn: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Groove
+    bars: [four, four_b, four, pickup]
+  - label: Out
+    bars: [four_b, ending]

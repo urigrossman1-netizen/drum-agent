@@ -1,0 +1,39 @@
+# Rock on the ride: quarter notes on the ride bow, a crash with the kick on
+# beat 1 of each phrase (the crash replaces the ride stroke there), and an
+# 8th-note ride variation with the bell on the beats.
+title: "G07 Rock: Ride Cymbal with Crash on 1"
+chart_type: pattern_study
+rights: original
+tempo: 112
+time: 4/4
+tempo_text: Rock, ride cymbal
+patterns:
+  crash_one:
+    cr: "x---|----|----|----"
+    rd: "----|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  quarters:
+    rd: "x---|x---|x---|x---"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x-x-|----"
+  eighths:
+    rb: "x---|x---|x---|x---"
+    rd: "--x-|--x-|--x-|--x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  fill:
+    rd: "x---|x---|----|----"
+    sn: "----|x---|xxxx|xx--"
+    t1: "----|----|----|--x-"
+    ft: "----|----|----|---x"
+    bd: "x---|----|x---|x---"
+    sticking: "R---|L---|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Quarter-note ride
+    bars: [crash_one, quarters, quarters, fill]
+  - label: Bell on the beats
+    bars: [crash_one, eighths, eighths, ending]

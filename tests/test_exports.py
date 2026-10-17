@@ -169,3 +169,30 @@ def test_irregular_meter_bar_with_a_silent_voice(tmp_path):
                                                                     "bars": [{"rd": "x-x-x-x"}, {"bd": "x---x--"}]}]})
     report = export_all(score, tmp_path, "s78")
     assert report.rendering_ok
+
+
+def test_one_voice_chart_has_no_rests_for_the_empty_voice():
+    # A snare-only rudiment: one voice, stems up, accents above; no column of rests
+    # for the (empty) cymbal voice.
+    from drum_agent.export.lilypond import to_lilypond
+    snare = compile_spec({"sections": [{"bars": [{"sn": "Xxxx|Xxxx|Xxxx|Xxxx", "sticking": "RLRR|LRLL|RLRR|LRLL"}]}]})
+    ly = to_lilypond(snare)
+    up = ly.split("upMusic = ")[1].split("downMusic = ")[0]
+    down = ly.split("downMusic = ")[1].split("\n}\n")[0]
+    assert "\\oneVoice \\stemUp" in down and "Script.direction = #UP" in down
+    assert " r" not in up and "R1" not in up
+    groove = compile_spec({"sections": [{"bars": [{"hh": "xxxxxxxx", "sn": "--x---x-", "bd": "x---x---"}]}]})
+    assert "\\oneVoice" not in to_lilypond(groove)
+
+
+def test_line_overflow_is_measured_on_the_page(tmp_path):
+    import numpy as np
+    from PIL import Image
+    from drum_agent.pipeline import _overflow_mm
+    page = np.full((1100, 850), 255, dtype=np.uint8)  # letter at 100 dpi: 850 px wide
+    page[200:220, 100:780] = 0  # ink up to 780 px = 198.1 mm (margin starts at 201.9 mm)
+    Image.fromarray(page).save(tmp_path / "fits.png")
+    page[300:320, 100:830] = 0  # a line running to 830 px = 210.8 mm
+    Image.fromarray(page).save(tmp_path / "over.png")
+    assert _overflow_mm([tmp_path / "fits.png"], "letter") == 0.0
+    assert 8 < _overflow_mm([tmp_path / "over.png"], "letter") < 10

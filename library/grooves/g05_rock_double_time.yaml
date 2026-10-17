@@ -1,0 +1,42 @@
+# Double-time feel: two bars of a normal rock beat, then the same tempo with
+# the snare on every "&" and 16th notes on the hi-hat, so the groove feels twice
+# as fast. A 16th-note fill closes the phrase.
+title: "G05 Rock: Double-Time Feel"
+chart_type: pattern_study
+rights: original
+tempo: 92
+time: 4/4
+tempo_text: Rock
+patterns:
+  normal:
+    hh: "xxxxxxxx"
+    sn: "--x---x-"
+    bd: "x---x---"
+  double_crash:
+    cr: "x---|----|----|----"
+    hh: "-xxx|xxxx|xxxx|xxxx"
+    sn: "--x-|--x-|--x-|--x-"
+    bd: "x---|x---|x---|x---"
+  double:
+    hh: "xxxx|xxxx|xxxx|xxxx"
+    sn: "--x-|--x-|--x-|--x-"
+    bd: "x---|x---|x---|x---"
+  double_b:
+    hh: "xxxx|xxxx|xxxx|xxxx"
+    sn: "--x-|--x-|--x-|--x-"
+    bd: "x--x|x---|x--x|x---"
+  fill:
+    hh: "xxxx|xxxx|----|----"
+    sn: "--x-|--x-|xxxx|xx--"
+    ft: "----|----|----|--xx"
+    bd: "x---|x---|x---|x---"
+    sticking: "----|----|RLRL|RLRL"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Normal feel
+    bars: [normal, normal]
+  - label: Double time
+    tempo_text: Double-time feel
+    bars: [double_crash, double_b, double, double_b, fill, ending]

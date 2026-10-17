@@ -38,7 +38,7 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
 | > | accent | `X` or `>` |
 | ( ) around head | ghost note | `g` |
 | small slashed grace + slur | flam | `f` (`F` = accented flam) |
-| two small 16th graces | drag (ruff) | `d` |
+| two small 16th graces | drag (ruff) | `d` (`D` = accented drag) |
 | 3 tremolo strokes (fewer with beams) | roll | `r` then `~` to extend |
 | o above hi-hat | open | `o` on the hh line |
 | + above hi-hat | closed (only after an open one) | automatic |

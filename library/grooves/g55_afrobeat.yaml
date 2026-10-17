@@ -1,0 +1,31 @@
+# Afrobeat: a busy 16th-note hi-hat with open notes, a syncopated snare with
+# ghost notes, and a sparse bass drum; the groove circles a two-bar phrase.
+title: "G55 Afrobeat: Two-Bar Groove"
+chart_type: pattern_study
+rights: original
+tempo: 112
+time: 4/4
+tempo_text: Afrobeat
+patterns:
+  bar_a:
+    hh: "x-xx|x-xo|x-xx|x-xx"
+    sn: "----|x---|--g-|x--g"
+    bd: "x---|--x-|----|-x--"
+  bar_b:
+    hh: "x-xx|x-xo|x-xx|x-xo"
+    sn: "-g--|x---|-g-g|x---"
+    bd: "x---|----|x---|--x-"
+  fill:
+    hh: "x-xx|x-xo|----|----"
+    sn: "----|x---|xggx|ggX-"
+    ft: "----|----|----|---x"
+    bd: "x---|--x-|----|----"
+    sticking: "----|----|RLLR|LLRR"
+  ending:
+    cr: "x---|----|----|----"
+    bd: "x---|----|----|----"
+sections:
+  - label: Afrobeat
+    bars: [bar_a, bar_b, bar_a, fill]
+  - label: Out
+    bars: [bar_b, ending]

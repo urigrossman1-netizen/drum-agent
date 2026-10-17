@@ -1,0 +1,38 @@
+# 8th-note triplet fill around the toms: three notes per beat, snare, tom 1,
+# tom 2, floor tom, each group starting with the right hand.
+title: "G65 Fill: 8th-Note Triplets Around the Toms"
+chart_type: pattern_study
+rights: original
+tempo: 92
+time: 4/4
+tempo_text: Rock
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+  fill:
+    sn: "Xxx|---|---|---"
+    t1: "---|Xxx|---|---"
+    t2: "---|---|Xxx|---"
+    ft: "---|---|---|Xxx"
+    bd: "x--|x--|x--|x--"
+    sticking: "RLR|LRL|RLR|LRL"
+  fill_b:
+    hh: "x-x-|x-x-|----|----"
+    sn: "----|x---|Xx-|X--"
+    t1: "----|----|--x|---"
+    t2: "----|----|---|-x-"
+    ft: "----|----|---|--x"
+    bd: "x---|----|x--|x--"
+    sticking: "----|----|RLR|LRL"
+  crash:
+    cr: "x---|----|----|----"
+    hh: "--x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|--x-|x---|----"
+sections:
+  - label: Full-bar fill
+    bars: [groove, groove, groove, fill]
+  - label: Two-beat fill
+    bars: [crash, groove, fill_b, crash]

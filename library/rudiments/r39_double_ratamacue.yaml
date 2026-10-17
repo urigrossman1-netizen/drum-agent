@@ -1,0 +1,18 @@
+# PAS International Drum Rudiment 39: Double Ratamacue.
+# llR llR L R L(>): a dragged 8th, then the single-ratamacue figure. Each half takes
+# three 8ths, so a 3/4 bar holds the right-hand and the left-hand lead.
+title: "R39 Double Ratamacue"
+chart_type: pattern_study
+rights: original
+tempo: 70
+time: 3/4
+tempo_text: "8ths and 16th-note triplets"
+patterns:
+  ratamacue:
+    sn:       "d--dxx|Xd|dxxX--"
+    sticking: "R--RLR|LL|LRLR--"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: ratamacue, cue: "Accent the last note"}
+      - ratamacue

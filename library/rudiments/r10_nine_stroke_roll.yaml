@@ -1,0 +1,23 @@
+# PAS International Drum Rudiment 10: Nine Stroke Roll.
+# Four doubles into an accented single: R R L L R R L L R(>), then the left-hand lead.
+# Doubles as 16ths; each roll takes three beats, so the study is in 3/4.
+title: "R10 Nine Stroke Roll"
+chart_type: pattern_study
+rights: original
+tempo: 80
+time: 3/4
+tempo_text: "16ths"
+patterns:
+  right_lead:
+    sn:       "xxxx|xxxx|X"
+    sticking: "RRLL|RRLL|R"
+  left_lead:
+    sn:       "xxxx|xxxx|X"
+    sticking: "LLRR|LLRR|L"
+sections:
+  - label: Rudiment
+    bars:
+      - {pattern: right_lead, cue: "Start slow"}
+      - left_lead
+      - right_lead
+      - left_lead
