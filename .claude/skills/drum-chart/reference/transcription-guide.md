@@ -8,18 +8,26 @@ can't hear, so you know which parts of a chart to distrust.
    96-band mel spectrogram (hop 256 ≈ 5.8 ms). Unless `--drums-only`, harmonic/
    percussive separation (HPSS) suppresses sustained instruments, processed in
    30 s chunks.
-2. **Stroke detection**: Superflux onset strength, then semi-adaptive NMF:
-   68 drum templates (FluidSynth GM kits) with three stacked time frames
-   (attack, +17 ms, +46 ms), plus a frozen "accompaniment" basis learned from
-   the harmonic part, so bass and keys aren't explained as drums.
-3. **Classification**: each onset's activation share per instrument region,
-   adaptive (Otsu) floors, then rules: one of hi-hat/ride/crash per stroke, at
-   most two hand strokes at once, a tom needs real tom energy (not bass),
-   crash-on-snare suppression. Open/closed hi-hat from decay ring; flams from a
-   grace bump 12-70 ms before a stroke (or two strokes 12-45 ms apart); accents and ghosts relative to local
-   dynamics.
+2. **Candidates**: Superflux onset strength on the spectrogram (its
+   percussive part in a band mix). On real recordings these candidates
+   cover 86-100% of every drum's strokes; deciding what each one was is the
+   hard part.
+3. **Classification** (`classifier.py`, the default): a small neural network
+   looks at 1300 level-invariant numbers per candidate (attack frames, the
+   decay up to ~200 ms, the percussive part, the energy added over ringing
+   cymbals) and gives 11 probabilities: kick, snare, cross-stick, closed,
+   open and pedal hi-hat, ride, ride bell, crash, tom, other percussion. It
+   was trained on synthesized drumming from 40+ sampled kits in many rooms,
+   mixes and band settings (`docs/MODELS.md`). Rules follow: one hi-hat
+   state per instant, at most two hand strokes, a pedal under a stick stroke
+   dropped. Which tom: NMF evidence when it is decisive, else pitch within
+   the recording (highest = Tom 1). Flams from the grace stroke's energy;
+   accents and ghosts from each drum's typical level in this recording.
+   `--detector nmf` gives the original template detector (68 GM templates,
+   rules) for comparison.
 4. **Grid** (`beats.py`): drum-weighted beat tracking; tempo candidates
-   (×½, ×⅔, ×¾, ×1, ×4/3, ×1.5, ×2) scored by grid fit, backbeat spacing and a tempo prior;
+   (×½, ×⅔, ×¾, ×1, ×4/3, ×1.5, ×2) scored by grid fit, backbeat spacing and a tempo prior
+   (roll and grace strokes don't count as pulse; near ties are ranked by a steady grid);
    meter 3 vs 4 by bar-repetition; downbeat by kick/crash/backbeat placement.
    Where crashes move off beat 1 for good, a short bar (2/4, 3/4, 1/4) is
    inserted and the song re-quantized; inserted bars are always flagged.
@@ -79,6 +87,8 @@ recordings the tempo/meter was ambiguous in two of them (see LIMITATIONS).
 
 ## Rights
 `transcribe` refuses to run without `--rights`. `analyze` (tempo, meter,
-sections, no notes) needs no rights basis. Don't fetch audio from streaming
-services; work only with files the user supplies or that carry a suitable
-licence (record its attribution in the score's source/notes).
+sections, no notes) needs no rights basis. Streaming services are metadata
+only (DRM); `song` gets audio from the user's files, a direct link, or a
+video page through the user's own yt-dlp, and with `--rights` the user names
+the recording (`--pick N`). A download is never a rights basis: record the
+source and any licence in the score's source/notes.
