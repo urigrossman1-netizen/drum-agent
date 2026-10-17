@@ -72,6 +72,7 @@ class Segment:
     tuplet: tuple[int, int] | None
     written_slot: Fraction  # written value of one slot
     cap_half: bool  # notes may not cross the half segment unless on a coarser slot
+    beat: int = -1  # the beat this segment belongs to (half-beat segments share one beam group)
 
     def slot_of(self, pos: Fraction) -> int:
         s = (pos - self.start) / self.length * self.n
@@ -134,8 +135,28 @@ def choose_segment(start: Fraction, length: Fraction, points: list[Fraction]) ->
     )
 
 
+def _split_triplet_half(seg: Segment, points: list[Fraction]) -> list[Segment] | None:
+    """A 16th-note triplet and an 8th (or an 8th and a 16th-note triplet) in one beat.
+
+    The sextuplet grid holds the figure, but written as "6" it becomes three 16ths and a
+    dotted 8th under one bracket. Rudiment books and charts write a "3" over the half beat
+    with the triplet and a plain 8th for the other half (single stroke four, ratamacues).
+    Six even sextuplets, or triplets in both halves, stay a "6"."""
+    if seg.tuplet != (6, 4):
+        return None
+    half = seg.length / 2
+    halves = [(seg.start, [p for p in points if p < seg.start + half]),
+              (seg.start + half, [p for p in points if p >= seg.start + half])]
+    plain = [all(p == s for p in pts) for s, pts in halves]  # nothing but a stroke on the half's start
+    if plain[0] == plain[1]:
+        return None
+    return [_make_segment(s, half, 1, None) if is_plain else _make_segment(s, half, 3, (3, 2))
+            for (s, _), is_plain in zip(halves, plain)]
+
+
 def plan_segments(ts: TimeSig, points: list[Fraction], offset: Fraction) -> list[Segment]:
-    """Choose one segment per beat, merging beat pairs into quarter-note triplets."""
+    """Choose one segment per beat (or per half beat for a 16th-triplet-and-8th figure),
+    merging beat pairs into quarter-note triplets."""
     beats = [(s, l) for s, l in ts.beats() if s + l > offset]
     segs: list[Segment] = []
     i = 0
@@ -153,13 +174,19 @@ def plan_segments(ts: TimeSig, points: list[Fraction], offset: Fraction) -> list
             inner = {start + span / 3, start + 2 * span / 3} <= set(pts)
             if (inner and _fits(pts, start, span, 3) and not _fits(pts, start, span, 2)
                     and not _fits(pts, start, span, 4)):
-                segs.append(_make_segment(start, span, 3, (3, 2)))
+                seg = _make_segment(start, span, 3, (3, 2))
+                seg.beat = i
+                segs.append(seg)
                 i += 2
                 continue
         pts = [p for p in points if start <= p < start + length]
         if start < offset:
             pts.append(offset)
-        segs.append(choose_segment(start, length, pts))
+        seg = choose_segment(start, length, pts)
+        parts = _split_triplet_half(seg, pts) if start >= offset else None
+        for part in parts or [seg]:
+            part.beat = i
+            segs.append(part)
         i += 1
     return segs
 
@@ -427,8 +454,11 @@ def _plain_eighths(group: list[Token]) -> bool:
 
 def assign_beams(tokens: list[Token], segments: list[Segment], ts: TimeSig) -> None:
     groups: list[list[Token]] = []
-    for si in range(len(segments)):
-        g = [t for t in tokens if t.segment == si]
+    beats: dict[int, list[int]] = {}  # beat -> its segments (two for a half-beat triplet figure)
+    for si, seg in enumerate(segments):
+        beats.setdefault(seg.beat if seg.beat >= 0 else -1 - si, []).append(si)
+    for sis in beats.values():
+        g = [t for t in tokens if t.segment in sis]
         if g:
             groups.append(g)
     # 4/4: pair two beats of plain 8ths in the same half bar into one beam of four.

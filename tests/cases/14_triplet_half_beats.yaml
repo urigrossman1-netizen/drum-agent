@@ -1,0 +1,26 @@
+# A 16th-note triplet and an 8th in one beat (and the mirror, an 8th then a
+# triplet) are written as a "3" over half the beat plus a plain 8th, beamed as
+# one beat, the way rudiment books write the single stroke four and the
+# ratamacues. Six even sextuplets stay a "6".
+title: "Case 14: Triplet Half Beats"
+artist: Drum Agent regression suite (original)
+chart_type: pattern_study
+rights: original
+tempo: 76
+patterns:
+  groove:
+    hh: "x-x-|x-x-|x-x-|x-x-"
+    sn: "----|x---|----|x---"
+    bd: "x---|----|x---|-xxx--"
+  ratamacue:
+    sn: "dxxX--|dxxX--|d--dxx|X-----"
+    bd: "x-----|x-----|x-----|x-----"
+    sticking: "RLRL--|LRLR--|R--RLR|L-----"
+  sextuplets:
+    hh: "x-x-|x-x-|------|------"
+    sn: "----|x---|xxxxxx|xxxx--"
+    bd: "x---|----|x-----|x-----"
+    sticking: "----|----|RLRLRL|RLRL--"
+sections:
+  - label: Groove
+    bars: [groove, ratamacue, sextuplets, groove]

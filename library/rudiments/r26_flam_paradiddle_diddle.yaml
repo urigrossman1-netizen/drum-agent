@@ -1,6 +1,7 @@
 # PAS International Drum Rudiment 26: Flam Paradiddle-Diddle.
-# lR(>) L R R L L  rL(>) R L L R R: a paradiddle-diddle with an accented flam on
-# each lead, in 16ths in 6/8. Self-alternating.
+# lR(>) L R R L L  lR(>) L R R L L: a paradiddle-diddle with an accented flam on
+# the lead stroke, in 16ths in 6/8. It ends in a double, so it does not alternate:
+# it is practised with each lead, right-hand bars then left-hand bars.
 title: "R26 Flam Paradiddle-Diddle"
 chart_type: pattern_study
 rights: original
@@ -8,11 +9,14 @@ tempo: "4.=50"
 time: 6/8
 tempo_text: "16ths"
 patterns:
-  pdd:
+  right_lead:
     sn:       "FxxxxxFxxxxx"
-    sticking: "RLRRLLLRLLRR"
+    sticking: "RLRRLLRLRRLL"
+  left_lead:
+    sn:       "FxxxxxFxxxxx"
+    sticking: "LRLLRRLRLLRR"
 sections:
   - label: Rudiment
     bars:
-      - {pattern: pdd, cue: "Start slow"}
-      - pdd
+      - {pattern: right_lead, cue: "Right lead"}
+      - {pattern: left_lead, cue: "Left lead"}

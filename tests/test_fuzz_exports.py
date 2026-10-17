@@ -343,7 +343,9 @@ def assert_spelling(m: Measure) -> None:
                     j += 1
                     total += tokens[j].dur
                 assert total == roll.pop(), f"roll pieces do not add up to the roll: {ctx}"
-        # Tuplet brackets: well nested, one ratio, a whole beat (or the half bar for quarter triplets).
+        # Tuplet brackets: well nested, one ratio, a whole beat (or the half bar for quarter
+        # triplets, or half of a binary beat for a 16th-note triplet whose other half is a
+        # single 8th note or rest).
         open_bracket = None
         for t in tokens:
             if t.tuplet_start:
@@ -359,8 +361,16 @@ def assert_spelling(m: Measure) -> None:
                 assert open_bracket is not None, ctx
                 start, span = open_bracket[0].pos, sum(x.dur for x in open_bracket)
                 if not offset:
-                    assert start in beat_starts, ctx
-                    assert (start, span) in beats or ((start, span) in halves and t.tuplet == (3, 2)), ctx
+                    half_beat = [(b, l) for b, l in beats if t.tuplet == (3, 2) and (start, span) in
+                                 ((b, l / 2), (b + l / 2, l / 2))]
+                    if half_beat:  # the other half of the beat: one untupled 8th-value token
+                        b, l = half_beat[0]
+                        rest_of_beat = [x for x in tokens if b <= x.pos < b + l and x not in open_bracket]
+                        assert len(rest_of_beat) == 1 and rest_of_beat[0].tuplet is None, ctx
+                        assert rest_of_beat[0].dur == l / 2, ctx
+                    else:
+                        assert start in beat_starts, ctx
+                        assert (start, span) in beats or ((start, span) in halves and t.tuplet == (3, 2)), ctx
                 open_bracket = None
         assert open_bracket is None, ctx
         # Beams: balanced per level, start and end on notes, stay within a beat
@@ -403,7 +413,9 @@ def assert_spelling(m: Measure) -> None:
 
 def assert_beam_group(group: list, ts: TimeSig, offset: F, ctx: str) -> None:
     assert sum(1 for t in group if t.kind == "note") >= 2, ctx
-    if len({t.segment for t in group}) > 1:
+    # A 16th-note triplet and an 8th share one beat (two half-beat segments, one beam).
+    beat_of = [next(k for k, (s, l) in enumerate(ts.beats()) if s <= t.pos + offset < s + l) for t in group]
+    if len({t.segment for t in group}) > 1 and len(set(beat_of)) > 1:
         assert (ts.num, ts.den) == (4, 4), f"beam crosses a beat: {ctx}"
         # Half bars are full-bar coordinates (a pickup is the tail of a full bar).
         assert len(group) == 4 and group[0].pos + offset in (0, F(1, 2)), ctx

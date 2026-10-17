@@ -135,6 +135,19 @@ def test_case08_tuplets_and_rests(rendered):
     assert "\\grace { s8 }" in glob and "\\grace { s16 s16 }" in glob  # downbeat flam and drag
 
 
+def test_case14_triplet_half_beats(rendered):
+    # Three 16th-note triplets and an 8th: a "3" over half the beat plus a plain 8th, one
+    # beam per beat (not a "6" ending on a dotted 8th); six even sextuplets stay a "6".
+    _, report = rendered["14_triplet_half_beats"]
+    ly = _ly(report)
+    assert "\\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
+    assert "snare16 snare16 } snare8->]" in ly  # the ratamacue's accented 8th, outside the bracket
+    assert "\\tuplet 6/4 { <kick snare>16[" in ly and "snare8.]" not in ly
+    root = _xml(report)
+    mods = {(tm.findtext("actual-notes"), tm.findtext("normal-notes")) for tm in root.iter("time-modification")}
+    assert ("3", "2") in mods and ("6", "4") in mods
+
+
 def test_case09_meters(rendered):
     _, report = rendered["09_odd_meters"]
     root = _xml(report)
