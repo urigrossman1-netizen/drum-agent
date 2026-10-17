@@ -106,6 +106,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
   system-system-spacing = #'((basic-distance . 14) (minimum-distance . 10) (padding . 2) (stretchability . 12))
   print-first-page-number = ##f
   ragged-last = ##t
+  page-breaking-system-system-spacing = #'((basic-distance . 14) (minimum-distance . 11.5) (padding . 2.5) (stretchability . 12))
 }
 
 
@@ -147,12 +148,12 @@ globalMusic = {
 
 upMusic = \drummode {
   \autoBeamOff
-  \repeat percent 2 { \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } \tuplet 3/2 { <snare hihat>8->[ \parenthesize snare8 hihat8] } \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } | }
-  \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } \tuplet 3/2 { <snare hihat>8->[ \parenthesize snare8 hihat8] } \tuplet 3/2 { hihatopen8[ \parenthesize snare8 hihatclosed8] } |
-  \tuplet 3/2 { hihat8[ \parenthesize snare8 hihat8] } \tuplet 3/2 { hihat8[ \parenthesize snare8 <snare hihat>8->] } \tuplet 3/2 { snare8[ snare8 snare8] } \tuplet 3/2 { snare8->[ tomone8 tomone8] } |
+  \repeat percent 2 { \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } | }
+  \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihatopen4 hihatclosed8 } |
+  \tuplet 3/2 { hihat4 hihat8 } \tuplet 3/2 { hihat4 hihat8 } r2 |
   \repeat volta 3 {
   ride4 ride8[ ride8] ride4 ride8[ ride8] |
-  ride4 ride8[ ride8] ride8[ \parenthesize snare8 ride8 <snare ride>8] |
+  ride4 ride8[ ride8] ride4 ride8[ ride8] |
   }
   ride4 ride8[ ride8] ride4 ride8[ ride8] |
   crash4 r4 r2 |
@@ -160,18 +161,20 @@ upMusic = \drummode {
 
 downMusic = \drummode {
   \autoBeamOff
-  \repeat percent 2 { kick4 \tuplet 3/2 { r4 kick8 } \tuplet 3/2 { r4 kick8 } r4 | }
-  kick4 \tuplet 3/2 { r4 kick8 } \tuplet 3/2 { r4 kick4 kick4 } |
-  kick4 r4 kick4 r4 |
+  \repeat percent 2 { \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 \parenthesize snare4 } | }
+  \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 <kick \parenthesize snare>4 } |
+  \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ snare8->] } \tuplet 3/2 { <kick snare>8[ snare8 snare8] } \tuplet 3/2 { snare8->[ tomone8 tomone8] } |
   \repeat volta 3 {
   \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick4 <hihatpedal \parenthesize kick>4 |
-  \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick4 <hihatpedal \parenthesize kick>4 |
+  \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick8[ \parenthesize snare8 <hihatpedal \parenthesize kick>8 snare8] |
   }
   \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick4 <hihatpedal \parenthesize kick>4 |
   kick4 r4 r2 |
 }
 
-drumMusic = \new DrumStaff <<
+% no sticking
+
+drumMusic = \new DrumStaff = "drums" <<
   \new DrumVoice = "global" \globalMusic
   \new DrumVoice = "up" \with { \hide PercentRepeat \hide PercentRepeatCounter } { \voiceOne \upMusic }
   \new DrumVoice = "down" \with { \hide PercentRepeat \hide PercentRepeatCounter } { \voiceTwo \downMusic }
@@ -201,7 +204,7 @@ drumMusic = \new DrumStaff <<
 }
 
 \score {
-  \removeWithTag #'graces \unfoldRepeats \drumMusic
+  \removeWithTag #'(graces sticking) \unfoldRepeats \drumMusic
   \midi {
     \tempo 4 = 76
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }

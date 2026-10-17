@@ -105,6 +105,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
   score-system-spacing.basic-distance = #14
   system-system-spacing = #'((basic-distance . 14) (minimum-distance . 10) (padding . 2) (stretchability . 12))
   print-first-page-number = ##f
+  page-breaking-system-system-spacing = #'((basic-distance . 14) (minimum-distance . 11.5) (padding . 2.5) (stretchability . 12))
 }
 
 
@@ -154,47 +155,49 @@ globalMusic = {
 
 upMusic = \drummode {
   \autoBeamOff
-  crash8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] |
-  \repeat percent 3 { hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] | }
-  \repeat percent 3 { hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] | }
-  hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8] snare8[ snare16 snare16] |
-  crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8] snare8[ snare16 snare16] |
-  crash8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] |
-  \repeat percent 3 { hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] | }
-  \repeat percent 3 { hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8 <snare hihat>8 hihat8] | }
-  hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8] snare8[ snare16 snare16] |
-  crash8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] |
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  \repeat percent 3 { ride8[ ride8 <snare ride>8 ride8] ride8[ ride8 <snare ride>8 ride8] | }
-  hihat8[ hihat8 <snare hihat>8 hihat8] hihat8[ hihat8] snare8[ snare16 snare16] |
-  <snare crash>4 r8 <snare crash>8 r2 |
+  crash8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] |
+  \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] | }
+  \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] | }
+  hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8] r4 |
+  crash8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] |
+  \repeat percent 3 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
+  \repeat percent 3 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
+  hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8] r4 |
+  crash8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] |
+  \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] | }
+  \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] | }
+  hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8] r4 |
+  crash8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] |
+  \repeat percent 3 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
+  \repeat percent 3 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
+  hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8] r4 |
+  crash4 r8 crash8 r2 |
 }
 
 downMusic = \drummode {
   \autoBeamOff
-  kick4 r4 kick8[ kick8] r4 |
-  \repeat percent 3 { kick4 r4 kick8[ kick8] r4 | }
-  \repeat percent 3 { kick4 r4 kick8[ kick8] r4 | }
-  kick4 r4 kick4 r4 |
-  kick8[ kick8] r4 kick8[ kick8] r4 |
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r4 | }
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r4 | }
-  kick4 r4 kick4 r4 |
-  kick4 r4 kick8[ kick8] r4 |
-  \repeat percent 3 { kick4 r4 kick8[ kick8] r4 | }
-  \repeat percent 3 { kick4 r4 kick8[ kick8] r4 | }
-  kick4 r4 kick4 r4 |
-  kick8[ kick8] r4 kick8[ kick8] r4 |
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r4 | }
-  \repeat percent 3 { kick8[ kick8] r4 kick8[ kick8] r4 | }
-  kick4 r4 kick4 r4 |
-  kick4 r8 kick8 r2 |
+  kick4 snare4 kick8[ kick8] snare4 |
+  \repeat percent 3 { kick4 snare4 kick8[ kick8] snare4 | }
+  \repeat percent 3 { kick4 snare4 kick8[ kick8] snare4 | }
+  kick4 snare4 kick4 snare8[ snare16 snare16] |
+  kick8[ kick8] snare4 kick8[ kick8] snare4 |
+  \repeat percent 3 { kick8[ kick8] snare4 kick8[ kick8] snare4 | }
+  \repeat percent 3 { kick8[ kick8] snare4 kick8[ kick8] snare4 | }
+  kick4 snare4 kick4 snare8[ snare16 snare16] |
+  kick4 snare4 kick8[ kick8] snare4 |
+  \repeat percent 3 { kick4 snare4 kick8[ kick8] snare4 | }
+  \repeat percent 3 { kick4 snare4 kick8[ kick8] snare4 | }
+  kick4 snare4 kick4 snare8[ snare16 snare16] |
+  kick8[ kick8] snare4 kick8[ kick8] snare4 |
+  \repeat percent 3 { kick8[ kick8] snare4 kick8[ kick8] snare4 | }
+  \repeat percent 3 { kick8[ kick8] snare4 kick8[ kick8] snare4 | }
+  kick4 snare4 kick4 snare8[ snare16 snare16] |
+  <kick snare>4 r8 <kick snare>8 r2 |
 }
 
-drumMusic = \new DrumStaff <<
+% no sticking
+
+drumMusic = \new DrumStaff = "drums" <<
   \new DrumVoice = "global" \globalMusic
   \new DrumVoice = "up" \with { \hide PercentRepeat \hide PercentRepeatCounter } { \voiceOne \upMusic }
   \new DrumVoice = "down" \with { \hide PercentRepeat \hide PercentRepeatCounter } { \voiceTwo \downMusic }
@@ -224,7 +227,7 @@ drumMusic = \new DrumStaff <<
 }
 
 \score {
-  \removeWithTag #'graces \unfoldRepeats \drumMusic
+  \removeWithTag #'(graces sticking) \unfoldRepeats \drumMusic
   \midi {
     \tempo 4 = 118
     \context { \DrumStaff drumPitchTable = #(alist->hash-table drum-agent-midi) }

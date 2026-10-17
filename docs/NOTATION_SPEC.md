@@ -55,6 +55,10 @@ further lines; it never runs off the page.
   word with its rhythm, ♫ = ♩♪ under a triplet bracket.
 * A voice with no hits for a whole bar shows a whole-bar rest. If both
   voices are silent, one whole-bar rest is printed.
+* **One-voice charts.** When one voice has no hits anywhere in the chart (a
+  snare rudiment, a snare-and-bass-drum march), the other is engraved as a
+  single voice: stems up, accents above the staff, no rests for the empty
+  voice.
 
 ## 3. Instrument map
 

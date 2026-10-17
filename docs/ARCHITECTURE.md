@@ -1,10 +1,12 @@
 # Architecture
 
 ```
- audio file ──► audio/detect ──► audio/beats ──► quantize ──┐
- MIDI file  ──► io_midi ─────────────────────► quantize ──┤
- chart spec ──► charts ──────────────────────────────────┤
- score.json ──► model.Score.load ─────────────────────────┤
+ song name  ──► song (identify, find audio; rights gate) ──┐
+ audio file ──► audio/detect ──► audio/beats ──► quantize ◄┘─┐
+ MIDI file  ──► io_midi ─────────────────────► quantize ────┤
+ game chart ──► gamechart (notes.mid / notes.chart) ► quantize┤
+ chart spec ──► charts (and library/*.yaml) ────────────────┤
+ score.json ──► model.Score.load ───────────────────────────┤
                                                           ▼
                                        IR: model.Score (score.json)
                                                           │
@@ -43,7 +45,10 @@ re-derives rhythm on its own.
 ## Instruments: `kit.py`
 
 One table maps each instrument to staff position, notehead, voice, GM MIDI
-note and aliases (`hh`, `bd`, `sn`, ...). The LilyPond drum style, the
+note and aliases (`hh`, `bd`, `sn`, ...). Two voicings decide the stems:
+`cymbals-up` (the default: hi-hat and cymbals up; snare, toms and feet down,
+the Guitar Pro / Songsterr look) and `hands-up` (Weinberg/PAS: everything the
+hands play up, the feet down), chosen with `--voicing`. The LilyPond drum style, the
 MusicXML instrument list, the MIDI map, the Drum Key and the chart-spec
 names are all generated from it. `--kit file.json` overrides entries;
 `tests/test_kit.py` pins the table to `docs/NOTATION_SPEC.md`.
@@ -76,14 +81,19 @@ can't disagree about how a rhythm is written.
   simile bars counting less, a multi-bar rest as one bar and never split).
   Each section starts a system; a short section shares a line only when the
   whole next section fits after it, or joins the end of the previous line.
+- A bar's width is estimated from its densest voice, its ghost notes
+  (parentheses) and its sticking letters; dense bars get fewer per line.
 - `plan.expand()` must reproduce the original bar sequence, which is asserted.
 
 ## Exporters: `export/`
 
 - `lilypond.py` writes the `.ly`: generated drum style and MIDI map, header
   with chart type and status, paper, Drum Key, two voices plus a global voice
-  for structure, and a second unfolded `\score` with `\midi` used only for
-  verification.
+  for structure (cues, tempo marks with the swing figure), a sticking line
+  (a NullVoice with lyrics under the staff), and a second unfolded `\score`
+  with `\midi` used only for verification. A chart with one voice only (a
+  snare rudiment) is engraved as one voice, stems up, with no rests for the
+  empty one.
 - `render.py` runs LilyPond. A missing engine, an old version, a non-zero
   exit, missing output or fatal warnings (bar-check failures and similar)
   raise `RenderError` with the log. There is no fallback renderer.
@@ -108,16 +118,22 @@ Any mismatch raises `ExportError`. The report shows these as **rendering
 correctness**, separately from **transcription confidence**.
 
 `pipeline.export_all` orchestrates this. It also pulls a near-empty last page
-back onto the previous page when LilyPond can do it with little compression.
+back onto the previous page when LilyPond can do it with little compression,
+and measures each rendered page: LilyPond gives no warning when a line is too
+dense to fit, so a line whose ink reaches into the right margin is re-planned
+with fewer bars per line (or reported). `playability.py` lists strokes one
+drummer can't play together (three hands, two left-foot strokes, an open hat
+as the foot closes it); in transcriptions those bars are flagged.
 
 ## Audio transcription: `audio/`
 
 | Stage | Module | Method |
 |---|---|---|
 | Front end | `features.py` | 44.1 kHz mono, 96-band mel spectrogram (hop 256), frames stacked at 0, +17, +46 ms |
-| Detection | `detect.py` | Superflux onsets; semi-adaptive KL-NMF with 68 drum templates from FluidSynth GM kits plus a frozen accompaniment basis learned from the harmonic part (HPSS) |
-| Classification | `detect.py` | activation share per instrument region, adaptive (Otsu) floors, rules (one cymbal per stroke, two hands, toms need tom energy, crash-on-snare), hi-hat open/closed by decay, flam graces, accents and ghosts relative to local dynamics, confidence |
-| Grid | `beats.py` | drum-weighted beat tracking, tempo candidates scored by grid fit, backbeat and prior; meter by repetition; downbeat by kick/crash/backbeat placement |
+| Candidates | `detect.py` | Superflux onsets on the (percussive part of the) spectrogram: high recall, 86-100% of every class on real recordings |
+| Classification | `classifier.py` | a small neural network (1300 level-invariant log-mel features per candidate, 11 classes) trained on synthesized drumming from 40+ sampled kits (docs/MODELS.md); rules after it: one hi-hat state, two hands, pedal under a stick stroke; toms named by NMF evidence or per-recording pitch; flams from grace energy; accents and ghosts from each drum's typical level |
+| Classification (`--detector nmf`) | `detect.py` | the original: semi-adaptive KL-NMF with 68 GM-kit templates plus an accompaniment basis, activation shares, adaptive floors and rules |
+| Grid | `beats.py` | drum-weighted beat tracking, tempo candidates scored by grid fit, backbeat and prior (roll and grace strokes don't count as pulse; near ties between metrical levels are ranked by a constant grid); meter by repetition; downbeat by kick/crash/backbeat placement |
 | Quantization | `quantize.py` | per-beat grid choice by timing error plus complexity, swing/triplet feel, tempo map, uncertain-bar flags |
 | Structure | `structure.py`, `transcribe.py` | sections at groove/meter changes, 12/8 section refinement, roll notation, bass-bleed warning |
 
@@ -130,6 +146,14 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
 
 - `io_midi.py`: GM drum tracks (channel 10 by default), using the file's
   tempo map, through the same quantizer.
+- `gamechart.py`: Rock Band / Clone Hero drum charts (notes.mid, notes.chart,
+  song.ini): pads to instruments (pro drums, disco flip, dynamics), the
+  chart's own tempo map and meters; its ticks are exact, so a beat whose
+  ticks fit a grid keeps it. See `docs/GAMECHARTS.md`.
+- `song/`: from a song's name to audio: metadata (MusicBrainz, iTunes,
+  Deezer), the user's own library (by tags), a direct link, or a video page
+  through the user's own yt-dlp. Streaming services are metadata only. See
+  `docs/SONG_LOOKUP.md`.
 - `charts.py`: YAML/JSON chart specs for hand-written charts, exercises,
   tests and examples.
 - `edit.py`: exact, reference-based corrections to a score.json (the
@@ -139,7 +163,16 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
 
 `rights.py` gates note-for-note transcription of recordings: `transcribe`
 needs `--rights own|permission|licensed|public_domain|original`, checked
-before the audio is opened. `analyze` reports tempo, meter and form only.
+before the audio is opened (and, in `song`, before anything is downloaded
+for it). `analyze` reports tempo, meter and form only.
+
+## The chart library
+
+`library/rudiments` (the 40 PAS International Drum Rudiments, sticking under
+every stroke) and `library/grooves` (73 grooves and fills across styles and
+meters) are chart specs like any other: original pattern studies, held to
+the house rules and engraved with every check passing by
+`tests/test_library.py`.
 
 ## Files
 
@@ -148,10 +181,13 @@ drum_agent/        package (cli.py is the entry point: python -m drum_agent)
   export/          LilyPond, MusicXML, MIDI writers and the LilyPond runner
   audio/           transcription
   schemas/         MusicXML 4.0 XSD (validation)
-  data/            NMF drum templates
+  data/            onset classifier weights, NMF drum templates
+  song/            song lookup and audio acquisition
+library/           rudiments/ and grooves/: the 113-chart library
 docs/              NOTATION_SPEC.md, ARCHITECTURE.md, AUDIT.md, LIMITATIONS.md
 tests/             pytest suite; cases/ = notation regression charts; audio_cases/
 examples/          specs/ (original charts) and output/ (rendered PDF/PNG/MusicXML/MIDI)
-scripts/           install_lilypond.sh, build_templates.py, eval_detection.py, eval_notation.py
+scripts/           install_lilypond.sh, build_templates.py, eval_detection.py, eval_notation.py,
+                   eval_real.py (MDB Drums), adt/ (training data and classifier training)
 .claude/skills/drum-chart/   the Claude Code skill (SKILL.md + reference/)
 ```

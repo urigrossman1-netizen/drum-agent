@@ -20,7 +20,7 @@ from .. import __version__
 from ..kit import DEFAULT_KIT, Kit, position_to_pitch
 from ..layout import LayoutPlan, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import Token, check_tokens, spell_measure
+from ..rhythm import Token, check_tokens, silent_voices, spell_measure
 
 _TYPE = {Fraction(2): "breve", Fraction(1): "whole", Fraction(1, 2): "half", Fraction(1, 4): "quarter",
          Fraction(1, 8): "eighth", Fraction(1, 16): "16th", Fraction(1, 32): "32nd", Fraction(1, 64): "64th"}
@@ -72,6 +72,12 @@ class _XmlWriter:
         self.div = _divisions(score)
         self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
         self.bar_index = 0
+        # One-voice chart (as in the LilyPond engraving): the empty voice is left out and the
+        # other is written stems up, accents above.
+        self.silent = silent_voices(score.measures, kit)
+
+    def stem(self, voice: int) -> str:
+        return "up" if voice == 1 or self.silent else "down"
 
     def ticks(self, dur: Fraction) -> int:
         t = dur * 4 * self.div
@@ -98,7 +104,7 @@ class _XmlWriter:
         drags = [h for h in hits if h.drag]
         if not flams and not drags:
             return False
-        stem = "up" if voice == 1 else "down"
+        stem = self.stem(voice)
         groups: list[tuple[list[Hit], str, int]] = []
         if drags:
             groups.append((drags, "16th", 2))
@@ -130,7 +136,7 @@ class _XmlWriter:
         return True
 
     def note_token(self, measure_el: ET.Element, t: Token, voice: int, measure: Measure) -> None:
-        stem = "up" if voice == 1 else "down"
+        stem = self.stem(voice)
         if t.kind in ("rest", "measure_rest"):
             n = _sub(measure_el, "note")
             r = _sub(n, "rest")
@@ -197,7 +203,7 @@ class _XmlWriter:
                     _sub(tech_el, "fingering", sticking, placement="below")
             if h.accent and not t.tie_stop:
                 art = _sub(nots, "articulations")
-                _sub(art, "accent", placement="above" if voice == 1 else "below")
+                _sub(art, "accent", placement="above" if stem == "up" else "below")
             if len(nots):
                 n.append(nots)
 
@@ -363,14 +369,16 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         if m.uncertain:
             w.direction_words(mel, "(?)", font_size="9", color="#555555")
         sm = spell_measure(m, kit)
+        written = False
         for voice in (1, 2):
             tokens = sm.voices[voice]
-            if not tokens:
+            if not tokens or (voice in w.silent and not sm.shared_rest):
                 continue
             check_tokens(tokens, m)
-            if voice == 2:
+            if written:
                 b = _sub(mel, "backup")
                 _sub(b, "duration", str(w.ticks(m.actual_length)))
+            written = True
             for t in tokens:
                 if any(h.choke for h in t.hits) and not t.tie_stop:
                     w.direction_words(mel, "choke", font_style="italic", font_size="9")
