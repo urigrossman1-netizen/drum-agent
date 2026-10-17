@@ -49,8 +49,9 @@ rejected: their pads don't map onto a drum kit the same way.
 from __future__ import annotations
 
 import bisect
+import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from pathlib import Path
 
@@ -231,16 +232,16 @@ def _pad(lane: str, cymbal: bool, disco: bool) -> str:
     return f"{lane}_{'cymbal' if cymbal else 'tom'}"
 
 
-_SECTION = re.compile(r"^\[?\s*(?:section[\s_]+|prc_)(.+?)\s*\]?$", re.IGNORECASE)
+_SECTION = re.compile(r"^(?:section[\s_]+|prc_)(.*)$", re.IGNORECASE)
 _MIX = re.compile(r"^\[?\s*mix[\s_]*(\d)[\s_]*drums[\s_]*\d+([a-z]*)\s*\]?$", re.IGNORECASE)
 
 
 def section_name(text: str) -> str | None:
     """'[section Verse 1]', 'section verse_1' or '[prc_verse_1]' -> 'Verse 1'."""
-    m = _SECTION.match(text.strip().strip('"'))
+    m = _SECTION.match(text.strip().strip('"').strip("[]").strip())
     if not m:
         return None
-    name = re.sub(r"\s+", " ", m.group(1).replace("_", " ")).strip()
+    name = re.sub(r"\s+", " ", _plain(m.group(1)).replace("_", " ")).strip()
     return name[:1].upper() + name[1:] if name else None
 
 
@@ -293,6 +294,15 @@ def _pro_reading(pro: bool | None, has_markers: bool, ini: dict[str, str], what:
     return False, f"off (no {what} in the file): yellow, blue and green read as toms"
 
 
+MIN_MILLI_BPM, MAX_MILLI_BPM = 1_000, 1_000_000  # .chart tempo "B" values: 1-1000 BPM
+MAX_NUMERATOR = 64
+
+
+def _check_tempo(us_per_quarter: int, where: str) -> None:
+    if not 60_000 <= us_per_quarter <= 60_000_000:  # 1000 BPM .. 1 BPM
+        raise GameChartError(f"{where}: tempo out of range (1-1000 BPM)")
+
+
 # ---- MIDI -------------------------------------------------------------------------
 
 def _absolute(track: mido.MidiTrack):
@@ -326,6 +336,8 @@ def parse_midi(path: Path, difficulty: str = "expert", pro: bool | None = None,
         mid = open_midi(path)
     except (OSError, EOFError, ValueError) as exc:
         raise GameChartError(f"{path.name} is not a readable MIDI file: {exc}") from None
+    if mid.ticks_per_beat < 1:  # also SMPTE time division, which charts never use
+        raise GameChartError(f"{path.name}: ticks per quarter note must be positive, got {mid.ticks_per_beat}")
     ini = ini or {}
     tracks: dict[str, mido.MidiTrack] = {}
     for tr in mid.tracks:
@@ -338,6 +350,8 @@ def parse_midi(path: Path, difficulty: str = "expert", pro: bool | None = None,
 
     tempo_map = sorted(((t, m.tempo) for t, m in _absolute(conductor) if m.type == "set_tempo"),
                        key=lambda c: c[0])
+    for t, tempo in tempo_map:
+        _check_tempo(tempo, f"tick {t}: set_tempo {tempo}")
     if not tempo_map or tempo_map[0][0] != 0:
         tempo_map.insert(0, (0, DEFAULT_TEMPO))
     metres = sorted(((t, _meter(m.numerator, m.denominator))
@@ -443,7 +457,7 @@ def parse_chart(text: str, difficulty: str = "expert", pro: bool | None = None,
             song[key.strip().lower()] = _plain(value)
     try:
         resolution = int(float(song.get("resolution", CHART_DEFAULT_RESOLUTION)))
-    except ValueError:
+    except (ValueError, OverflowError):
         raise GameChartError(f"[Song] Resolution {song['resolution']!r} is not a number") from None
     if resolution < 1:
         raise GameChartError(f"[Song] Resolution must be positive, got {resolution}")
@@ -459,12 +473,17 @@ def parse_chart(text: str, difficulty: str = "expert", pro: bool | None = None,
     for tick, kind, args in parsed.get("SyncTrack", []):
         if kind == "B":  # BPM x 1000
             milli_bpm = _ints(args, "SyncTrack", tick, 1)[0]
-            if milli_bpm <= 0:
-                raise GameChartError(f"[SyncTrack] tick {tick}: tempo B {args} must be positive")
+            if not MIN_MILLI_BPM <= milli_bpm <= MAX_MILLI_BPM:
+                raise GameChartError(f"[SyncTrack] tick {tick}: tempo B {args} is out of range "
+                                     f"({MIN_MILLI_BPM // 1000}-{MAX_MILLI_BPM // 1000} BPM, times 1000)")
             tempo_map.append((tick, round(60_000_000_000 / milli_bpm)))
         elif kind == "TS":  # numerator, then the denominator as a power of two (default 2: quarters)
             num, *exp = _ints(args, "SyncTrack", tick, 2)
-            metres.append((tick, _meter(num, 2 ** (exp[0] if exp else 2))))
+            power = exp[0] if exp else 2
+            if not 1 <= num <= MAX_NUMERATOR or not 0 <= power <= 5:
+                raise GameChartError(f"[SyncTrack] tick {tick}: meter TS {args} can't be written "
+                                     f"(numerator 1-{MAX_NUMERATOR}, denominator 1-32)")
+            metres.append((tick, _meter(num, 2 ** power)))
     tempo_map.sort(key=lambda c: c[0])
     if not tempo_map or tempo_map[0][0] != 0:
         tempo_map.insert(0, (0, DEFAULT_TEMPO))
@@ -487,7 +506,9 @@ def parse_chart(text: str, difficulty: str = "expert", pro: bool | None = None,
         raise _difficulty_error(difficulty, available)
 
     has_flags = any(used & set(CHART_CYMBAL_FLAGS) for used in lanes_used.values())
-    pro_on, reason = _pro_reading(pro, has_flags, ini, "cymbal flags (66-68)")
+    # In a .chart the cymbal flags are the pro reading; song.ini's pro_drums alone has
+    # nothing to mark which pads are cymbals.
+    pro_on, reason = _pro_reading(pro, has_flags, {}, "cymbal flags (66-68)")
     track_texts = [(t, a) for t, k, a in parsed[CHART_TRACKS[difficulty]] if k == "E"]
     disco = _disco_changes(track_texts, difficulty)
     known = set(CHART_LANES) | set(CHART_CYMBAL_FLAGS) | set(CHART_ACCENT_FLAGS) | set(CHART_GHOST_FLAGS)
@@ -511,6 +532,8 @@ def parse_chart(text: str, difficulty: str = "expert", pro: bool | None = None,
     try:
         offset = float(song.get("offset", 0))
     except ValueError:
+        offset = 0.0
+    if not math.isfinite(offset):
         offset = 0.0
     return GameChart("chart", resolution, tempo_map, metres, sections, gems, available, pro_on, reason,
                      dynamics=True, metadata=meta, notes=notes, offset=offset)
@@ -568,12 +591,19 @@ def _nearest_bar(starts: list[int], tick: int) -> int:
     return i
 
 
+TICK_SLACK = 2  # ticks a gem may sit off a grid position and still be read as on it
+MAX_BEATS = 20_000  # about 80 minutes at 240 BPM: past this a chart's ticks are corrupt
+
+
 def chart_to_score(chart: GameChart, options: QuantizeOptions | None = None) -> tuple[Score, dict]:
     """Quantize a chart's gems onto its own bar grid, as io_midi does for a MIDI track."""
     if not chart.gems:
         raise GameChartError("the chosen difficulty has no drum notes")
     tpb = chart.resolution
     last = max(g.tick for g in chart.gems)
+    if last / tpb > MAX_BEATS:
+        raise GameChartError(f"the last note is at tick {last}, {last // tpb} beats in: more than any song; "
+                             f"the chart's ticks or resolution are corrupt")
     # One bar past the last stroke, as io_midi (empty trailing bars are dropped below).
     bars, notes = _bars(chart.time_sigs, last + 4 * tpb, tpb)
     beat_ticks: list[int] = []
@@ -597,7 +627,11 @@ def chart_to_score(chart: GameChart, options: QuantizeOptions | None = None) -> 
 
     onsets = [Onset(time=seconds(g.tick), inst=PAD_TO_KIT[g.pad], accent=g.accent, ghost=g.ghost)
               for g in chart.gems]
-    result = quantize(onsets, beat_times, bar_defs, options or QuantizeOptions())
+    # Chart ticks are exact positions, not played times: a beat whose ticks all sit on a
+    # spellable grid keeps them (at a fast tempo the time-based costs alone would rewrite
+    # an exact 32nd-16th figure as sextuplets); off-grid ticks are snapped as usual.
+    exact = replace(options or QuantizeOptions(), exact_tol=TICK_SLACK / tpb)
+    result = quantize(onsets, beat_times, bar_defs, exact)
     starts = [s for s, _ in bars]
 
     # Leave out the empty bars before the drums come in and after they stop, as io_midi does.

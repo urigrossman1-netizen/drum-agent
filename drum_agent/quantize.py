@@ -50,6 +50,9 @@ class QuantizeOptions:
     tempo_change_threshold: float = 0.04  # relative change needed for a new tempo mark
     fixed_tempo: float | None = None  # force one tempo mark (quarter BPM)
     uncertain_conf: float = 0.5  # hits below this confidence are "low confidence"
+    # Onsets are exact positions (a game chart's ticks), not played times: a beat whose
+    # onsets all sit on some grid within this share of a beat is written on such a grid.
+    exact_tol: float | None = None
 
 
 @dataclass
@@ -96,6 +99,18 @@ def _warp(rel: float, swing_pos: float) -> float:
     if rel <= swing_pos:
         return rel * 0.5 / swing_pos
     return 0.5 + (rel - swing_pos) * 0.5 / (1 - swing_pos)
+
+
+def _fits_exactly(n: int, rels: list[tuple[Onset, float]], tol: float) -> bool:
+    """Every onset within `tol` (a share of the beat) of a slot of the n-grid, and no two
+    onsets of one instrument on the same slot (that would merge distinct strokes)."""
+    slots = set()
+    for o, r in rels:
+        slot = round(r * n)
+        if abs(r - slot / n) > tol or (slot, o.inst) in slots:
+            return False
+        slots.add((slot, o.inst))
+    return True
 
 
 def _beat_is_binary(length: Fraction) -> bool:
@@ -177,6 +192,12 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
             candidates += [(n, c, items) for n, c in table.items()]
         if not opts.allow_32nds:
             candidates = [c for c in candidates if blen / c[0] >= _MIN_SLOT_NO_32NDS]
+        if opts.exact_tol is not None:
+            # Time-based costs would let a cheaper grid win at a fast tempo (a 32nd is
+            # closer in time to a sextuplet than any timing error); exact positions keep
+            # a grid that fits them all, and off-grid ones are judged as usual.
+            fits = [c for c in candidates if _fits_exactly(c[0], c[2], opts.exact_tol)]
+            candidates = fits or candidates
         best = None
         for n, complexity, rels in candidates:
             cost = complexity

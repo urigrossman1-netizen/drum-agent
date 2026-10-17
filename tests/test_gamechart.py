@@ -510,3 +510,62 @@ def test_gamechart_engraves_with_every_check_ok(tmp_path):
     assert report.files["pdf"].stat().st_size > 0
     text = report.files["report"].read_text()
     assert "Game charts are simplified" in text and "Imported" in text
+
+
+# ---- review regressions: exact ticks and corrupt files ----------------------------
+
+def test_exact_ticks_stay_exact_at_a_fast_tempo(tmp_path):
+    # At 240 BPM a 32nd is closer in time to a sextuplet than a player's timing error;
+    # chart ticks are exact, so 32nd, 32nd, 16th, 8th stay that.
+    snare = [(t, 1) for t in (0, 24, 48, 96, 192, 384, 576)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": snare}, sync=("0 = TS 4", "0 = B 240000"))
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
+
+
+@pytest.mark.parametrize("sync,message", [
+    (("0 = TS 4 100000000000", "0 = B 120000"), "meter"),
+    (("0 = TS 1000000", "0 = B 120000"), "meter"),
+    (("0 = TS 4", "0 = B 1"), "tempo"),
+    (("0 = TS 4", "0 = B 99999999999999999999"), "tempo"),
+])
+def test_corrupt_sync_track_is_refused(tmp_path, sync, message):
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": [(0, 0)]}, sync=sync)
+    with pytest.raises(GameChartError, match=message):
+        read_gamechart(path)
+
+
+def test_corrupt_resolution_offset_and_far_ticks(tmp_path):
+    with pytest.raises(GameChartError, match="Resolution"):
+        read_gamechart(chart_file(tmp_path / "a.chart", {"ExpertDrums": [(0, 0)]}, resolution="1e400"))
+    score, _ = read_gamechart(chart_file(tmp_path / "b.chart", {"ExpertDrums": [(0, 0)]}, song={"Offset": "nan"}))
+    json.dumps(score.to_dict(), allow_nan=False)  # no NaN in score.json
+    with pytest.raises(GameChartError, match="corrupt"):
+        read_gamechart(chart_file(tmp_path / "c.chart", {"ExpertDrums": [(0, 0), (768_000_000_000, 0)]}))
+
+
+def test_midi_without_ticks_per_beat_is_refused(tmp_path):
+    path = rb_midi(tmp_path / "notes.mid", rock_bar(), markers=PRO)
+    data = bytearray(path.read_bytes())
+    data[12:14] = b"\x00\x00"  # header division: 0 ticks per quarter note
+    path.write_bytes(bytes(data))
+    with pytest.raises(GameChartError, match="ticks per quarter"):
+        read_gamechart(path)
+
+
+def test_section_names_are_cleaned():
+    assert section_name("[section ]") is None and section_name("[prc_]") is None
+    assert section_name("[section <color=red>Intro</color>]") == "Intro"
+    assert section_name("[prc_verse_1]") == "Verse 1"
+
+
+def test_export_never_overwrites_the_other_chart_file_in_the_folder(tmp_path, capsys):
+    folder = tmp_path / "Both"
+    folder.mkdir()
+    rb_midi(folder / "notes.mid", rock_bar(), markers=PRO)
+    chart_file(folder / "notes.chart", {"ExpertDrums": [(0, 0), (RES, 1)]})
+    before = (folder / "notes.mid").read_bytes()
+    with pytest.raises(SystemExit):
+        main(["gamechart", str(folder / "notes.chart"), "-o", str(folder), "--stem", "notes",
+              "--formats", "midi,json", "--rights", "own", "--no-32nds"])
+    assert (folder / "notes.mid").read_bytes() == before

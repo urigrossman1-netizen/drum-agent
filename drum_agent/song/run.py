@@ -177,6 +177,12 @@ def _choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
     _print_warnings(found.warnings)
     for i, c in enumerate(choices, 1):
         print(f"   {i}) {c.describe()}")
+    if args.rights and args.pick is None and (choices[0].kind == "video" or len(choices) > 1):
+        # A rights basis is a statement about one recording. A search result (a reupload, a
+        # cover, a backing track can rank first) must be named by the user, not guessed.
+        raise _fail("--rights is a statement about one recording, and these were found by a search: "
+                    "check the list, then re-run with --pick N for the one your basis covers "
+                    "(or give it with --url / --audio)")
     pick = args.pick or 1
     if pick > len(choices):
         raise _fail(f"--pick {pick}: only {len(choices)} candidate(s) were found")
@@ -244,11 +250,31 @@ def _bpm_hint(args, ident: SongCandidate | None) -> float | None:
     return None
 
 
+# Options carried over to the suggested --rights command (flag, attribute).
+_CARRIED = (("--title", "title"), ("--transcriber", "transcriber"), ("--bpm", "bpm"),
+            ("--time-signature", "time_signature"), ("--downbeat", "downbeat"), ("--sensitivity", "sensitivity"),
+            ("--start", "start"), ("--end", "end"), ("--sections", "sections"), ("--chart-type", "chart_type"))
+_CARRIED_FLAGS = (("--use-metadata-bpm", "use_metadata_bpm"), ("--drums-only", "drums_only"),
+                  ("--no-32nds", "no_32nds"))
+
+
 def _rerun_command(args, audio: AudioSource) -> str:
+    """The same request with --rights: from the original source (a link is fetched again,
+    which re-records its uploader and licence; the cache makes it quick), with every
+    option the user gave."""
     cmd = ["python", "-m", "drum_agent", "song", args.query]
     if args.artist:
         cmd += ["--artist", args.artist]
-    cmd += ["--audio", str(audio.path)]
+    cmd += ["--url", audio.url] if audio.url and audio.origin in ("video", "direct") else ["--audio", str(audio.path)]
+    for flag, attr in _CARRIED:
+        value = getattr(args, attr, None)
+        if value is not None and not (attr == "sensitivity" and value == 1.0):
+            cmd += [flag, f"{value:g}" if isinstance(value, float) else str(value)]
+    cmd += [flag for flag, attr in _CARRIED_FLAGS if getattr(args, attr, False)]
+    if getattr(args, "feel", "auto") != "auto":
+        cmd += ["--feel", args.feel]
+    if getattr(args, "detector", "auto") != "auto":
+        cmd += ["--detector", args.detector]
     return " ".join(shlex.quote(c) for c in cmd) + " --rights BASIS -o " + shlex.quote(args.out or "OUT")
 
 

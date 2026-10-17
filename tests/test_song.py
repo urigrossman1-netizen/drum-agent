@@ -32,7 +32,7 @@ from drum_agent.charts import compile_spec
 from drum_agent.cli import build_parser, main
 from drum_agent.model import Score
 from drum_agent.song import fetch, local, lookup
-from drum_agent.song.fetch import FetchError, VideoCandidate
+from drum_agent.song.fetch import AudioSource, FetchError, VideoCandidate
 from drum_agent.song.lookup import MetadataError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -347,7 +347,9 @@ def test_the_cache_never_lives_in_the_repository(tmp_path, monkeypatch):
 def test_safe_names():
     assert fetch.safe_name("../../etc/passwd") == "etc_passwd"
     assert fetch.safe_name("Ünïcödé  Sóng: Part 1/2") == "Unicode_Song_Part_1_2"
-    assert fetch.safe_name("...") == "audio"
+    assert fetch.safe_name("...") == "audio" and fetch.safe_name("") == "audio"
+    # titles in another script get distinct names, not "audio" for every song
+    assert fetch.safe_name("שיר לשלום").startswith("audio-") and fetch.safe_name("上を向いて歩こう") != fetch.safe_name("שיר לשלום")
     assert len(fetch.safe_name("x" * 500)) <= 60
 
 
@@ -360,6 +362,10 @@ def test_safe_names():
     ("https://www.deezer.com/track/3001", "Deezer"),
     ("https://music.amazon.com/albums/B000000000", "Amazon Music"),
     ("https://www.amazon.de/music/player/albums/B000000000", "Amazon Music"),
+    ("https://open.spotify.com./track/4uLU6hMCjMI75M1A2tKUQC", "Spotify"),  # trailing-dot hostnames
+    ("https://www.deezer.com./track/3001", "Deezer"),
+    ("https://p.scdn.co/mp3-preview/abc", "Spotify"),  # the services' audio CDNs
+    ("https://cdns-preview-d.dzcdn.net/stream/c-123.mp3", "Deezer"),
 ])
 def test_drm_streaming_links_are_refused(url, service, monkeypatch):
     monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("a streaming link was opened"))
@@ -497,6 +503,11 @@ if v is None or "-o" not in args:
     sys.exit(1)
 title = re.sub(r"[^A-Za-z0-9_.-]+", "_", v["title"]).strip("_")[:80]
 out = args[args.index("-o") + 1].replace("%(title).80B", title).replace("%(id)s", v["id"]).replace("%(ext)s", "wav")
+if "-P" in args:  # the download folder, as in yt-dlp: the template is relative to it
+    out = os.path.join(args[args.index("-P") + 1], out)
+if not os.path.isabs(out):
+    print("ERROR: fake yt-dlp would write into the working directory: " + out, file=sys.stderr)
+    sys.exit(1)
 shutil.copyfile(os.environ["FAKE_YTDLP_WAV"], out)
 print(out)
 '''
@@ -637,7 +648,7 @@ def test_song_with_rights_transcribes_the_chosen_video(cli, services, ytdlp, eve
     monkeypatch.setattr(rights_module, "require_rights", gate_before_download)
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out,
-                        "--formats", FAST, "--library", tmp_path / "empty-library", "--candidates", 3)
+                        "--formats", FAST, "--library", tmp_path / "empty-library", "--candidates", 3, "--pick", 1)
     assert rc == 0, text + err
     assert kinds(events) == ["rights", "transcribe"]
     assert "watch?v=tg-official" in events[0][1]
@@ -679,7 +690,8 @@ def test_song_without_rights_is_analysis_only(cli, services, ytdlp, events, groo
 def test_song_uses_the_metadata_bpm_only_when_asked(cli, services, ytdlp, events, groove_wav, tmp_path):
     services(duration_s=wav_seconds(groove_wav))
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "original", "-o",
-                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm", "--library", tmp_path / "none")
+                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm", "--library", tmp_path / "none",
+                        "--pick", 1)
     assert rc == 0, text + err
     assert events[-1][1][1].bpm == 118.5
     assert "tempo hint: the metadata BPM 118.5" in text
@@ -804,7 +816,7 @@ def test_song_end_to_end_chart(cli, services, ytdlp, fluid_wav, tmp_path, monkey
     services(duration_s=wav_seconds(fluid_wav))
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out,
-                        "--library", tmp_path / "none")
+                        "--library", tmp_path / "none", "--pick", 1)
     assert rc == 0, text + err
     for name in ("test_groove.pdf", "test_groove.musicxml", "test_groove.mid", "test_groove.json",
                  "test_groove.report.md"):
@@ -831,3 +843,97 @@ def test_song_end_to_end_analysis(cli, services, ytdlp, fluid_wav, tmp_path, mon
     assert abs(float(info["tempo"].split()[0]) - 120) < 6
     assert not {"measures", "hits", "events"} & set(info)
     assert not out.exists()
+
+
+# ---- review regressions -------------------------------------------------------------
+
+def test_rights_after_a_search_needs_an_explicit_pick(cli, services, ytdlp, events, tmp_path):
+    # A basis is a statement about one recording; the first search result may be a
+    # reupload or a cover, so it is never picked for the user.
+    services()
+    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own",
+                        "-o", tmp_path / "out", "--library", tmp_path / "none")
+    assert rc != 0 and "--pick N" in err
+    assert kinds(events) == [] and downloads(ytdlp()) == []
+
+
+def test_drumless_and_backing_tracks_rank_last():
+    names = ["The Placeholders - Test Groove (Drumless)", "The Placeholders - Test Groove (Drum Backing Track)",
+             "The Placeholders - Test Groove (Official Audio)", "The Placeholders - Test Groove (No Drums)",
+             "The Placeholders - Test Groove (Instrumental)"]
+    v = [VideoCandidate(url=f"https://www.youtube.com/watch?v={i}", title=n, duration_s=192)
+         for i, n in enumerate(names)]
+    ranked = fetch.rank_videos(v, "The Placeholders Test Groove", expected_duration=192)
+    assert ranked[0].title.endswith("(Official Audio)")
+    assert all(r.score < ranked[0].score - 0.5 for r in ranked[1:] if "rums" in r.title)
+
+
+def test_a_page_with_several_recordings_is_refused(monkeypatch):
+    infos = [{"webpage_url": f"https://example.com/album#{i}", "title": f"Track {i}", "id": f"t{i}"} for i in range(3)]
+    out = "\n".join(json.dumps(i) for i in infos)
+    monkeypatch.setattr(fetch, "_run_ytdlp", lambda exe, args, timeout: subprocess.CompletedProcess(args, 0, out, ""))
+    with pytest.raises(FetchError, match="holds 3 recordings"):
+        fetch.video_info("https://example.com/album", ytdlp=["yt-dlp"])
+
+
+def test_ytdlp_downloads_into_the_cache_by_folder_not_template(monkeypatch, tmp_path):
+    cache = tmp_path / "cache_100%_sure"
+    seen = {}
+
+    def run(exe, args, timeout):
+        seen["args"] = args
+        return subprocess.CompletedProcess(args, 1, "", "stop here")
+    monkeypatch.setattr(fetch, "_run_ytdlp", run)
+    with pytest.raises(FetchError):
+        fetch.download_with_ytdlp("https://www.youtube.com/watch?v=x", cache, ytdlp=["yt-dlp"])
+    a = seen["args"]
+    assert a[a.index("-P") + 1] == str(cache.resolve()) and "%" not in a[a.index("-o") + 1].split("%(")[0]
+    assert a[a.index("--playlist-items") + 1] == "1"
+
+
+def test_redirect_to_ftp_is_not_followed(tmp_path):
+    import http.server
+    import threading
+
+    class Redirect(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", "ftp://127.0.0.1:9/secret.wav")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    server = http.server.HTTPServer(("127.0.0.1", 0), Redirect)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with pytest.raises(FetchError, match="refused|302"):
+            fetch.fetch_audio(f"http://127.0.0.1:{server.server_port}/take.wav", tmp_path / "cache", timeout=3)
+    finally:
+        server.shutdown()
+
+
+def test_a_download_that_slows_to_a_trickle_is_given_up(monkeypatch, tmp_path):
+    clock = iter(range(0, 10_000, 10))  # 10 s pass per read
+    monkeypatch.setattr(fetch.time, "monotonic", lambda: next(clock))
+
+    class Trickle:
+        def read(self, n):
+            return b"RIFF"
+    with pytest.raises(FetchError, match="too slow"):
+        fetch._stream_to(Trickle(), tmp_path / "take.wav", 10 ** 9, "http://example.com/take.wav")
+    assert list(tmp_path.iterdir()) == []  # no partial file left behind
+
+
+def test_the_suggested_rights_command_keeps_the_source_and_options():
+    from types import SimpleNamespace
+    from drum_agent.song.run import _rerun_command
+    args = SimpleNamespace(query="Test Groove", artist="The Placeholders", out="out", title="Test Groove (mine)",
+                           transcriber=None, bpm=120.0, time_signature="6/8", downbeat=None, sensitivity=1.0,
+                           start=12.5, end=None, sections=None, chart_type=None, use_metadata_bpm=False,
+                           drums_only=True, no_32nds=False, feel="swing", detector="auto")
+    audio = AudioSource(Path("/cache/x.wav"), "video", url="https://www.youtube.com/watch?v=tg-official")
+    cmd = _rerun_command(args, audio)
+    assert "--url 'https://www.youtube.com/watch?v=tg-official'" in cmd and "/cache/x.wav" not in cmd
+    for part in ("--title 'Test Groove (mine)'", "--bpm 120", "--time-signature 6/8", "--start 12.5",
+                 "--drums-only", "--feel swing", "--rights BASIS -o out"):
+        assert part in cmd, part

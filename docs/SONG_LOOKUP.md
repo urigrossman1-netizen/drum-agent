@@ -49,7 +49,12 @@ Each step is printed as it happens.
      **your own yt-dlp**, if you installed it.
 
    The candidates are listed with where they come from, uploader and stated
-   licence; the best is used, `--pick N` takes another.
+   licence; the best is used, `--pick N` takes another. Drumless versions,
+   backing tracks, covers, live takes and remixes rank last unless your own
+   words ask for them. With `--rights`, a search result is never chosen for
+   you: after a video search, or when several library files match, name the
+   recording your basis covers with `--pick N` (a basis is a statement about
+   one recording, and the first search result can be a reupload).
 3. **Check the length** against the identified recording. More than 10 % off
    prints a warning: it may be another version (live, edit, remix) or another
    song.

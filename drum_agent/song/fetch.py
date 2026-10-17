@@ -31,6 +31,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -45,6 +46,8 @@ CACHE_ENV = "DRUM_AGENT_AUDIO_CACHE"
 MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024
 DOWNLOAD_TIMEOUT = 30.0  # seconds per network operation (connect, each read)
 CHUNK = 1 << 16
+MIN_RATE = 16 * 1024  # bytes/s: slower than this after the first 30 s, a download is given up
+SLOW_GRACE_S = 30.0
 YTDLP_SEARCH_TIMEOUT = 180.0
 YTDLP_DOWNLOAD_TIMEOUT = 1800.0
 DURATION_TOLERANCE = 0.10  # a recording within 10 % of the identified length counts as the same version
@@ -52,7 +55,12 @@ DURATION_TOLERANCE = 0.10  # a recording within 10 % of the identified length co
 # Words in a video title that mark another performance or a treated copy: never the recording
 # to transcribe unless the user asked for it.
 VIDEO_PENALTY_WORDS = ("live", "cover", "drum cover", "remix", "karaoke", "lesson", "tutorial", "reaction",
-                       "slowed", "sped up", "nightcore", "8d")
+                       "slowed", "sped up", "nightcore", "8d", "instrumental", "acoustic")
+# A copy without the drums (or without the song) is useless for a drum transcription.
+NO_DRUMS_WORDS = ("drumless", "no drums", "without drums", "minus drums", "drums removed", "backing track",
+                  "drum backing", "play along", "playalong")
+_OFFICIAL_TAG = re.compile(r"[(\[]?\s*official\s+(?:audio|video|music\s+video|lyric\s+video|visualizer)\s*[)\]]?",
+                           re.IGNORECASE)
 
 YTDLP_MISSING = ("yt-dlp is not installed. Drum Agent does not include it; to use audio from a video site, "
                  "install it yourself: pip install yt-dlp")
@@ -63,6 +71,9 @@ _STREAMING_HOSTS = (
     ("music.apple.com", "Apple Music"), ("itunes.apple.com", "Apple Music"), ("apple.co", "Apple Music"),
     ("tidal.com", "Tidal"), ("tidal.link", "Tidal"),
     ("deezer.com", "Deezer"), ("deezer.page.link", "Deezer"), ("dzr.page.link", "Deezer"),
+    # their audio CDNs (previews and streams)
+    ("scdn.co", "Spotify"), ("spotifycdn.com", "Spotify"), ("dzcdn.net", "Deezer"), ("mzstatic.com", "Apple Music"),
+    ("tidalhifi.com", "Tidal"), ("media-amazon.com", "Amazon Music"),
 )
 _STREAMING_SCHEMES = {"spotify": "Spotify", "deezer": "Deezer", "tidal": "Tidal", "itms": "Apple Music",
                       "itmss": "Apple Music", "music": "Apple Music"}
@@ -161,7 +172,7 @@ def streaming_service(source: str) -> str | None:
         return _STREAMING_SCHEMES[scheme]
     if scheme not in ("http", "https"):
         return None
-    host = (parts.hostname or "").lower()
+    host = (parts.hostname or "").lower().rstrip(".")  # "open.spotify.com." is the same host
     for suffix, name in _STREAMING_HOSTS:
         if _host_is(host, suffix):
             return name
@@ -181,7 +192,7 @@ def refuse_streaming(source: str) -> None:
 
 
 def is_video_page(url: str) -> bool:
-    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    host = (urllib.parse.urlsplit(url).hostname or "").lower().rstrip(".")
     return any(_host_is(host, h) for h in _VIDEO_HOSTS)
 
 
@@ -236,7 +247,10 @@ def safe_name(text: str, limit: int = 60) -> str:
     """ASCII letters, digits, '.', '_' and '-' only: no separators, no leading dot, bounded length."""
     t = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     t = re.sub(r"[^A-Za-z0-9._-]+", "_", t).strip("._-")
-    return t[:limit].rstrip("._-") or "audio"
+    t = t[:limit].rstrip("._-")
+    if not t and any(ch.isalnum() for ch in text):  # a title in another script: a hash, not "audio" for all
+        t = "audio-" + hashlib.sha256(text.strip().encode()).hexdigest()[:8]
+    return t or "audio"
 
 
 # ---- local files ----------------------------------------------------------------------
@@ -321,8 +335,13 @@ def _stream_to(resp, final: Path, max_bytes: int, url: str) -> None:
     tmp = Path(tmp_name)
     try:
         n = 0
+        t0 = time.monotonic()
         with os.fdopen(fd, "wb") as out:
             while True:
+                elapsed = time.monotonic() - t0
+                if elapsed > SLOW_GRACE_S and n < MIN_RATE * elapsed:
+                    raise FetchError(f"{url}: the download is too slow ({n / elapsed / 1024:.0f} kB/s); try again "
+                                     f"later or give a file with --audio")
                 try:
                     chunk = resp.read(CHUNK)
                 except (OSError, http.client.HTTPException) as exc:
@@ -398,11 +417,12 @@ def rank_videos(videos: list[VideoCandidate], query: str, expected_duration: flo
     "live", "cover", "remix"... in the title unless the user's own words (`asked`) contain it."""
     asked = asked if asked is not None else query
     for v in videos:
-        s = similarity(query, v.title)
+        s = similarity(query, _OFFICIAL_TAG.sub(" ", v.title))
         if expected_duration and v.duration_s:
             off = abs(v.duration_s - expected_duration) / expected_duration
             s += 0.3 if off <= DURATION_TOLERANCE else -min(0.3, off)
         s -= version_penalty(v.title, asked, VIDEO_PENALTY_WORDS, per_word=0.3)
+        s -= version_penalty(v.title, asked, NO_DRUMS_WORDS, per_word=1.0)
         if re.search(r"\bofficial (?:audio|video|music video)\b", text_key(v.title)) or \
                 str(v.channel or v.uploader or "").endswith(" - Topic"):
             s += 0.05  # the label's upload or the platform's own audio track
@@ -436,6 +456,9 @@ def video_info(url: str, *, ytdlp: list[str] | None = None, timeout: float = YTD
     videos = _parse_infos(proc.stdout)
     if not videos:
         raise FetchError(f"yt-dlp found no video at {url}: {_tail(proc.stderr)}")
+    if len(videos) > 1:
+        raise FetchError(f"{url} holds {len(videos)} recordings (a playlist or an album page); give the link "
+                         f"of the one recording to use")
     return videos[0]
 
 
@@ -451,9 +474,9 @@ def download_with_ytdlp(url: str, cache_dir: str | Path | None = None, *, info: 
     if cached is not None:
         return AudioSource(cached, "video", url=v.url or url, title=v.title, uploader=v.uploader,
                            duration_s=v.duration_s, license=v.license, note="already in the cache")
-    args = ["--no-playlist", "--no-progress", "--no-warnings", "--restrict-filenames", "--no-overwrites",
-            "--max-filesize", str(max_bytes), "--match-filter", "!is_live", "-f", "bestaudio/best",
-            "-o", str(cache / "%(title).80B-%(id)s.%(ext)s"),
+    args = ["--no-playlist", "--playlist-items", "1", "--no-progress", "--no-warnings", "--restrict-filenames",
+            "--no-overwrites", "--max-filesize", str(max_bytes), "--match-filter", "!is_live", "-f", "bestaudio/best",
+            "-P", str(cache), "-o", "%(title).80B-%(id)s.%(ext)s",
             "--print", "after_move:filepath", "--no-simulate", "--", url]
     proc = _run_ytdlp(exe, args, timeout)
     if proc.returncode != 0:

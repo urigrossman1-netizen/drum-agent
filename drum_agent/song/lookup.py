@@ -184,7 +184,18 @@ def open_url(url: str, timeout: float, headers: dict[str, str] | None = None):
     if scheme not in ("http", "https"):
         raise MetadataError(f"only http(s) URLs are fetched, not {scheme or 'a bare path'!r}")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
-    return urllib.request.build_opener().open(req, timeout=timeout)
+    return urllib.request.build_opener(_HttpOnlyRedirects()).open(req, timeout=timeout)
+
+
+class _HttpOnlyRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow redirects to http(s) only: urllib's default also follows ftp:// (and would
+    log in to an FTP server named by whoever answers the first request)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        scheme = urllib.parse.urlsplit(newurl).scheme.lower()
+        if scheme not in ("http", "https"):
+            raise urllib.error.HTTPError(newurl, code, f"redirect to a {scheme or 'bare'} URL refused", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def http_get_json(url: str, timeout: float = 8, max_bytes: int = MAX_JSON_BYTES) -> Any:

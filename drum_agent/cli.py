@@ -173,9 +173,12 @@ def cmd_gamechart(args) -> int:
     kit = _kit(args)
     chart_file, _, _ = locate_chart(args.input)
     stem = args.stem or default_stem(chart_file)
-    _guard_input(str(chart_file), args.out, stem)  # the notes.mid itself, not the folder
+    for f in chart_file.parent.iterdir():  # every chart file in the song folder, not only the one read
+        if f.name.lower() in ("notes.mid", "notes.midi", "notes.chart"):
+            _guard_input(str(f), args.out, stem)
     score, rep = read_gamechart(args.input, difficulty=args.difficulty, pro=False if args.no_pro else None,
-                                title=args.title, artist=args.artist, options=QuantizeOptions(feel=args.feel))
+                                title=args.title, artist=args.artist,
+                                options=QuantizeOptions(feel=args.feel, allow_32nds=not args.no_32nds))
     print(f"{rep.path.name}: {rep.difficulty} drums ({len(score.measures)} bars, {rep.gems} notes); "
           f"pro drums {rep.pro_reason}")
     for w in rep.warnings:
@@ -387,6 +390,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--transcriber", help="default: the charter named in song.ini or the .chart")
     p.add_argument("--rights", choices=sorted(RIGHTS), default=None)
     p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
+    p.add_argument("--no-32nds", action="store_true", help="write nothing finer than 16ths")
     p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar); '
                    "default: the chart's sections")
     _add_export_args(p)
