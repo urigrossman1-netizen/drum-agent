@@ -34,7 +34,8 @@ an item failing.
 - [ ] Beams follow beats; 4/4 straight 8ths beamed in fours; 6/8 in threes
 - [ ] Rests: whole-bar rest centred; no rest crossing the middle of a 4/4 bar;
       rests in the lower voice don't collide with the kick
-- [ ] Tuplet brackets/numbers on triplets and sextuplets, not on swung 8ths
+- [ ] Tuplet numbers on triplets and sextuplets (a bracket only where the tuplet
+      isn't beamed together), not on swung 8ths
 - [ ] No tied drum notes except rolls
 
 ## Articulations

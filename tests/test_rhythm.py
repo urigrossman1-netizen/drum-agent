@@ -8,7 +8,8 @@ import pytest
 from drum_agent.charts import compile_spec
 from drum_agent.model import Hit, Measure, TimeSig
 from drum_agent.kit import DEFAULT_KIT
-from drum_agent.rhythm import SpellingError, check_tokens, spell_measure, spell_voice
+from drum_agent.rhythm import (SpellingError, check_tokens, silent_voices, spell_measure, spell_voice,
+                               two_voice_bar, upper_bar_empty)
 
 # The rhythm rules are the same in every voicing. These tests were written with
 # snare and toms in the stems-up voice, i.e. the hands-up (Weinberg/PAS) voicing.
@@ -130,6 +131,14 @@ def test_eighth_triplets_and_mixed_bar():
     assert v[0].tuplet_start and v[2].tuplet_stop and v[3].tuplet_start and v[4].tuplet_stop
 
 
+def test_brackets_only_over_tuplets_not_beamed_together():
+    v = spell_hu(bar({"sn": "dxxX--|xxx|x-x|-xx"})).voices[1]
+    starts = [t for t in v if t.tuplet_start]
+    # "3" + 8th (a drag on the first note changes nothing), even 8th triplets: the number
+    # alone. A quarter and an 8th, or a triplet starting on a rest: the bracket.
+    assert [t.bracket for t in starts] == [False, False, True, True]
+
+
 def test_quarter_note_triplets_span_half_bar():
     m = bar({"t1": "x---x---x---" + "x--x--x--x--"})
     v = spell_hu(m).voices[1]
@@ -209,6 +218,48 @@ def test_pickup_bar():
     v = spell_hu(m).voices[1]
     assert values(v) == "x16 x16 x16 x16" and v[0].pos == 0
     check_tokens(v, m)
+
+
+def test_pickup_from_the_half_beat_is_a_triplet_not_a_sextuplet():
+    # A 16th-note-triplet lead-in: "3" over three 16ths, not "6" over half a sextuplet.
+    m = bar({"sn": "xxx"}, length="1/8")
+    v = spell_hu(m).voices[1]
+    assert values(v) == "x16 x16 x16" and [t.tuplet for t in v] == [(3, 2)] * 3
+    assert v[0].tuplet_start and v[-1].tuplet_stop and not v[0].bracket
+    check_tokens(v, m)
+    assert values(spell_hu(bar({"sn": "xxxx--"}, length="1/4")).voices[1]) == "x16 x16 x16 x8"
+
+
+def test_empty_cymbal_voice_over_a_pickup_fill():
+    sm = spell_measure(bar({"sn": "xxxx"}, length="1/4"))
+    assert [t.kind for t in sm.voices[1]] == ["rest"] and upper_bar_empty(sm)
+    assert not upper_bar_empty(spell_measure(bar({"hh": "x-x-", "sn": "--xx"}, length="1/4")))
+
+
+def test_roll_over_the_kick_keeps_a_march_in_one_voice():
+    # Snare and bass drum only: one voice, although the roll over the kick moves up in its bar.
+    score = compile_spec({"sections": [{"bars": [{"sn": "X-x-x-x-X-x-x-x-", "bd": "x-------x-------"},
+                                                 {"sn": "r~~~~~~~x---X---", "bd": "x---x---x-------"}]}]})
+    silent = silent_voices(score.measures)
+    assert silent == {1}
+    plain, roll = (spell_measure(m) for m in score.measures)
+    assert roll.voices[1][0].is_roll and two_voice_bar(roll, silent)
+    assert not two_voice_bar(plain, silent)
+    # As exporters spell it: that bar goes hands up, feet down (the accent after the roll stays
+    # up with the snare); the other bars keep one voice.
+    plain, roll = (spell_measure(m, one_voice=True) for m in score.measures)
+    assert [h.inst for t in roll.voices[1] for h in t.hits] == ["snare", "snare", "snare"]
+    assert {h.inst for t in roll.voices[2] for h in t.hits} == {"kick"}
+    assert not two_voice_bar(plain, silent) and two_voice_bar(roll, silent)
+    # A tom stroke during the roll (or on its first note) can't join the roll's voice: then
+    # only the roll moves up, as in a chart with cymbals.
+    for t1 in ("----x-----------", "x---------------"):
+        m = compile_spec({"sections": [{"bars": [{"sn": "r~~~~~~~----X---", "t1": t1,
+                                                  "bd": "x---x---x-------"}]}]}).measures[0]
+        sm = spell_measure(m, one_voice=True)
+        assert [h.inst for t in sm.voices[1] for h in t.hits] == ["snare"]
+        assert "tom1" in {h.inst for t in sm.voices[2] for h in t.hits}
+        check_tokens(sm.voices[2], m)
 
 
 # --- rolls ------------------------------------------------------------------------

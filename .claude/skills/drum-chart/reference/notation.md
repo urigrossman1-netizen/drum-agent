@@ -13,7 +13,11 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
     moves up for that bar, so the kick is never part of the rolled chord.
 - `--voicing hands-up` gives the Weinberg/PAS drum-book layout: everything the
   hands play stems up, only the feet down. Positions and noteheads don't change.
-- A silent voice gets a whole-bar rest; if both are silent, one rest.
+- A silent drum voice gets a whole-bar rest; a silent cymbal voice over drums
+  (a fill, a pickup) is left blank; if both are silent, one rest.
+- A chart with no cymbal at all (snare rudiment, march) is one voice, stems up,
+  accents above; only a bar whose roll moved up over the kick has two voices
+  (the hands up, the feet down).
 - Sticking (R, L, B) prints on one line under the staff; cues ("hey",
   "Band in") print in italics above the staff at the start of their bar.
 
@@ -47,6 +51,9 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
 ## Rhythm rules the engraver applies
 - Each beat gets the simplest grid that holds its strokes: 8ths, 16ths, 32nds,
   triplets (3:2), sextuplets (6:4); compound beats use 8ths/16ths, duplets 2:3.
+- A 16th-note triplet and an 8th in one beat: a "3" over the half beat and a
+  plain 8th (also as a pickup from the half beat). A tuplet beamed together
+  shows its number only; the bracket prints only over an unbeamed tuplet.
 - A note lasts until the next stroke in its voice or the end of the beat. Drum
   notes are never tied, except rolls.
 - Rests follow bar > half bar > beat. No half rest across the middle of 4/4.

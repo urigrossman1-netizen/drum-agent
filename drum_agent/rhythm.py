@@ -35,6 +35,7 @@ class Token:
     tuplet: tuple[int, int] | None = None  # (actual, normal), e.g. (3, 2)
     tuplet_start: bool = False
     tuplet_stop: bool = False
+    bracket: bool = False  # on a tuplet_start: print the bracket (the tuplet isn't beamed together)
     hits: list[Hit] = field(default_factory=list)
     beams: dict[int, str] = field(default_factory=dict)  # level -> begin/continue/end/forward hook/backward hook
     tie_start: bool = False
@@ -183,7 +184,10 @@ def plan_segments(ts: TimeSig, points: list[Fraction], offset: Fraction) -> list
         if start < offset:
             pts.append(offset)
         seg = choose_segment(start, length, pts)
-        parts = _split_triplet_half(seg, pts) if start >= offset else None
+        # A pickup from the half beat (a "3" lead-in) splits too: its first half lies before the
+        # pickup and spells nothing.
+        parts = (_split_triplet_half(seg, pts)
+                 if start >= offset or offset == start + length / 2 else None)
         for part in parts or [seg]:
             part.beat = i
             segs.append(part)
@@ -319,6 +323,7 @@ def spell_voice(measure: Measure, hits: list[Hit]) -> list[Token]:
     tokens = _merge_beat_rests(tokens, ts, segments, offset)
     tokens = _merge_roll_ties(tokens, ts, segments, offset)
     assign_beams(tokens, segments, ts)
+    _mark_brackets(tokens)
     return _shift(tokens, -offset) if offset else tokens
 
 
@@ -366,6 +371,19 @@ def _mark_tuplets(tokens: list[Token], segments: list[Segment]) -> None:
         if group:
             group[0].tuplet_start = True
             group[-1].tuplet_stop = True
+
+
+def _mark_brackets(tokens: list[Token]) -> None:
+    """A tuplet gets a bracket unless its first and last notes are under one beam: a beamed
+    group shows the number alone, as engravers write it (and as LilyPond's 'if-no-beam does)."""
+    for t in tokens:
+        if not t.tuplet_start:
+            continue
+        g = [x for x in tokens if x.segment == t.segment]
+        t.bracket = not (g[0].kind == g[-1].kind == "note"
+                         and g[0].beams.get(1) in ("begin", "continue")
+                         and g[-1].beams.get(1) in ("continue", "end")
+                         and all(x.beams.get(1) != "end" for x in g[:-1]))
 
 
 def _merge_beat_rests(tokens: list[Token], ts: TimeSig, segments: list[Segment],
@@ -536,12 +554,16 @@ def _starts_during(spans: list[tuple[Fraction, Fraction]], hits: list[Hit]) -> b
     return any(a <= h.pos < b for a, b in spans for h in hits)
 
 
-def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT) -> dict[int, list[Hit]]:
+def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT, one_voice: bool = False) -> dict[int, list[Hit]]:
     """The hits of each voice: the kit's voice, except that a snare/tom roll with the kick
     under it moves up. In the cymbals-up voicing the roll shares the lower voice with the
     kick, and a kick on the roll's first note or during it would be written as part of the
     rolled chord. Both hands are rolling, so the upper voice is free there and the bar reads
-    as in the hands-up layout."""
+    as in the hands-up layout.
+
+    `one_voice`: the chart has no upper-voice stroke anywhere and is engraved as one voice,
+    stems up (see silent_voices). A bar whose roll moves up then goes hands up, feet down:
+    its other snare and tom strokes keep the stems and accents above of the bars around it."""
     by_voice: dict[int, list[Hit]] = {1: [], 2: []}
     for h in measure.hits:
         by_voice[kit[h.inst].voice].append(h)
@@ -550,13 +572,21 @@ def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT) -> dict[int, list[Hi
         spans = [(h.pos, h.pos + h.roll) for h in rolled]
         others = [h for h in by_voice[2] if h not in rolled]
         if _starts_during(spans, others) and not _starts_during(spans, by_voice[1]):
+            hands = [h for h in others if not kit.is_foot(h.inst)]
+            # Not when a hand's stroke starts during a roll: in the roll's voice it would join
+            # the rolled chord or cut the roll.
+            if one_voice and not by_voice[1] and not _starts_during(spans, hands):
+                rolled = rolled + hands
+                others = [h for h in others if kit.is_foot(h.inst)]
             by_voice[2] = others
             by_voice[1] = by_voice[1] + rolled
     return by_voice
 
 
-def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
-    by_voice = assign_voices(measure, kit)
+def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT, one_voice: bool = False) -> SpelledMeasure:
+    """Spell both voices of a bar. `one_voice`: see assign_voices (exporters pass
+    `1 in silent_voices(...)`)."""
+    by_voice = assign_voices(measure, kit, one_voice)
     if not by_voice[1] and not by_voice[2]:
         rest = spell_voice(measure, [])
         return SpelledMeasure({1: rest, 2: []}, shared_rest=True)
@@ -564,18 +594,28 @@ def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
 
 
 def silent_voices(measures: list[Measure], kit: Kit = DEFAULT_KIT) -> set[int]:
-    """Voices with no stroke in any bar: a snare-only rudiment has no cymbal voice and a
+    """Voices of the kit with no stroke in any bar: a snare-only rudiment has no cymbal voice and a
     march written for snare and bass drum none either. They are engraved as one voice,
-    without a column of rests for the empty one."""
-    sounding = {v for m in measures for v, hs in assign_voices(m, kit).items() if hs}
+    without a column of rests for the empty one. A roll that assign_voices moves up over the
+    kick doesn't count: only that bar is written in two voices (see two_voice_bar)."""
+    sounding = {kit[h.inst].voice for m in measures for h in m.hits}
     return {1, 2} - sounding if sounding else set()
 
 
+def _has_notes(tokens: list[Token]) -> bool:
+    return any(t.kind == "note" for t in tokens)
+
+
+def two_voice_bar(sm: SpelledMeasure, silent: set[int]) -> bool:
+    """A bar of a one-voice chart that needs both voices: a roll moved up over the kick (the
+    hands up, the feet down, when spelled with one_voice)."""
+    return 1 in silent and _has_notes(sm.voices[1])
+
+
 def upper_bar_empty(sm: SpelledMeasure) -> bool:
-    """The upper (cymbal) voice is one whole-bar rest while the lower voice plays."""
-    up = sm.voices[1]
-    return (not sm.shared_rest and len(up) == 1 and up[0].kind == "measure_rest"
-            and any(t.kind == "note" for t in sm.voices[2]))
+    """The upper (cymbal) voice has no stroke (a whole-bar rest, or a pickup's rests) while the
+    lower voice plays."""
+    return not sm.shared_rest and not _has_notes(sm.voices[1]) and _has_notes(sm.voices[2])
 
 
 def check_tokens(tokens: list[Token], measure: Measure) -> None:
