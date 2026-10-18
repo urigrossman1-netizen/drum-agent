@@ -10,6 +10,7 @@ only a listening check can settle.
 from __future__ import annotations
 
 import json
+import math
 import re
 import tempfile
 from dataclasses import dataclass, field
@@ -201,15 +202,23 @@ def _fit_fewer_pages(score, kit, plan, opts, res, out: Path, stem: str):
 
 PAPER_WIDTH_MM = {"letter": 215.9, "legal": 215.9, "a4": 210.0, "a5": 148.0, "a3": 297.0, "tabloid": 279.4}
 RIGHT_MARGIN_MM = 14.0  # export/lilypond.py paper()
-OVERFLOW_MM = 2.0  # ink this far into the right margin: a line too full to fit
+OVERFLOW_MM = 2.0  # a staff this far into the right margin: a line too full to fit
+CLIPPED = float("inf")  # a staff cut off at the page edge: how far it runs is unknown
+MAX_REPLANS = 4  # trial renders one chart may spend looking for a layout that fits
+STAFF_LINE = 0.5  # an unbroken run of ink this share of the page width is a staff line; text never is
 
 
 def _overflow_mm(pngs: list[Path], paper: str) -> float:
-    """How far the widest line's ink reaches past the right margin, in mm (0 if it fits).
+    """How far the widest line's staff reaches past the right margin, in mm (0 if it fits).
 
     LilyPond gives no warning when a forced line holds more than its minimum
     width allows (dense 16ths, ghost notes, a sticking letter under every
-    note): the line simply runs off the page. The rendered page shows it."""
+    note): the line simply runs off the page, staff lines and all. The
+    rendered page shows it. Only staff lines are measured: a title or a
+    copyright line too wide for the page is no line of music, and fewer bars
+    per line can't shorten it. A staff line reaching the last pixel columns
+    was cut off at the page edge, so it reads as CLIPPED, worse than any
+    overflow that can be measured."""
     width = PAPER_WIDTH_MM.get(paper.lower())
     if width is None or not pngs:
         return 0.0
@@ -221,35 +230,67 @@ def _overflow_mm(pngs: list[Path], paper: str) -> float:
     worst = 0.0
     for png in pngs:
         ink = np.asarray(Image.open(png).convert("L")) < 128
-        cols = np.nonzero(ink.any(axis=0))[0]
+        n = ink.shape[1]
+        x = np.arange(n, dtype=np.int32)
+        run = x - np.maximum.accumulate(np.where(ink, -1, x), axis=1)  # ink run ending at each pixel
+        cols = np.nonzero((run >= STAFF_LINE * n).any(axis=0))[0]
         if not len(cols):
             continue
-        px_per_mm = ink.shape[1] / width
+        if cols[-1] >= n - 2:
+            return CLIPPED
+        px_per_mm = n / width
         worst = max(worst, (cols[-1] + 1) / px_per_mm - (width - RIGHT_MARGIN_MM))
     return max(0.0, worst)
 
 
 def _fix_overflow(score, kit, plan, opts, res, out: Path, stem: str, report: ExportReport):
-    """Re-plan with fewer bars per line when a line runs past the right margin."""
-    from .export.lilypond import to_lilypond
-    from .export.render import render
+    """Re-plan with fewer bars per line when a line runs past the right margin.
 
-    over = _overflow_mm(res.pngs, opts.paper)
+    Each step lowers the line capacity by a quarter, down to one bar per line.
+    Only line breaks not tried yet are rendered, in a scratch directory and at
+    most MAX_REPLANS times: the first plan that fits wins, otherwise the one
+    that overflows least, if it beats the original. Between two plans whose
+    lines are both cut off at the page edge, the one with fewer bars per line
+    wins: neither overflow can be measured, and the shorter lines lose less of
+    the music. A trial LilyPond rejects ends the search, as in _fit_fewer_pages."""
+    from .export.lilypond import to_lilypond
+    from .export.render import RenderError, render
+
+    over = first = _overflow_mm(res.pngs, opts.paper)
     if over <= OVERFLOW_MM:
         return plan, res
-    tighter = plan_layout(score, repeats=opts.repeats, bars_per_line=opts.bars_per_line * 0.75)
-    ly = to_lilypond(score, kit, tighter, paper_size=opts.paper, staff_size=opts.staff_size,
-                     with_legend=opts.legend)
-    with tempfile.TemporaryDirectory(dir=out) as td:
-        trial_over = _overflow_mm(render(ly, td, stem, png=True).pngs, opts.paper)
-    if trial_over < over:
+    bpl, best_ly, trials = opts.bars_per_line, None, 0
+    tried = {tuple(b.line_break for b in plan.bars)}
+    while over > OVERFLOW_MM and bpl > 1 and trials < MAX_REPLANS:
+        bpl = max(1.0, bpl * 0.75)
+        tighter = plan_layout(score, repeats=opts.repeats, bars_per_line=bpl)
+        breaks = tuple(b.line_break for b in tighter.bars)
+        if breaks in tried:
+            continue
+        tried.add(breaks)
+        trials += 1
+        ly = to_lilypond(score, kit, tighter, paper_size=opts.paper, staff_size=opts.staff_size,
+                         with_legend=opts.legend)
+        with tempfile.TemporaryDirectory(dir=out) as td:
+            try:
+                trial_over = _overflow_mm(render(ly, td, stem, png=True).pngs, opts.paper)
+            except RenderError:
+                break
+        if trial_over < over or trial_over == over == CLIPPED:
+            plan, best_ly, over = tighter, ly, trial_over
+    if best_ly is not None:
         report.notes.append(f"Fewer bars per line: the planned lines were too dense to fit "
-                            f"({over:.0f} mm past the margin).")
-        plan, res, over = tighter, render(ly, out, stem, png=True), trial_over
+                            f"(they ran {_reach(first)}).")
+        res = render(best_ly, out, stem, png=True)
     if over > OVERFLOW_MM:
-        report.warnings.append(f"Layout: a line runs {over:.0f} mm past the right margin; "
-                               f"pass --bars-per-line with a smaller number")
+        hint = (f"; pass --bars-per-line {math.ceil(bpl) - 1}" if bpl > 1
+                else " even at one bar per line; pass a smaller --staff-size")
+        report.warnings.append(f"Layout: a line runs {_reach(over)}{hint}")
     return plan, res
+
+
+def _reach(over: float) -> str:
+    return "off the right edge of the page" if over == CLIPPED else f"{over:.0f} mm past the right margin"
 
 
 def _without_compression(warnings: list[str]) -> list[str]:
