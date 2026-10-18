@@ -115,8 +115,10 @@ shipped members were trained on):
 | 200001-203000 | `227d045` (the recording conditions above) | `build --clips 3000 --start-seed 200001` | v2, v3 |
 | 300001-301500 | `e257b26` (adds the toms style; today's generator draws the same clips) | `build --clips 1500 --start-seed 300001` with `DRUM_AGENT_STYLES="toms:5,isolated:1,rock:1,funk:1,metal:1,ballad:1,halftime:1"` | v3 |
 
-v2 is `train --hidden 512,256 --epochs 30 --version 2` with the first two
-ranges in the shard directory, v3 the same with `--version 3` and all three.
+v2 is `train --hidden 512,256 --epochs 30 --version 2 --out v2.npz` with the
+first two ranges in the shard directory, v3 the same with `--version 3 --out
+v3.npz` and all three (without `--out`, `train` writes over the shipped
+weights).
 All three ranges use the same one-shot library (`oneshots.py`, whose default
 output hasn't changed).
 

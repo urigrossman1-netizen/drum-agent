@@ -274,7 +274,10 @@ def cmd_ensemble(a) -> None:
     out = Path(a.out)
     fd, tmp = tempfile.mkstemp(suffix=".npz", dir=out.parent)
     os.close(fd)
+    umask = os.umask(0)
+    os.umask(umask)
     try:
+        os.chmod(tmp, 0o666 & ~umask)  # mkstemp makes it owner-only; the model is read by everyone
         np.savez_compressed(tmp, **payload)
         clf = OnsetClassifier(Path(tmp))
         shape = clf.predict(np.zeros((1, FEATURE_DIM), dtype=np.float32)).shape

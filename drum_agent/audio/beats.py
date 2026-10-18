@@ -123,11 +123,14 @@ def _rescore_ties(scored: list, hits: list[DrumHit]) -> list:
     beats to bend, so a dense take (ghost notes, rolls, a band) can score the
     double-time reading as high as the true one. A constant grid can't bend. If
     the winner's own constant grid falls short of its DP beats (they bent) while
-    another candidate's constant grid explains the strokes nearly as well as its
-    DP beats (steady music), the tied candidates are ranked by their constant
-    grids. A winner that didn't bend keeps its place: at 3/4 of the tempo swung
-    8ths fall exactly on a constant 16th grid, and ranking a steady swing take by
-    grids alone slowed it to 3/4. Music whose tempo moves keeps the DP ranking."""
+    the candidate with the best constant grid explains the strokes with it nearly
+    as well as with its DP beats (steady music), the tied candidates are ranked by
+    their constant grids. A winner that didn't bend keeps its place: at 3/4 of the
+    tempo swung 8ths fall exactly on a constant 16th grid, and ranking a steady
+    swing take by grids alone slowed it to 3/4. Music whose tempo moves mostly
+    keeps the DP ranking, since no constant grid follows it; a slower reading's
+    grid can still pass for steady over a sparse pulse (a roll groove slowing from
+    130 to 100 BPM is read at 3/4 in about one take in eight)."""
     if len(hits) < 8 or len(scored) < 2:
         return scored
     top = scored[0]

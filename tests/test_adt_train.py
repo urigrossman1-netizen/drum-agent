@@ -45,6 +45,8 @@ def test_an_ensemble_input_contributes_all_its_networks(tmp_path):
     X = np.random.default_rng(9).standard_normal((5, FEATURE_DIM)).astype(np.float32)
     assert np.allclose(abc.predict(X), np.mean([s.predict(X) for s in singles], axis=0), atol=1e-6)
     assert np.allclose(abc.thresholds, np.mean([s.thresholds for s in singles], axis=0))
+    # Readable like any file written there (the temporary it was renamed from is owner-only).
+    assert (tmp_path / "abc.npz").stat().st_mode & 0o777 == a.stat().st_mode & 0o777
 
 
 def test_out_is_required_and_a_bad_model_replaces_nothing(tmp_path):
