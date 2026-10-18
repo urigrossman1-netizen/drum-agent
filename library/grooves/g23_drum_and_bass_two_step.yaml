@@ -1,5 +1,5 @@
 # Drum and bass two-step: at a fast tempo, the kick on 1 and the "&" of 3,
-# snare on 2 and 4 with a ghost note pulling into 4. The ride takes the 8ths
+# snare on 2 and 4 with ghost notes after the backbeat on 2. The ride takes the 8ths
 # in the second half.
 title: "G23 Drum and Bass: Two-Step"
 chart_type: pattern_study
@@ -26,7 +26,7 @@ patterns:
     t2: "----|----|----|--x-"
     ft: "----|----|----|---x"
     bd: "x---|----|----|----"
-    sticking: "----|----|RLRL|RLRL"
+    sticking: "----|----|LRLR|LRLR"
   ending:
     cr: "x---|----|----|----"
     bd: "x---|----|----|----"

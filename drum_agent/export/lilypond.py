@@ -13,7 +13,7 @@ from fractions import Fraction
 from ..kit import DEFAULT_KIT, Kit
 from ..layout import LayoutPlan, PrintedBar, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import SpelledMeasure, Token, check_tokens, silent_voices, spell_measure
+from ..rhythm import SpelledMeasure, Token, check_tokens, silent_voices, spell_measure, upper_bar_empty
 
 LY_VERSION = "2.24.0"  # minimum syntax level; rendered with 2.26 where available
 
@@ -148,7 +148,7 @@ def layout_block() -> str:
         "    \\override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))\n"
         "    \\override MetronomeMark.font-size = #0\n"
         "    \\override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)\n"
-        "    \\override TupletBracket.bracket-visibility = ##t\n"
+        "    \\override TupletBracket.bracket-visibility = #'if-no-beam\n"
         "    \\override PercentRepeatCounter.font-size = #-2\n"
         "    countPercentRepeats = ##t\n"
         "    skipBars = ##t\n"
@@ -480,6 +480,10 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             up, down = _skip(m.actual_length), (up if sm.shared_rest else down)
         elif 2 in silent:
             down = _skip(m.actual_length)
+        elif upper_bar_empty(sm):
+            # No cymbal in a bar the drums play (a fill): a whole-bar rest above them would
+            # sit in the top space, on the tom noteheads. The bar reads complete without it.
+            up = _skip(m.actual_length)
         if grace and not g_up:
             up = f"\\tag #'graces \\grace {{ {grace} }} " + up
         if grace and not g_down:

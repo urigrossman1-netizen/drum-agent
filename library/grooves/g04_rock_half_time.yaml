@@ -22,7 +22,7 @@ patterns:
     t2: "----|----|----|--x-"
     ft: "----|----|----|---x"
     bd: "x---|--x-|----|----"
-    sticking: "----|----|L-R-|RLRL"
+    sticking: "----|----|L-R-|LRLR"
   ride_crash:
     cr: "x---|----|----|----"
     rd: "--x-|x-x-|x-x-|x-x-"
@@ -39,4 +39,4 @@ sections:
   - label: Hi-hat
     bars: [half, half, half_b, fill]
   - label: Ride
-    bars: [ride_crash, ride, half_b, ending]
+    bars: [ride_crash, ride, ride, ending]

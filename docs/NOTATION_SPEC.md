@@ -53,8 +53,10 @@ further lines; it never runs off the page.
   "Gtr. solo") print in italics above the staff at the start of the bar.
 * **Swing**: a chart written in straight 8ths with `swing` set prints the
   word with its rhythm, ♫ = ♩♪ under a triplet bracket.
-* A voice with no hits for a whole bar shows a whole-bar rest. If both
-  voices are silent, one whole-bar rest is printed.
+* A lower voice with no hits for a whole bar shows a whole-bar rest. An
+  upper (cymbal) voice with no hits in a bar where the drums play (a fill) is
+  left blank: its whole rest would sit in the top space, on the tom
+  noteheads. If both voices are silent, one whole-bar rest is printed.
 * **One-voice charts.** When one voice has no hits anywhere in the chart (a
   snare rudiment, a snare-and-bass-drum march), the other is engraved as a
   single voice: stems up, accents above the staff, no rests for the empty

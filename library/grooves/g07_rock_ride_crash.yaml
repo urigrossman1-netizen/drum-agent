@@ -28,7 +28,7 @@ patterns:
     t1: "----|----|----|--x-"
     ft: "----|----|----|---x"
     bd: "x---|----|x---|x---"
-    sticking: "R---|L---|RLRL|RLRL"
+    sticking: "R---|L---|LRLR|LRLR"
   ending:
     cr: "x---|----|----|----"
     bd: "x---|----|----|----"

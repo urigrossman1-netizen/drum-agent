@@ -1,9 +1,10 @@
-# Trap: half-time feel (snare on 3) at a slow tempo, a sparse 808-style bass
-# drum, and hi-hat rolls: 16ths that break into 32nds and 16th-note triplets.
+# Trap: half-time feel (snare on 3) at about 140, a sparse 808-style bass drum,
+# and hi-hat rolls: 16ths that break into 32nds and 16th-note triplets, played
+# hand to hand.
 title: "G22 Trap: Hi-Hat Rolls"
 chart_type: pattern_study
 rights: original
-tempo: 70
+tempo: 140
 time: 4/4
 tempo_text: Trap, half-time
 patterns:
@@ -11,19 +12,22 @@ patterns:
     hh: "x-x-|x-x-|x-x-|xxxx"
     sn: "----|----|x---|----"
     bd: "x---|---x|----|--x-"
+    sticking: "----|----|----|RLRL"
   roll32:
     hh: "x-x-|xxxxxxxx|x-x-|xxxx"
     sn: "----|--------|x---|----"
-    bd: "x---|-------x|----|--x-"
+    bd: "x---|------x-|----|--x-"
+    sticking: "----|RLRLRLRL|----|RLRL"
   roll_trip:
     hh: "x-x-|xxxxxx|x-x-|xxxxxxxx"
     sn: "----|------|x---|--------"
     bd: "x--x|------|----|----x---"
+    sticking: "----|RLRLRL|----|RLRLRLRL"
   fill:
     hh: "x-x-|xxxxxx|----|----"
     sn: "----|------|xxxx|xxxx"
     bd: "x---|------|----|----"
-    sticking: "----|------|RLRL|RLRL"
+    sticking: "----|RLRLRL|RLRL|RLRL"
   ending:
     cr: "x---|----|----|----"
     bd: "x---|----|----|----"

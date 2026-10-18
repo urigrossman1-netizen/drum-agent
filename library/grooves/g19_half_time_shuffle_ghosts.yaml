@@ -1,11 +1,11 @@
-# Half-time shuffle, written out in 8th-note triplets: the hi-hat plays the
-# first and third triplet of each beat, ghost notes fill the middle triplets,
-# the backbeat falls on beat 3.
+# Half-time shuffle in 12/8: each beat is three 8th notes; the hi-hat plays the
+# first and third of each group, ghost notes fill the middle ones, and the
+# backbeat falls on beat 3 (the half-time feel).
 title: "G19 Shuffle: Half-Time with Ghost Notes"
 chart_type: pattern_study
 rights: original
-tempo: 80
-time: 4/4
+tempo: "4.=80"
+time: 12/8
 tempo_text: Half-time shuffle
 patterns:
   half:

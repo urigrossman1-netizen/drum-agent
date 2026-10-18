@@ -9,15 +9,15 @@ time: 4/4
 tempo_text: Country, train beat
 patterns:
   train:
-    sn: "gggg|Xggg|gggg|Xggg"
+    sn: "xxxx|Xxxx|xxxx|Xxxx"
     bd: "x---|----|x---|----"
     sticking: "RLRL|RLRL|RLRL|RLRL"
   train_b:
-    sn: "gggX|Xggg|gggX|Xggg"
+    sn: "xxxX|Xxxx|xxxX|Xxxx"
     bd: "x---|----|x---|----"
     sticking: "RLRL|RLRL|RLRL|RLRL"
   fill:
-    sn: "gggg|Xggg|X-X-|X-X-"
+    sn: "xxxx|Xxxx|X-X-|X-X-"
     bd: "x---|----|x---|x---"
     sticking: "RLRL|RLRL|R-L-|R-L-"
   ending:

@@ -21,7 +21,7 @@ patterns:
     t1: "------x-"
     ft: "-------x"
     bd: "x-------"
-    sticking: "----RLRL"
+    sticking: "----LRLR"
   crash_beat:
     cr: "x-------"
     hh: "-xxxxxxx"

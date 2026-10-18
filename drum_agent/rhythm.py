@@ -571,6 +571,13 @@ def silent_voices(measures: list[Measure], kit: Kit = DEFAULT_KIT) -> set[int]:
     return {1, 2} - sounding if sounding else set()
 
 
+def upper_bar_empty(sm: SpelledMeasure) -> bool:
+    """The upper (cymbal) voice is one whole-bar rest while the lower voice plays."""
+    up = sm.voices[1]
+    return (not sm.shared_rest and len(up) == 1 and up[0].kind == "measure_rest"
+            and any(t.kind == "note" for t in sm.voices[2]))
+
+
 def check_tokens(tokens: list[Token], measure: Measure) -> None:
     """Assert the tokens tile the bar exactly (used by exporters and tests)."""
     total = sum((t.dur for t in tokens), Fraction(0))

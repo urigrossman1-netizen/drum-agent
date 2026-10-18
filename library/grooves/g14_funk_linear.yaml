@@ -16,7 +16,7 @@ patterns:
     hh: "-x-x|-x--|-x-x|--x-"
     sn: "--g-|X-g-|----|X--g"
     bd: "x---|---x|x-x-|-x--"
-    sticking: "-RLR|L-L-|-R-R|L-RL"
+    sticking: "-RLR|LRL-|-R-R|L-RL"
   fill:
     sn: "X-g-|X-g-|X--g|----"
     t1: "-x--|-x--|----|----"

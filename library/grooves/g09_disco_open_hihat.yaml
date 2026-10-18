@@ -12,17 +12,17 @@ patterns:
     sn: "----|x---|----|x---"
     bd: "x---|x---|x---|x---"
   disco_16:
-    hh: "xxox|xxox|xxox|xxox"
+    hh: "xxox|-xox|xxox|-xox"
     sn: "----|x---|----|x---"
     bd: "x---|x---|x---|x---"
     sticking: "RLRL|RLRL|RLRL|RLRL"
   fill:
-    hh: "xxox|xxox|----|----"
+    hh: "xxox|-xox|----|----"
     sn: "----|x---|xxxx|xx--"
     t1: "----|----|----|--x-"
     ft: "----|----|----|---x"
     bd: "x---|x---|x---|x---"
-    sticking: "RLRL|RLRL|RLRL|RLRL"
+    sticking: "RLRL|RLRL|RLRL|RLLR"
   crash:
     cr: "x---|----|----|----"
     hh: "--o-|x-o-|x-o-|x-o-"

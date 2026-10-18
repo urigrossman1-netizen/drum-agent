@@ -20,7 +20,7 @@ from .. import __version__
 from ..kit import DEFAULT_KIT, Kit, position_to_pitch
 from ..layout import LayoutPlan, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import Token, check_tokens, silent_voices, spell_measure
+from ..rhythm import Token, check_tokens, silent_voices, spell_measure, upper_bar_empty
 
 _TYPE = {Fraction(2): "breve", Fraction(1): "whole", Fraction(1, 2): "half", Fraction(1, 4): "quarter",
          Fraction(1, 8): "eighth", Fraction(1, 16): "16th", Fraction(1, 32): "32nd", Fraction(1, 64): "64th"}
@@ -372,7 +372,7 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         written = False
         for voice in (1, 2):
             tokens = sm.voices[voice]
-            if not tokens or (voice in w.silent and not sm.shared_rest):
+            if not tokens or (voice in w.silent and not sm.shared_rest) or (voice == 1 and upper_bar_empty(sm)):
                 continue
             check_tokens(tokens, m)
             if written:

@@ -53,19 +53,15 @@ def model_available(path: Path = MODEL_PATH) -> bool:
     return path.exists()
 
 
-class OnsetClassifier:
-    def __init__(self, path: Path = MODEL_PATH):
-        d = np.load(path, allow_pickle=False)
-        self.classes = tuple(str(c) for c in d["classes"])
-        n_layers = int(d["n_layers"])
-        self.W = [d[f"W{i}"].astype(np.float32) for i in range(n_layers)]
-        self.b = [d[f"b{i}"].astype(np.float32) for i in range(n_layers)]
-        self.mu = d["mu"].astype(np.float32)
-        self.sd = d["sd"].astype(np.float32)
-        self.thresholds = d["thresholds"].astype(np.float32)
-        self.version = str(d["version"]) if "version" in d else "?"
-        if self.mu.shape[0] != FEATURE_DIM:
-            raise ValueError(f"{path.name}: model expects {self.mu.shape[0]} features, this code makes {FEATURE_DIM}")
+class _Net:
+    """One multi-layer perceptron: standardization, ReLU hidden layers, sigmoid outputs."""
+
+    def __init__(self, d, prefix: str = ""):
+        n_layers = int(d[f"{prefix}n_layers"])
+        self.W = [d[f"{prefix}W{i}"].astype(np.float32) for i in range(n_layers)]
+        self.b = [d[f"{prefix}b{i}"].astype(np.float32) for i in range(n_layers)]
+        self.mu = d[f"{prefix}mu"].astype(np.float32)
+        self.sd = d[f"{prefix}sd"].astype(np.float32)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         h = (X - self.mu) / self.sd
@@ -74,6 +70,25 @@ class OnsetClassifier:
             if i < len(self.W) - 1:
                 np.maximum(h, 0, out=h)
         return 1.0 / (1.0 + np.exp(-np.clip(h, -30, 30)))
+
+
+class OnsetClassifier:
+    """The classifier: one network, or an ensemble whose probabilities are averaged
+    (members stored with prefixes m0_, m1_, ...; thresholds are the ensemble's own)."""
+
+    def __init__(self, path: Path = MODEL_PATH):
+        d = np.load(path, allow_pickle=False)
+        self.classes = tuple(str(c) for c in d["classes"])
+        prefixes = [f"m{j}_" for j in range(int(d["members"]))] if "members" in d else [""]
+        self.nets = [_Net(d, p) for p in prefixes]
+        self.thresholds = d["thresholds"].astype(np.float32)
+        self.version = str(d["version"]) if "version" in d else "?"
+        for net in self.nets:
+            if net.mu.shape[0] != FEATURE_DIM:
+                raise ValueError(f"{path.name}: model expects {net.mu.shape[0]} features, this code makes {FEATURE_DIM}")
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        return sum(net.predict(X) for net in self.nets) / len(self.nets)
 
 
 @lru_cache(maxsize=2)

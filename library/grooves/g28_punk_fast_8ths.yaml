@@ -1,5 +1,5 @@
 # Punk: driving 8th notes on the hi-hat and the bass drum together, snare on 2
-# and 4, at a fast tempo. A snare-and-crash break ends the phrase.
+# and 4, at a fast tempo. A snare break ends the phrase, crash on the next 1.
 title: "G28 Punk: Fast 8ths"
 chart_type: pattern_study
 rights: original
@@ -10,7 +10,7 @@ patterns:
   punk:
     hh: "xxxxxxxx"
     sn: "--x---x-"
-    bd: "x-x-x-x-"
+    bd: "xxxxxxxx"
   punk_b:
     hh: "xxxxxxxx"
     sn: "--x---x-"
@@ -19,7 +19,7 @@ patterns:
     cr: "x-------"
     hh: "-xxxxxxx"
     sn: "--x---x-"
-    bd: "x-x-x-x-"
+    bd: "xxxxxxxx"
   fill:
     sn: "x-x-xxxx"
     bd: "x---x---"

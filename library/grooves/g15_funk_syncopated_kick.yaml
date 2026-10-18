@@ -24,7 +24,7 @@ patterns:
     sn: "----|x---|X-xx|X-xx"
     ft: "----|----|-x--|-x--"
     bd: "x--x|---x|----|----"
-    sticking: "----|----|RRLR|RRLR"
+    sticking: "----|----|LRLR|LRLR"
   ending:
     cr: "x---|----|----|----"
     bd: "x---|----|----|----"

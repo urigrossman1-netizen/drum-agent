@@ -246,6 +246,25 @@ def cmd_train(a) -> None:
     print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
+def cmd_ensemble(a) -> None:
+    """Average trained models: one file whose members' probabilities are averaged at use.
+    Models trained on different data make different mistakes; the average is steadier
+    than either. The thresholds are the members' mean."""
+    members = [np.load(m, allow_pickle=False) for m in a.models]
+    classes = [str(c) for c in members[0]["classes"]]
+    if any([str(c) for c in d["classes"]] != classes for d in members):
+        raise SystemExit("the models have different classes")
+    payload = {"classes": np.array(classes), "members": np.array(len(members)), "version": np.array(a.version),
+               "thresholds": np.mean([d["thresholds"] for d in members], axis=0).astype(np.float32)}
+    for j, d in enumerate(members):
+        for key in d.files:
+            if key in ("n_layers", "mu", "sd") or key[0] in "Wb" and key[1:].isdigit():
+                payload[f"m{j}_{key}"] = d[key]
+    np.savez_compressed(a.out, **payload)
+    print(f"wrote {a.out} ({Path(a.out).stat().st_size / 1e6:.1f} MB): {len(members)} members, thresholds "
+          + " ".join(f"{c} {v:.2f}" for c, v in zip(classes, payload["thresholds"])))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -268,8 +287,12 @@ def main() -> None:
     t.add_argument("--fp16", action="store_true", help="store weights as float16 (half the file size)")
     t.add_argument("--version", default="1")
     t.add_argument("--out", default=str(MODEL_PATH))
+    e = sub.add_parser("ensemble", help="combine trained models into one averaging file")
+    e.add_argument("models", nargs="+")
+    e.add_argument("--version", default="ensemble")
+    e.add_argument("--out", default=str(MODEL_PATH))
     a = ap.parse_args()
-    {"build": cmd_build, "train": cmd_train}[a.cmd](a)
+    {"build": cmd_build, "train": cmd_train, "ensemble": cmd_ensemble}[a.cmd](a)
 
 
 if __name__ == "__main__":
