@@ -9,6 +9,7 @@ For each case in tests/cases/:
 """
 
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -213,3 +214,52 @@ def test_line_overflow_is_measured_on_the_page(tmp_path):
     Image.fromarray(page).save(tmp_path / "over.png")
     assert _overflow_mm([tmp_path / "fits.png"], "letter") == 0.0
     assert 8 < _overflow_mm([tmp_path / "over.png"], "letter") < 10
+    page[400:420, 100:850] = 0  # a line cut off at the page edge: how far it runs is unknown
+    Image.fromarray(page).save(tmp_path / "clipped.png")
+    assert _overflow_mm([tmp_path / "clipped.png"], "letter") == float("inf")
+
+
+def _dense_bars(n: int) -> dict:
+    """Ghost 16ths with a sticking letter under every note, each bar a different kick."""
+    return {"title": "Dense", "sections": [{"bars": [
+        {"hh": "x-x-x-x-x-x-x-x-", "sn": "gggXgggggggXgggg", "bd": "x" + "-" * k + "x" + "-" * (14 - k),
+         "sticking": "RL" * 8} for k in range(n)]}]}
+
+
+def test_dense_line_is_replanned_until_it_fits(tmp_path, monkeypatch):
+    # At 8 bars per line all four bars share one line and run off the page; 6 plans the
+    # same line, so the re-plan has to keep going (and skip that plan) to two per line.
+    import drum_agent.export.render as render_mod
+    from drum_agent.pipeline import OVERFLOW_MM, _overflow_mm
+    dirs, real = [], render_mod.render
+    monkeypatch.setattr(render_mod, "render", lambda ly, d, stem, **kw: dirs.append(Path(d)) or real(ly, d, stem, **kw))
+    report = export_all(compile_spec(_dense_bars(4)), tmp_path, "dense", options=ExportOptions(bars_per_line=8))
+    assert not [w for w in report.warnings if w.startswith("Layout")], report.warnings
+    assert any("(they ran off the right edge of the page)" in n for n in report.notes), report.notes
+    assert _overflow_mm([p for k, p in report.files.items() if k.startswith("png")], "letter") <= OVERFLOW_MM
+    assert report.files["ly"].read_text().count("\\break") == 1
+    # The first render, one trial in a scratch directory, the accepted plan.
+    assert [d.resolve() == tmp_path.resolve() for d in dirs] == [True, False, True]
+
+
+def test_failed_overflow_trial_keeps_the_original(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import drum_agent.export.render as render_mod
+    from drum_agent.kit import DEFAULT_KIT
+    from drum_agent.layout import plan_layout
+    from drum_agent.pipeline import ExportReport, _fix_overflow
+    page = np.full((1100, 850), 255, dtype=np.uint8)
+    page[300:320, 100:] = 0  # ink cut off at the page edge
+    Image.fromarray(page).save(tmp_path / "dense.png")
+
+    def fail(ly, out_dir, stem, **kw):
+        assert Path(out_dir).resolve() != tmp_path.resolve(), "a trial wrote over the real output"
+        raise render_mod.RenderError("trial failed")
+    monkeypatch.setattr(render_mod, "render", fail)
+    score, opts, report = compile_spec(_dense_bars(4)), ExportOptions(bars_per_line=8), ExportReport()
+    plan, res = plan_layout(score, bars_per_line=8), SimpleNamespace(pngs=[tmp_path / "dense.png"])
+    assert _fix_overflow(score, DEFAULT_KIT, plan, opts, res, tmp_path, "dense", report) == (plan, res)
+    assert not report.notes
+    assert len(report.warnings) == 1
+    assert report.warnings[0].startswith("Layout: a line runs off the right edge of the page; pass --bars-per-line")

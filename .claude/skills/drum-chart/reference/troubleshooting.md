@@ -51,6 +51,9 @@ chart some other way). Fix the cause.
 
 ## Engraving looks wrong but checks pass
 - Collisions or cramped bars: `--bars-per-line 3` or `--staff-size 18`.
+- `Layout: a line runs ... past the right margin` (or `off the right edge of the page`):
+  the render already tried fewer bars per line; use the number the warning gives, or,
+  when it says `even at one bar per line`, a smaller `--staff-size`.
 - Too much compression: `--repeats percent` (no repeat barlines) or `--repeats none`.
 - A section label lands mid-line: sections shorter than half a line share a
   line by design; give them more bars or accept it.

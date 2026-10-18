@@ -120,8 +120,11 @@ correctness**, separately from **transcription confidence**.
 `pipeline.export_all` orchestrates this. It also pulls a near-empty last page
 back onto the previous page when LilyPond can do it with little compression,
 and measures each rendered page: LilyPond gives no warning when a line is too
-dense to fit, so a line whose ink reaches into the right margin is re-planned
-with fewer bars per line (or reported). `playability.py` lists strokes one
+dense to fit, so a line whose ink reaches into the right margin (or is cut off
+at the page edge) is re-planned with fewer bars per line, a quarter fewer at a
+time down to one bar per line. Each new set of line breaks is tried in a
+scratch directory, at most four of them, and the first that fits is kept; a
+line that still doesn't fit is reported. `playability.py` lists strokes one
 drummer can't play together (three hands, two left-foot strokes, an open hat
 as the foot closes it); in transcriptions those bars are flagged.
 
