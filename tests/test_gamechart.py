@@ -523,6 +523,41 @@ def test_exact_ticks_stay_exact_at_a_fast_tempo(tmp_path):
     assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
 
 
+@pytest.mark.parametrize("res,late", [(192, 2), (192, 3), (480, 2), (480, 3)])
+def test_one_stray_tick_keeps_the_exact_figure(tmp_path, res, late):
+    # The same figure with the 16th a few ticks late: up to the slack (2 ticks) it is on
+    # the grid, past it a stray of that grid, and the other gems still say 32nds.
+    q = res // 8  # a 32nd
+    snare = [(t, 1) for t in (0, q, 2 * q + late, 4 * q, 8 * q, 16 * q, 24 * q)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": snare}, sync=("0 = TS 4", "0 = B 240000"),
+                      resolution=res)
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
+
+
+@pytest.mark.parametrize("res,late", [(192, 3), (480, 7)])
+def test_slack_scales_with_a_dotted_quarter_beat(tmp_path, res, late):
+    # In 6/8 the grid positions are 1.5 times as far apart, and so is the slack (3 ticks at
+    # 192): a 32nd that late is still a 32nd, not the 16th 21 ticks away.
+    q = res // 8
+    notes = [(0, 1), (q + late, 1), (4 * q, 1), (8 * q, 1), (12 * q, 0)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": notes}, sync=("0 = TS 6 3", "0 = B 90000"),
+                      resolution=res)
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/8", "1/4", "3/8"]
+
+
+@pytest.mark.parametrize("late", [-2, 2])
+def test_a_swung_offbeat_off_by_the_slack_stays_a_swung_8th(tmp_path, late):
+    # The swung grid's offbeat is measured where it sits in the beat (2/3), so a tom 2
+    # ticks early or late is a swung 8th, not the triplet the warp would make of it.
+    notes = [(t + d, 2) for t in range(0, 8 * RES, RES) for d in (0, 128)]
+    notes += [(t, 0 if t % (2 * RES) == 0 else 1) for t in range(0, 8 * RES, RES)]
+    notes += [(8 * RES, 3), (8 * RES + 128 + late, 3)]
+    score, _ = read_gamechart(chart_file(tmp_path / "notes.chart", {"ExpertDrums": notes}), pro=False)
+    assert score.swing and bar(score, 2) == [("0", "tom2"), ("1/8", "tom2")]
+
+
 @pytest.mark.parametrize("sync,message", [
     (("0 = TS 4 100000000000", "0 = B 120000"), "meter"),
     (("0 = TS 1000000", "0 = B 120000"), "meter"),

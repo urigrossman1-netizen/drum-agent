@@ -20,6 +20,10 @@ full transcription with the status *imported, unverified*.
 The chart's own tempo map and meters make the beat grid, and the strokes go
 through the same quantizer as a MIDI import (`drum_agent/gamechart.py`,
 modelled on `io_midi.py`), so every position is a spellable note value.
+Chart ticks are exact positions, not played times: a beat is written on the
+grid that most of its gems sit on (within 2 ticks per quarter note), so a
+charted 32nd figure stays 32nds at a fast tempo, also when one gem is a few
+ticks off. Gems far from every grid are placed as in a played MIDI take.
 
 | Pad | Drum kit | MIDI note (Expert / Hard / Medium / Easy) | `.chart` lane |
 |---|---|---|---|
