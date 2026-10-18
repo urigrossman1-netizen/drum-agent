@@ -556,6 +556,21 @@ def test_one_stray_tick_keeps_the_exact_figure(tmp_path, res, late):
     assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
 
 
+@pytest.mark.parametrize("notes,written,merged", [
+    ([0, 58, 96, 144], ["0", "1/16", "1/8", "3/16"], 0),  # a 16th 10 ticks late
+    ([0, 74, 128], ["0", "1/12", "1/6"], 0),  # a triplet 8th 10 ticks late
+    ([0, 12], ["0"], 1),  # a 64th-note double (a charted flam), as test_off_grid_ticks_snap...
+])
+def test_a_gem_near_no_grid_is_placed_by_its_timing(tmp_path, notes, written, merged):
+    # At 192 ticks a beat the 12-grid has a slot within 8 ticks of every tick, but a gem
+    # 4 or more ticks from it is no stray of it: these were written as 32nd sextuplets.
+    snare = [(t, 1) for t in notes] + [(RES * k, 1) for k in (1, 2, 3)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": snare}, sync=("0 = TS 4", "0 = B 240000"))
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == written + ["1/4", "1/2", "3/4"]
+    assert score.analysis["merged_duplicates"] == merged
+
+
 @pytest.mark.parametrize("res,late", [(192, 3), (480, 7)])
 def test_slack_scales_with_a_dotted_quarter_beat(tmp_path, res, late):
     # In 6/8 the grid positions are 1.5 times as far apart, and so is the slack (3 ticks at

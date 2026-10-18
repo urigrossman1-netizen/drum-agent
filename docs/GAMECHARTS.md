@@ -25,8 +25,11 @@ through the same quantizer as a MIDI import (`drum_agent/gamechart.py`,
 modelled on `io_midi.py`), so every position is a spellable note value.
 Chart ticks are exact positions, not played times: a beat is written on the
 grid that most of its gems sit on (within 2 ticks per quarter note), so a
-charted 32nd figure stays 32nds at a fast tempo, also when one gem is a few
-ticks off. Gems far from every grid are placed as in a played MIDI take.
+charted 32nd figure stays 32nds at a fast tempo, also when a gem is a few
+ticks off it (up to 3 ticks at 192 ticks per quarter note, 6 at 480). A beat
+with a gem farther from every grid is placed by timing, as a played MIDI take
+is: at 192 a gem 10 ticks after a 16th is not taken for the sextuplet 6 ticks
+on, and a 64th-note double (a flam) is one stroke.
 
 | Pad | Drum kit | MIDI note (Expert / Hard / Medium / Easy) | `.chart` lane |
 |---|---|---|---|

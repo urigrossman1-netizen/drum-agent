@@ -76,8 +76,13 @@ _TERNARY_COST = {1: 0.0, 3: 0.5, 6: 2.5, 2: 4.0, 4: 6.0, 12: 7.0}
 _SWING_WARPED = (1, 2)
 _SWING_UNWARPED = {3: 1.5, 6: 4.0, 12: 8.0, 4: 3.0, 8: 6.5}
 # With exact positions, an onset up to this many tolerances off a grid's slot is a stray
-# tick of that grid; one farther off belongs to another grid (or played timing).
+# tick of that grid; one farther off belongs to another grid (or played timing). Never
+# 1/48 of a beat or more: half the distance from an 8-grid slot to the nearest 12-grid
+# one, so a stray is nearer its own slot than any other grid's (at 192 ticks a beat a
+# gem 10 ticks after a 16th is not a stray of the sextuplet 6 ticks on). An onset within
+# the tolerance itself is always on the grid.
 _STRAY_TOL = 3
+_STRAY_MAX = 1 / 48 - 1e-6
 # Without 32nds no slot may be shorter than a 16th-note triplet, whatever the beat.
 _MIN_SLOT_NO_32NDS = Fraction(1, 24)
 
@@ -116,14 +121,15 @@ def _exact_count(n: int, items: list[tuple[Onset, float]], used: list[tuple[Onse
                  swing_pos: float | None = None) -> int:
     """How many onsets sit within `tol` (a share of the beat) of the slot of the n-grid
     they are written on (`used`: the positions the grid reads, warped for a swung grid
-    whose offbeat is at `swing_pos`). -1 if one is more than _STRAY_TOL * tol from it (not a
-    stray tick of this grid) or two onsets of one instrument share a slot (that would
-    merge distinct strokes)."""
+    whose offbeat is at `swing_pos`). -1 if one is farther from it than a stray tick of this
+    grid sits (_STRAY_TOL, _STRAY_MAX) or two onsets of one instrument share a slot (that
+    would merge distinct strokes)."""
+    stray = max(tol, min(_STRAY_TOL * tol, _STRAY_MAX))
     slots, exact = set(), 0
     for (o, r), (_, u) in zip(items, used):
         slot = round(u * n)
         off = abs(r - (slot / n if swing_pos is None else _unwarp(slot / n, swing_pos)))
-        if off > _STRAY_TOL * tol or (slot, o.inst) in slots:
+        if off > stray or (slot, o.inst) in slots:
             return -1
         slots.add((slot, o.inst))
         exact += off <= tol
