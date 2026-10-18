@@ -579,6 +579,21 @@ def test_corrupt_resolution_offset_and_far_ticks(tmp_path):
         read_gamechart(chart_file(tmp_path / "c.chart", {"ExpertDrums": [(0, 0), (768_000_000_000, 0)]}))
 
 
+def test_bars_shorter_than_a_tick_or_too_many_are_refused(tmp_path):
+    # A 1/8 bar at 1 tick per quarter is half a tick: the bar loop never ended.
+    coarse = chart_file(tmp_path / "a.chart", {"ExpertDrums": [(0, 0), (4, 1)]},
+                        sync=("0 = TS 1 3", "0 = B 120000"), resolution=1)
+    with pytest.raises(GameChartError, match="resolution 1 is too coarse for a 1/8 bar"):
+        read_gamechart(coarse)
+    with pytest.raises(GameChartError, match="resolution 1 is too coarse for a 1/8 bar"):
+        read_gamechart(rb_midi(tmp_path / "notes.mid", [(0, KICK), (4, RED)], meters=((0, 1, 8),), tpb=1))
+    # A 1/32 meter makes eight bars of every beat, so bars are capped as beats are.
+    tiny = chart_file(tmp_path / "b.chart", {"ExpertDrums": [(0, 0), (RES // 8 * 20_001, 1)]},
+                      sync=("0 = TS 1 5", "0 = B 120000"))
+    with pytest.raises(GameChartError, match="more than 20000 bars"):
+        read_gamechart(tiny)
+
+
 def test_midi_without_ticks_per_beat_is_refused(tmp_path):
     path = rb_midi(tmp_path / "notes.mid", rock_bar(), markers=PRO)
     data = bytearray(path.read_bytes())
