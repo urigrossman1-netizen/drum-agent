@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .. import rights as rights_gate
+from ..kit import DEFAULT_VOICING
 from . import fetch, local, lookup
 from .fetch import AudioSource, FetchError, VideoCandidate
 from .local import LocalMatch
@@ -177,12 +178,18 @@ def _choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
     _print_warnings(found.warnings)
     for i, c in enumerate(choices, 1):
         print(f"   {i}) {c.describe()}")
-    if args.rights and args.pick is None and (choices[0].kind == "video" or len(choices) > 1):
-        # A rights basis is a statement about one recording. A search result (a reupload, a
-        # cover, a backing track can rank first) must be named by the user, not guessed.
-        raise _fail("--rights is a statement about one recording, and these were found by a search: "
-                    "check the list, then re-run with --pick N for the one your basis covers "
-                    "(or give it with --url / --audio)")
+    # A rights basis is a statement about one recording. A search result (a reupload, a cover,
+    # another band's live take can rank first, or be the only match) must be named by the user.
+    if args.rights and choices[0].kind == "video":
+        # The search runs again on the next run and can rank differently: name the video by its link.
+        links = "\n".join(f"     {i}) --url {shlex.quote(c.source)}" for i, c in enumerate(choices, 1))
+        raise _fail("--rights is a statement about one recording, and these were found by a video search, "
+                    "which can rank differently on the next run: check the list, then re-run with --url for "
+                    "the one your basis covers (instead of the search):\n" + links)
+    if args.rights and args.pick is None:
+        raise _fail("--rights is a statement about one recording, and this was found by a search of your "
+                    "library: check the list, then re-run with --pick N for the one your basis covers "
+                    "(or give the file with --audio)")
     pick = args.pick or 1
     if pick > len(choices):
         raise _fail(f"--pick {pick}: only {len(choices)} candidate(s) were found")
@@ -250,32 +257,39 @@ def _bpm_hint(args, ident: SongCandidate | None) -> float | None:
     return None
 
 
-# Options carried over to the suggested --rights command (flag, attribute).
-_CARRIED = (("--title", "title"), ("--transcriber", "transcriber"), ("--bpm", "bpm"),
-            ("--time-signature", "time_signature"), ("--downbeat", "downbeat"), ("--sensitivity", "sensitivity"),
-            ("--start", "start"), ("--end", "end"), ("--sections", "sections"), ("--chart-type", "chart_type"))
-_CARRIED_FLAGS = (("--use-metadata-bpm", "use_metadata_bpm"), ("--drums-only", "drums_only"),
-                  ("--no-32nds", "no_32nds"))
+# Options carried over to the suggested --rights command (flag, attribute, default; False for a
+# switch). The source replaces --library, --candidates and --pick (tests/test_song.py checks
+# that every other option of `song` is here).
+_CARRIED = (
+    ("--artist", "artist", None), ("--no-online", "no_online", False),
+    ("--use-metadata-bpm", "use_metadata_bpm", False), ("--title", "title", None),
+    ("--transcriber", "transcriber", None), ("--bpm", "bpm", None), ("--time-signature", "time_signature", None),
+    ("--downbeat", "downbeat", None), ("--feel", "feel", "auto"), ("--drums-only", "drums_only", False),
+    ("--sensitivity", "sensitivity", 1.0), ("--no-32nds", "no_32nds", False), ("--start", "start", None),
+    ("--end", "end", None), ("--sections", "sections", None), ("--chart-type", "chart_type", None),
+    ("--detector", "detector", "auto"),
+    # export options
+    ("--stem", "stem", None), ("--formats", "formats", "pdf,musicxml,midi,json"), ("--paper", "paper", "letter"),
+    ("--staff-size", "staff_size", 20), ("--repeats", "repeats", "auto"), ("--bars-per-line", "bars_per_line", 4.0),
+    ("--no-legend", "no_legend", False), ("--midi-timing", "midi_timing", "quantized"), ("--kit", "kit", None),
+    ("--voicing", "voicing", DEFAULT_VOICING),
+)
 
 
 def _rerun_command(args, audio: AudioSource) -> str:
     """The same request with --rights: from the original source (a link is fetched again,
     which re-records its uploader and licence; the cache makes it quick), with every
-    option the user gave."""
-    cmd = ["python", "-m", "drum_agent", "song", args.query]
-    if args.artist:
-        cmd += ["--artist", args.artist]
+    option the user gave. Values are joined to their flag and the song's name comes after
+    "--", so that a value starting with "-" is still read as one."""
+    cmd = ["python", "-m", "drum_agent", "song"]
     cmd += ["--url", audio.url] if audio.url and audio.origin in ("video", "direct") else ["--audio", str(audio.path)]
-    for flag, attr in _CARRIED:
-        value = getattr(args, attr, None)
-        if value is not None and not (attr == "sensitivity" and value == 1.0):
-            cmd += [flag, f"{value:g}" if isinstance(value, float) else str(value)]
-    cmd += [flag for flag, attr in _CARRIED_FLAGS if getattr(args, attr, False)]
-    if getattr(args, "feel", "auto") != "auto":
-        cmd += ["--feel", args.feel]
-    if getattr(args, "detector", "auto") != "auto":
-        cmd += ["--detector", args.detector]
-    return " ".join(shlex.quote(c) for c in cmd) + " --rights BASIS -o " + shlex.quote(args.out or "OUT")
+    for flag, attr, default in _CARRIED:
+        value = getattr(args, attr, default)
+        if value is None or value == default:
+            continue
+        cmd.append(flag if value is True else f"{flag}={value:g}" if isinstance(value, float) else f"{flag}={value}")
+    cmd += ["--rights", "BASIS", f"--out={args.out or 'OUT'}", "--", args.query]
+    return " ".join(shlex.quote(c) for c in cmd)
 
 
 def analyze_only(audio: AudioSource, ident: SongCandidate | None, args) -> int:

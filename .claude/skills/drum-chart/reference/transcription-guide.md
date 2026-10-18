@@ -86,5 +86,6 @@ mix; never quote these numbers for a real recording.
 sections, no notes) needs no rights basis. Streaming services are metadata
 only (DRM); `song` gets audio from the user's files, a direct link, or a
 video page through the user's own yt-dlp, and with `--rights` the user names
-the recording (`--pick N`). A download is never a rights basis: record the
-source and any licence in the score's source/notes.
+the recording (`--pick N` for a library file, `--url URL` for a video). A
+download is never a rights basis: record the source and any licence in the
+score's source/notes.

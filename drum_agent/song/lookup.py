@@ -177,24 +177,32 @@ def format_duration(seconds: float | None) -> str:
 
 # ---- HTTP -----------------------------------------------------------------------------
 
-def open_url(url: str, timeout: float, headers: dict[str, str] | None = None):
+def open_url(url: str, timeout: float, headers: dict[str, str] | None = None,
+             refuse: Callable[[str], None] | None = None):
     """GET `url` with our User-Agent. Only http(s); proxies come from the environment
-    (http_proxy, https_proxy, no_proxy) through urllib's default ProxyHandler."""
+    (http_proxy, https_proxy, no_proxy) through urllib's default ProxyHandler. `refuse(url)`
+    is called on every redirect target before it is requested, and may raise to stop there."""
     scheme = urllib.parse.urlsplit(url).scheme.lower()
     if scheme not in ("http", "https"):
         raise MetadataError(f"only http(s) URLs are fetched, not {scheme or 'a bare path'!r}")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, **(headers or {})})
-    return urllib.request.build_opener(_HttpOnlyRedirects()).open(req, timeout=timeout)
+    return urllib.request.build_opener(_HttpOnlyRedirects(refuse)).open(req, timeout=timeout)
 
 
 class _HttpOnlyRedirects(urllib.request.HTTPRedirectHandler):
     """Follow redirects to http(s) only: urllib's default also follows ftp:// (and would
     log in to an FTP server named by whoever answers the first request)."""
 
+    def __init__(self, refuse: Callable[[str], None] | None = None):
+        super().__init__()
+        self.refuse = refuse
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         scheme = urllib.parse.urlsplit(newurl).scheme.lower()
         if scheme not in ("http", "https"):
             raise urllib.error.HTTPError(newurl, code, f"redirect to a {scheme or 'bare'} URL refused", headers, fp)
+        if self.refuse is not None:
+            self.refuse(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
