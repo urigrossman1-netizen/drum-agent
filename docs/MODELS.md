@@ -58,15 +58,17 @@ is an **ensemble of two such networks** whose probabilities are averaged:
 
 | Member | Training clips | What it adds |
 |---|---|---|
-| v2 | 5000 (seeds 200001-205000), 18 styles | the base model |
+| v2 | 5000: seeds 1-2000 and 200001-203000, 18 styles | the base model |
 | v3 | the same 5000 plus 1500 tom-groove-heavy clips (seeds 300001-301500) | kick and snare under a floor tom, tom grooves |
 
 v3 alone fixed kicks under floor-tom ostinatos but lost snares under crash
 and kick; v2 alone the reverse. The average keeps the better of each
 (measurements below). Thresholds are the members' mean. Inference is numpy;
 the weights are `drum_agent/data/onset_classifier.npz` (6 MB, built with
-`scripts/adt/train.py ensemble v2.npz v3.npz`). `--detector nmf` keeps the
-original detector available for comparison.
+`scripts/adt/train.py ensemble v2.npz v3.npz --version "4 (v2+v3)" --out
+drum_agent/data/onset_classifier.npz`; `--out` has no default, and an
+ensemble given as an input contributes each of its networks). `--detector nmf`
+keeps the original detector available for comparison.
 
 ## Training data
 
@@ -95,7 +97,30 @@ All synthetic: no real recording was used for training.
 `scripts/adt/train.py build` runs the detector's own front end and feature
 code on each clip, so training and use see identical features.
 `DRUM_AGENT_STYLES="toms:5,rock:1"` weights the styles of a supplementary
-build (how v3's extra clips were made).
+build (how v3's extra clips were made, with the mix in the table below).
+
+### Rebuilding each member's data
+
+`train.py build` writes 100 clips a shard into `~/.cache/drum-agent/adt/shards`,
+and `train.py train` reads every shard in that directory. A clip is fixed by
+its seed, the style mix and the generator that drew it, and each change to
+`scripts/adt/generate.py` draws different clips for the same seed. So each
+seed range is rebuilt from a checkout of the commit that made it (checked:
+the rebuilt clips' features and labels are identical to the shards the
+shipped members were trained on):
+
+| Seeds | Checkout | Command (`python scripts/adt/train.py ...`) | Used by |
+|---|---|---|---|
+| 1-2000 | `1a6e780` (first generator: no channel strips, gated reverb or vintage chains) | `build --clips 2000` | v2, v3 |
+| 200001-203000 | `227d045` (the recording conditions above) | `build --clips 3000 --start-seed 200001` | v2, v3 |
+| 300001-301500 | `e257b26` (adds the toms style; today's generator draws the same clips) | `build --clips 1500 --start-seed 300001` with `DRUM_AGENT_STYLES="toms:5,isolated:1,rock:1,funk:1,metal:1,ballad:1,halftime:1"` | v3 |
+
+v2 is `train --hidden 512,256 --epochs 30 --version 2 --out v2.npz` with the
+first two ranges in the shard directory, v3 the same with `--version 3 --out
+v3.npz` and all three (without `--out`, `train` writes over the shipped
+weights).
+All three ranges use the same one-shot library (`oneshots.py`, whose default
+output hasn't changed).
 
 ### Sources and licences
 

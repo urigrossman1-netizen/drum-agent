@@ -122,12 +122,19 @@ def _rescore_ties(scored: list, hits: list[DrumHit]) -> list:
     DP beats bend toward the strokes, and at double tempo they have twice as many
     beats to bend, so a dense take (ghost notes, rolls, a band) can score the
     double-time reading as high as the true one. A constant grid can't bend. If
-    one candidate's constant grid explains the strokes nearly as well as its DP
-    beats, the music is steady and the tied candidates are ranked by their
-    constant grids; music whose tempo moves keeps the DP ranking."""
+    the winner's own constant grid falls short of its DP beats (they bent) while
+    the candidate with the best constant grid explains the strokes with it nearly
+    as well as with its DP beats (steady music), the tied candidates are ranked by
+    their constant grids. A winner that didn't bend keeps its place: at 3/4 of the
+    tempo swung 8ths fall exactly on a constant 16th grid, and ranking a steady
+    swing take by grids alone slowed it to 3/4. Music whose tempo moves mostly
+    keeps the DP ranking, since no constant grid follows it; a slower reading's
+    grid can still pass for steady over a sparse pulse (a roll groove slowing from
+    130 to 100 BPM is read at 3/4 in about one take in eight)."""
     if len(hits) < 8 or len(scored) < 2:
         return scored
-    tied = [s for s in scored if s[0] > TIE * scored[0][0]]
+    top = scored[0]
+    tied = [s for s in scored if s[0] > TIE * top[0]]
     if len(tied) < 2:
         return scored
     regs = []
@@ -135,10 +142,10 @@ def _rescore_ties(scored: list, hits: list[DrumHit]) -> list:
         reg = _regular_grid(hits, bc, tc)
         regs.append(reg[2] if reg else 0.0)
     j = int(np.argmax(regs))
-    if regs[j] < STEADY * tied[j][0]:
+    if regs[0] >= STEADY * top[0] or regs[j] < STEADY * tied[j][0]:
         return scored
     rescored = sorted(((r, c, tc, bc) for r, (_, c, tc, bc) in zip(regs, tied)), key=lambda x: -x[0])
-    return rescored + scored[len(tied):]
+    return rescored + [s for s in scored if not any(s is t for t in tied)]
 
 
 def _regular_grid(hits: list[DrumHit], beats: np.ndarray, tempo: float):

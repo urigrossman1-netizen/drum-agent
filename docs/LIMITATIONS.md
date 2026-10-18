@@ -123,8 +123,10 @@ Charts of non-commercial-licensed material are not committed.
 4. **Toms** on real recordings: about half are found on a drum stem, a third
    in a full mix, and which tom (high, mid, floor) comes from the pitch
    order within the recording.
-5. **Tempo** can still come out doubled or halved on unusual material. The
-   report says "tempo ambiguous" when it is close; pass `--bpm`.
+5. **Tempo** can still come out doubled or halved on unusual material, and
+   steady swing can be read at 3/4 of its tempo (swung 8ths line up with a
+   16th grid there), as can, now and then, a take whose tempo drifts a lot.
+   The report says "tempo ambiguous" when it is close; pass `--bpm`.
 6. **Meter.** 4/4, 3/4, 6/8 and 12/8 are detected, along with a switch to
    12/8 for a section (the boundary can be a bar off) and short bars that
    shift the downbeat (2/4, 1/4, 3/4 inside 4/4, found from crash
