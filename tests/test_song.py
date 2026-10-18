@@ -366,12 +366,16 @@ def test_safe_names():
     ("https://www.deezer.com./track/3001", "Deezer"),
     ("https://p.scdn.co/mp3-preview/abc", "Spotify"),  # the services' audio CDNs
     ("https://cdns-preview-d.dzcdn.net/stream/c-123.mp3", "Deezer"),
-    # the host the resolver looks up: IDNA drops a soft hyphen, maps "º" to "o" and reads U+3002 as a dot
-    ("http://p.s­cdn.co/mp3-preview/abc.mp3", "Spotify"),
-    ("https://open.spo­tify.com/track/abc", "Spotify"),
-    ("https://open.spºtify.com/track/abc", "Spotify"),
-    ("https://open.spotify。com/track/abc", "Spotify"),
-    ("https://p．scdn．co/mp3-preview/abc", "Spotify"),
+    # the host the resolver looks up: urllib decodes %XX, IDNA drops a soft hyphen (U+00AD), maps
+    # "\u00ba" to "o" and reads U+3002 and U+FF0E as dots
+    ("http://p.s%63dn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("https://open.spotify%2Ecom/track/abc", "Spotify"),
+    ("http://p.s%C2%ADcdn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("http://p.s\u00adcdn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("https://open.spo\u00adtify.com/track/abc", "Spotify"),
+    ("https://open.sp\u00batify.com/track/abc", "Spotify"),
+    ("https://open.spotify\u3002com/track/abc", "Spotify"),
+    ("https://p\uff0escdn\uff0eco/mp3-preview/abc", "Spotify"),
     ("https://www.amazon.com/-/es/music/player/albums/B000000000", "Amazon Music"),
     ("https://smile.amazon.com/music/player", "Amazon Music"),
 ])
@@ -389,12 +393,14 @@ def test_other_links_are_not_streaming_services():
 
 
 def test_a_host_name_that_is_not_plain_ascii_is_refused_with_a_message(monkeypatch):
-    # The request would go to the IDNA form of the name: say so, rather than crash or ask another host.
+    # The request would go to the decoded or IDNA form of the name: say so, rather than crash or ask
+    # another host.
     monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("the link was opened"))
-    for url, match in (("http://example。com/take.mp3", "example.com"),
-                       ("http://exam­ple.com/take.mp3", "example.com"),
-                       ("http://bücher.example/take.mp3", "xn--bcher-kva.example"),
-                       ("http://a。。b/take.mp3", "ASCII")):
+    for url, match in (("http://example\u3002com/take.mp3", "example.com"),
+                       ("http://exam\u00adple.com/take.mp3", "example.com"),
+                       ("http://ex%61mple.com/take.mp3", "example.com"),  # urllib asks for the decoded name
+                       ("http://b\u00fccher.example/take.mp3", "xn--bcher-kva.example"),
+                       ("http://a\u3002\u3002b/take.mp3", "ASCII")):
         with pytest.raises(FetchError, match=match):
             fetch.fetch_audio(url)
 
@@ -958,7 +964,8 @@ def test_each_redirect_is_checked_before_it_is_followed(monkeypatch, tmp_path):
     hits = []
     hops = {"example.test/song.mp3": "http://p.scdn.co/mp3-preview/abc",  # straight to a streaming CDN
             "example.test/hop.mp3": "http://p.scdn.co/hop",  # through one, to a host that isn't listed
-            "p.scdn.co/hop": "http://other.test/final.mp3"}
+            "p.scdn.co/hop": "http://other.test/final.mp3",
+            "example.test/enc.mp3": "http://p.s%63dn.co/mp3-preview/abc"}  # urllib asks for p.scdn.co
 
     class Hops(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
@@ -985,7 +992,7 @@ def test_each_redirect_is_checked_before_it_is_followed(monkeypatch, tmp_path):
                                                                                  *a, **k))
     monkeypatch.setattr(urllib.request, "getproxies", dict)  # no proxy: {}
     try:
-        for start in ("example.test/song.mp3", "example.test/hop.mp3"):
+        for start in ("example.test/song.mp3", "example.test/hop.mp3", "example.test/enc.mp3"):
             hits.clear()
             with pytest.raises(FetchError, match="Spotify streams are DRM-protected"):
                 fetch.fetch_audio(f"http://{start}", tmp_path / "cache", timeout=3)
@@ -1095,7 +1102,7 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
     parser = build_parser()
     given = parser.parse_args([
         "song", "--artist", "The Placeholders", "--title=-Untitled-", "--transcriber", "Me", "--bpm", "120",
-        "--time-signature", "6/8", "--downbeat", "0.25", "--feel", "swing", "--drums-only", "--sensitivity", "1.5",
+        "--time-signature", "6/8", "--downbeat", "125.0625", "--feel", "swing", "--drums-only", "--sensitivity", "1.5",
         "--no-32nds", "--start", "12.5", "--end", "60", "--sections", "Intro:1,Verse:5", "--chart-type",
         "performance_chart", "--detector", "nmf", "--use-metadata-bpm", "--stem", "tg", "--formats", "pdf,midi",
         "--paper", "a4", "--staff-size", "18", "--repeats", "none", "--bars-per-line", "3", "--no-legend",

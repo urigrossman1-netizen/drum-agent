@@ -165,9 +165,10 @@ def _host_is(host: str, suffix: str) -> bool:
 
 
 def _host(parts: urllib.parse.SplitResult) -> str:
-    """The host name the resolver will look up: Python IDNA-encodes a non-ASCII name, which drops
-    a soft hyphen, maps "º" to "o" and reads U+3002 as a dot. "open.spotify.com." is the same host."""
-    host = (parts.hostname or "").lower()
+    """The host name the resolver will look up: urllib decodes %XX in it ("p.s%63dn.co" is
+    p.scdn.co), and Python IDNA-encodes a non-ASCII name, which drops a soft hyphen, maps "º" to
+    "o" and reads U+3002 as a dot. "open.spotify.com." is the same host."""
+    host = urllib.parse.unquote(parts.hostname or "").lower()
     if not host.isascii():
         try:
             host = host.encode("idna").decode("ascii").lower()
@@ -300,9 +301,10 @@ def download_url(url: str, cache_dir: str | Path | None = None, *, max_bytes: in
     """Download a direct link to an audio file into the cache (a web page goes to yt-dlp if installed)."""
     refuse_streaming(url)
     parts = urllib.parse.urlsplit(url)
-    if not (parts.hostname or "").isascii():  # the request would go to the IDNA form: say which host that is
-        raise FetchError(f"{url}: the host name {parts.hostname!r} is not plain ASCII; give the link with the "
-                         f"host written as {_host(parts)}")
+    host = _host(parts)
+    if host != (parts.hostname or "").rstrip("."):  # %XX or not ASCII: the request would go to `host`, say so
+        raise FetchError(f"{url}: the host name {parts.hostname!r} is not plain ASCII (or has %XX in it); give the "
+                         f"link with the host written as {host}")
     cache = cache_root(cache_dir)
     try:
         resp = open_url(url, timeout, refuse=refuse_streaming)  # every redirect, before it is followed

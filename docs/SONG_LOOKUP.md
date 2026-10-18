@@ -92,9 +92,11 @@ Each step is printed as it happens.
   Their streams are DRM-protected, so links to them and their audio CDNs
   (and `spotify:` URIs) are refused with a message; these services are used
   for metadata only. A link is matched on the host name the resolver will
-  look up (IDNA: a soft hyphen or a full-width dot doesn't hide one), and
-  every redirect is checked before it is followed. A direct download from a
-  host name that isn't plain ASCII is refused with its ASCII (`xn--`) form.
+  look up (`%XX` decoded, then IDNA: a percent-escape, a soft hyphen or a
+  full-width dot doesn't hide one), and every redirect is checked before it
+  is followed. A direct download from a host name that isn't plain ASCII, or
+  has `%XX` in it, is refused with the name to give instead (the `xn--` form
+  of a non-ASCII one).
 * **No yt-dlp dependency.** Drum Agent uses yt-dlp only when you have it
   (the `yt-dlp` executable on PATH, or `python -m yt_dlp`). Without it, the
   message says `pip install yt-dlp`. What a video site's terms allow, and

@@ -287,7 +287,7 @@ def _rerun_command(args, audio: AudioSource) -> str:
         value = getattr(args, attr, default)
         if value is None or value == default:
             continue
-        cmd.append(flag if value is True else f"{flag}={value:g}" if isinstance(value, float) else f"{flag}={value}")
+        cmd.append(flag if value is True else f"{flag}={value:.12g}" if isinstance(value, float) else f"{flag}={value}")
     cmd += ["--rights", "BASIS", f"--out={args.out or 'OUT'}", "--", args.query]
     return " ".join(shlex.quote(c) for c in cmd)
 
