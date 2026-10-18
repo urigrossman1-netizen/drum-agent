@@ -51,11 +51,22 @@ otherwise from pitch clusters within the recording (highest = Tom 1).
 Loudness relative to each drum's typical stroke gives ghost notes and
 accents, as before.
 
-The network is a multi-layer perceptron (1300 → 384 → 192 → 11, ReLU,
+Each network is a multi-layer perceptron (1300 → 512 → 256 → 11, ReLU,
 dropout 0.2), trained with plain numpy (Adam, class-balanced binary
-cross-entropy, cosine learning-rate schedule). Inference is numpy too; the
-weights are `drum_agent/data/onset_classifier.npz` (about 2 MB). `--detector
-nmf` keeps the original detector available for comparison.
+cross-entropy, cosine learning-rate schedule, 30 epochs). The shipped model
+is an **ensemble of two such networks** whose probabilities are averaged:
+
+| Member | Training clips | What it adds |
+|---|---|---|
+| v2 | 5000 (seeds 200001-205000), 18 styles | the base model |
+| v3 | the same 5000 plus 1500 tom-groove-heavy clips (seeds 300001-301500) | kick and snare under a floor tom, tom grooves |
+
+v3 alone fixed kicks under floor-tom ostinatos but lost snares under crash
+and kick; v2 alone the reverse. The average keeps the better of each
+(measurements below). Thresholds are the members' mean. Inference is numpy;
+the weights are `drum_agent/data/onset_classifier.npz` (6 MB, built with
+`scripts/adt/train.py ensemble v2.npz v3.npz`). `--detector nmf` keeps the
+original detector available for comparison.
 
 ## Training data
 
@@ -83,6 +94,8 @@ All synthetic: no real recording was used for training.
 
 `scripts/adt/train.py build` runs the detector's own front end and feature
 code on each clip, so training and use see identical features.
+`DRUM_AGENT_STYLES="toms:5,rock:1"` weights the styles of a supplementary
+build (how v3's extra clips were made).
 
 ### Sources and licences
 
@@ -114,12 +127,29 @@ on real acoustic kits).
   original detector's templates also used, so "held out" there was always
   partial.)
 - All of MDB Drums. Its MIREX 2017 training half was used to *choose* between
-  model versions; the test half was run once per version for this file.
+  model versions; the test half was run once, for the shipped model.
 
 ## Measurement
 
-`scripts/eval_real.py` on MDB Drums (23 real MedleyDB recordings, drum stem
-and full band mix, ~8000 annotated strokes, CC BY-NC-SA 4.0, downloaded to a
-local cache, never committed), onset F at 50 ms for kick (KD), snare (SD),
-hi-hat (HH), toms (TT) and cymbals (CY). See `docs/LIMITATIONS.md` for the
-tables and the synthetic evaluations.
+How the model was chosen: each candidate was measured with
+`scripts/eval_detection.py` and `scripts/eval_notation.py` (synthesized
+charts, exact answers, the Jazz and Brush kits held out) and with
+`scripts/eval_real.py --split train` (the 12 MDB Drums development
+recordings). The 11 test recordings were run once, for the chosen model.
+
+| Model | Notation F (40 synthetic runs) | Real drum stems, dev / test | Real band mixes, dev / test |
+|---|---|---|---|
+| NMF templates (original) | 0.948 | 0.791 / 0.662 | 0.484 / 0.421 |
+| v2 | 0.941 * | 0.850 / - | 0.687 / - |
+| v3 | 0.958 | 0.855 / - | 0.674 / - |
+| **v2 + v3 ensemble (shipped)** | **0.963** | **0.856 / 0.772** | **0.696 / 0.591** |
+
+\* v2 was measured before a tempo fix that rescued one of its runs (case 07,
+jazz kit with band, read at double tempo); v3 and the ensemble were measured
+after it.
+
+Onset F at 50 ms, all five MDB classes (kick, snare, hi-hat, toms, cymbals).
+Per-class tables, the synthetic stroke-level results and what they mean for
+a chart are in `docs/LIMITATIONS.md`. The weakest class on real recordings is
+cymbals (crash, ride: 0.27 on drum stems, 0.09 in band mixes on the test
+recordings).

@@ -38,35 +38,29 @@ can't hear, so you know which parts of a chart to distrust.
    or groove changes marked by a crash or fill; letters A, B, C... Rename with
    `--sections` or `edit --sections`.
 
-## Measured accuracy (synthetic audio, ground truth known)
-Full tables: `docs/LIMITATIONS.md`. Stroke level, by `scripts/eval_detection.py`
-on FluidSynth renderings of the regression charts (722 reference strokes per
-condition), 50 ms tolerance. "Held-out" kits were not used to build the templates.
+## Measured accuracy
+Full tables: `docs/LIMITATIONS.md`. **Real recordings first** (MDB Drums,
+`scripts/eval_real.py`, onset F at 50 ms, 11 held-out recordings):
 
-| Condition | Onset F | Weak classes |
+| Class | Drum stem | Full band mix |
 |---|---|---|
-| Standard kit, drums only | 0.988 | crash 0.85, floor tom 0.80 |
-| Room kit, drums only | 0.978 | floor tom 0.57, crash 0.77, open hi-hat 0.80 |
-| Jazz kit (held out), drums only | 0.989 | open hi-hat 0.88 |
-| Brush kit (held out), drums only | 0.965 | snare 0.92 (soft brushes), floor tom 0.73 |
-| Standard kit + bass/keys | 0.973 | crash 0.51, open hi-hat 0.62 |
-| Jazz kit + bass/keys, ±10 ms humanized | 0.900 | crash 0.30, open hi-hat 0.22, floor tom 0.73 |
-| Unfamiliar synthetic timbres (numpy kit) | 0.610 | snare 0.16, cymbals ~0.1, toms 0.0 |
+| Kick | 0.96 | 0.71 |
+| Snare | 0.87 | 0.69 |
+| Hi-hat | 0.72 | 0.61 |
+| Toms | 0.50 | 0.31 |
+| Cymbals (crash, ride) | 0.27 | 0.09 |
+| All five | 0.77 | 0.59 |
 
-Hi-hat **foot** strokes are not detected at all; add them by hand.
+So on a real recording: trust kick and snare most, check every hi-hat bar,
+expect to add crashes and some tom strokes by ear, and ask for a drum stem
+(`--drums-only`) when the user has one.
 
-Notation level (every stroke in the right bar, at the right position, on the
-right instrument), end to end from audio by `scripts/eval_notation.py`: ten
-charts × four conditions, mean 0.897, median 0.972. The full 60-bar song scored
-0.948-0.983; case 07 reads at double tempo without `--bpm` (0.27; 0.85+ with
-`--bpm 92`). Bar flags "(?)": 52% of flagged bars contained an error, and flags
-caught 44% of the wrong bars, so flags help you find problems but every bar
-still needs a listen.
-
-**These numbers come from synthesized audio.** Real recordings (room sound,
-compression, cymbal wash, bleed) are harder. Expect more errors, especially in
-cymbals and ghost notes, and always listen. On three real Creative Commons
-recordings the tempo/meter was ambiguous in two of them (see LIMITATIONS).
+Synthesized audio (exact answers; the Jazz and Brush kits never trained on):
+stroke-level onset F 0.96-0.98 on every GM kit with or without a band
+(unfamiliar synthetic timbres 0.83), and end to end at notation level (right
+bar, position and instrument) mean 0.963 over ten charts × four conditions,
+the full 60-bar song 0.95-0.99. Synthesized audio is far easier than a real
+mix; never quote these numbers for a real recording.
 
 ## Failure modes and what to do
 | Symptom in report or PDF | Likely cause | Fix |
@@ -79,9 +73,11 @@ recordings the tempo/meter was ambiguous in two of them (see LIMITATIONS).
 | "barring kept" note in the report | crash accents off beat 1 that did not prove a shifted downbeat | check whether a short bar was played there |
 | Many extra kicks, "kick density" warning | bass guitar bleed | use a drum stem (`--drums-only`) or delete by hand |
 | Hi-hat written as ride or vice versa | similar cymbal spectra | `edit --relabel ride=hihat --bars A-B` after listening |
+| Extra hi-hat strokes in a jazz or brush take | brush sweeps and ride wash read as hi-hat | delete them by ear (`edit --delete`) |
 | Crashes missing in a band mix | crash masked by the mix | add with `edit --add BAR:0:crash` |
 | Ghost notes missing | masked by hi-hat | add by ear; raise `--sensitivity 1.3` carefully |
 | Drags never appear | not detected | add with `:drag` by ear |
+| Crashes or rides missing (real recording) | the weakest class | add with `edit --add BAR:POS:crash` |
 | Odd meters (5/4, 7/8) from audio | not supported | use a MIDI track or write a chart spec |
 | Sections only lettered A, B, C | no lyrics/harmony analysis | `--sections "Intro:1,Verse:5,..."` |
 

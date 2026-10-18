@@ -32,6 +32,7 @@ MODEL_PATH = Path(os.environ.get("DRUM_AGENT_ONSET_MODEL")
 CLASSES = ("kick", "snare", "cross_stick", "hihat", "hihat_open", "hihat_pedal", "ride", "ride_bell",
            "crash", "tom", "other")
 FRAME = HOP / SR
+NEAR_MISS = 0.4  # a class this close to its threshold is recorded as a near miss
 EDGE = 40  # frames of padding so every window exists
 ATTACK = (-1, 0, 1, 2, 3, 4, 5)
 DECAY = ((6, 10), (10, 16), (16, 24), (24, 36))
@@ -265,11 +266,19 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     E = _region_energy(fe.M_perc)
     T = fe.M_perc.shape[1]
     raw: list[tuple[int, str, float, float, float]] = []  # (frame, class, p, margin, confidence)
+    # Strokes the network almost heard: a class above NEAR_MISS of its threshold that was
+    # not accepted, or one a rule removed. A bar holding one may be missing a stroke, which
+    # hit confidences can't show (a missed stroke has no confidence).
+    near: list[tuple[float, str, float]] = []
     for k, t in enumerate(fe.cand):
         time = float(t * FRAME) - PAD
         if time < -0.02:
             continue
         p = P[k]
+        for c in model.classes:
+            ratio = float(p[ci[c]] / thr[ci[c]])
+            if c != "other" and NEAR_MISS <= ratio < 1.0:
+                near.append((time, c, round(ratio, 3)))
         acc = {c: float(p[ci[c]]) for c in model.classes if c != "other" and p[ci[c]] >= thr[ci[c]]}
         if not acc:
             continue
@@ -284,6 +293,7 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
         hands = sorted((c for c in acc if c in HANDS), key=lambda c: -margin[c])
         for c in hands[2:]:
             acc.pop(c)
+            near.append((time, c, 1.0))  # heard, but a third hand: one of them is wrong
         for c, pc in acc.items():
             th = float(thr[ci[c]])
             conf = 0.5 + 0.5 * (pc - th) / max(1e-6, 1 - th)
@@ -319,4 +329,4 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
             region = E["tom"] if h.inst.startswith(("tom", "floor")) else E["snare"]
             h.flam = _has_grace(region, f, last.get(h.inst, -10 ** 9), T)
             last[h.inst] = f
-    return hits, {"detector": f"classifier {model.version}", "frames": int(T)}
+    return hits, {"detector": f"classifier {model.version}", "frames": int(T), "near_misses": near}
