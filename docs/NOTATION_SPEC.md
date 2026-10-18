@@ -64,8 +64,11 @@ further lines; it never runs off the page.
   snare rudiment, a snare-and-bass-drum march), the other is engraved as a
   single voice: stems up, accents above the staff, no rests for the empty
   voice. A bar whose roll moved up over the kick is the exception: that bar
-  alone is in two voices (the roll up, the drums down). The MusicXML writes
-  the single voice, its empty bars included, under one voice number.
+  alone is in two voices, the hands up and the feet down (as in the hands-up
+  voicing), so its other snare strokes keep their stems and accents above and
+  no rest prints over them (if a tom or snare stroke starts during the roll,
+  only the roll moves up). The MusicXML writes the single voice, its empty
+  bars included, under one voice number.
 
 ## 3. Instrument map
 

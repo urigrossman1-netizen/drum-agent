@@ -1,8 +1,9 @@
 # A street march for snare and bass drum. No cymbal plays anywhere, so the chart is
 # one voice: stems up, accents above, no rests for the empty voice. A buzz roll over
 # the bass drum can't share that voice with the kick, so its bar alone is written in
-# two voices (the roll up, the drums down); the bars around it stay one voice. The
-# tacet bar's rest is in the chart's one voice in the MusicXML too.
+# two voices, the hands up and the feet down (the accent after the roll stays above,
+# with no rest over it); the bars around it stay one voice. The tacet bar's rest is
+# in the chart's one voice in the MusicXML too.
 title: "Case 15: March, Roll over the Bass Drum"
 artist: Drum Agent regression suite (original)
 chart_type: pattern_study

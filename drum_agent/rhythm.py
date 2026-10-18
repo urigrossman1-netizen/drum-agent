@@ -554,12 +554,16 @@ def _starts_during(spans: list[tuple[Fraction, Fraction]], hits: list[Hit]) -> b
     return any(a <= h.pos < b for a, b in spans for h in hits)
 
 
-def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT) -> dict[int, list[Hit]]:
+def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT, one_voice: bool = False) -> dict[int, list[Hit]]:
     """The hits of each voice: the kit's voice, except that a snare/tom roll with the kick
     under it moves up. In the cymbals-up voicing the roll shares the lower voice with the
     kick, and a kick on the roll's first note or during it would be written as part of the
     rolled chord. Both hands are rolling, so the upper voice is free there and the bar reads
-    as in the hands-up layout."""
+    as in the hands-up layout.
+
+    `one_voice`: the chart has no upper-voice stroke anywhere and is engraved as one voice,
+    stems up (see silent_voices). A bar whose roll moves up then goes hands up, feet down:
+    its other snare and tom strokes keep the stems and accents above of the bars around it."""
     by_voice: dict[int, list[Hit]] = {1: [], 2: []}
     for h in measure.hits:
         by_voice[kit[h.inst].voice].append(h)
@@ -568,13 +572,21 @@ def assign_voices(measure: Measure, kit: Kit = DEFAULT_KIT) -> dict[int, list[Hi
         spans = [(h.pos, h.pos + h.roll) for h in rolled]
         others = [h for h in by_voice[2] if h not in rolled]
         if _starts_during(spans, others) and not _starts_during(spans, by_voice[1]):
+            hands = [h for h in others if not kit.is_foot(h.inst)]
+            # Not when a hand's stroke starts during a roll: in the roll's voice it would join
+            # the rolled chord or cut the roll.
+            if one_voice and not by_voice[1] and not _starts_during(spans, hands):
+                rolled = rolled + hands
+                others = [h for h in others if kit.is_foot(h.inst)]
             by_voice[2] = others
             by_voice[1] = by_voice[1] + rolled
     return by_voice
 
 
-def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT) -> SpelledMeasure:
-    by_voice = assign_voices(measure, kit)
+def spell_measure(measure: Measure, kit: Kit = DEFAULT_KIT, one_voice: bool = False) -> SpelledMeasure:
+    """Spell both voices of a bar. `one_voice`: see assign_voices (exporters pass
+    `1 in silent_voices(...)`)."""
+    by_voice = assign_voices(measure, kit, one_voice)
     if not by_voice[1] and not by_voice[2]:
         rest = spell_voice(measure, [])
         return SpelledMeasure({1: rest, 2: []}, shared_rest=True)
@@ -595,7 +607,8 @@ def _has_notes(tokens: list[Token]) -> bool:
 
 
 def two_voice_bar(sm: SpelledMeasure, silent: set[int]) -> bool:
-    """A bar of a one-voice chart that needs both voices: a roll moved up over the kick."""
+    """A bar of a one-voice chart that needs both voices: a roll moved up over the kick (the
+    hands up, the feet down, when spelled with one_voice)."""
     return 1 in silent and _has_notes(sm.voices[1])
 
 

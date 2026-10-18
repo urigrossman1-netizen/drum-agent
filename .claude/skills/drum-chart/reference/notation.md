@@ -16,7 +16,8 @@ Authoritative spec: `docs/NOTATION_SPEC.md`. Mapping in code: `drum_agent/kit.py
 - A silent drum voice gets a whole-bar rest; a silent cymbal voice over drums
   (a fill, a pickup) is left blank; if both are silent, one rest.
 - A chart with no cymbal at all (snare rudiment, march) is one voice, stems up,
-  accents above; only a bar whose roll moved up over the kick has two voices.
+  accents above; only a bar whose roll moved up over the kick has two voices
+  (the hands up, the feet down).
 - Sticking (R, L, B) prints on one line under the staff; cues ("hey",
   "Band in") print in italics above the staff at the start of their bar.
 

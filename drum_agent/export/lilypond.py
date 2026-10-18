@@ -438,7 +438,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
 
     def spelled_bar(idx: int) -> SpelledMeasure:
         if idx not in spelled:
-            spelled[idx] = spell_measure(score.measures[idx], kit)
+            spelled[idx] = spell_measure(score.measures[idx], kit, one_voice=1 in silent)
         return spelled[idx]
 
     g_out: list[str] = []
@@ -502,7 +502,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         else:
             down = w.voice_bar(sm.voices[2], 2, m, upper=sm.voices[1])
         if two_voice_bar(sm, silent):
-            # A roll over the kick, moved up: this bar alone is in two voices.
+            # A roll over the kick: this bar alone is in two voices, the hands up, the feet down.
             down = f"\\voiceTwo {down} {one}"
         elif 1 in silent:  # one-voice chart: the lower voice carries everything, rests included
             up, down = _skip(m.actual_length), (up if sm.shared_rest else down)

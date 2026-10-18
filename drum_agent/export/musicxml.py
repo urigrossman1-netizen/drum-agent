@@ -44,10 +44,11 @@ def _lcm(a: int, b: int) -> int:
     return a * b // math.gcd(a, b)
 
 
-def _divisions(score: Score) -> int:
+def _divisions(score: Score, kit: Kit, silent: set[int]) -> int:
+    """Ticks per quarter note that hold every written duration (spelled as to_musicxml does)."""
     div = 1
     for m in score.measures:
-        sm = spell_measure(m)
+        sm = spell_measure(m, kit, one_voice=1 in silent)
         for tokens in sm.voices.values():
             for t in tokens:
                 div = _lcm(div, (t.dur * 4).denominator)
@@ -69,12 +70,12 @@ class _XmlWriter:
         self.score = score
         self.kit = kit
         self.plan = plan
-        self.div = _divisions(score)
-        self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
-        self.bar_index = 0
         # One-voice chart (as in the LilyPond engraving): the empty voice is left out and the
         # other is written stems up, accents above, except in a bar with a roll moved up.
         self.silent = silent_voices(score.measures, kit)
+        self.div = _divisions(score, kit, self.silent)
+        self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
+        self.bar_index = 0
         self.two_voices = False  # this bar of a one-voice chart is in two voices (a roll moved up)
 
     def stem(self, voice: int) -> str:
@@ -369,7 +370,7 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
             w.direction_words(mel, m.cue, font_style="italic")
         if m.uncertain:
             w.direction_words(mel, "(?)", font_size="9", color="#555555")
-        sm = spell_measure(m, kit)
+        sm = spell_measure(m, kit, one_voice=1 in w.silent)
         w.two_voices = two_voice_bar(sm, w.silent)
         written = False
         for voice in (1, 2):

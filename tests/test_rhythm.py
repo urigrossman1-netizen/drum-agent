@@ -245,6 +245,21 @@ def test_roll_over_the_kick_keeps_a_march_in_one_voice():
     plain, roll = (spell_measure(m) for m in score.measures)
     assert roll.voices[1][0].is_roll and two_voice_bar(roll, silent)
     assert not two_voice_bar(plain, silent)
+    # As exporters spell it: that bar goes hands up, feet down (the accent after the roll stays
+    # up with the snare); the other bars keep one voice.
+    plain, roll = (spell_measure(m, one_voice=True) for m in score.measures)
+    assert [h.inst for t in roll.voices[1] for h in t.hits] == ["snare", "snare", "snare"]
+    assert {h.inst for t in roll.voices[2] for h in t.hits} == {"kick"}
+    assert not two_voice_bar(plain, silent) and two_voice_bar(roll, silent)
+    # A tom stroke during the roll (or on its first note) can't join the roll's voice: then
+    # only the roll moves up, as in a chart with cymbals.
+    for t1 in ("----x-----------", "x---------------"):
+        m = compile_spec({"sections": [{"bars": [{"sn": "r~~~~~~~----X---", "t1": t1,
+                                                  "bd": "x---x---x-------"}]}]}).measures[0]
+        sm = spell_measure(m, one_voice=True)
+        assert [h.inst for t in sm.voices[1] for h in t.hits] == ["snare"]
+        assert "tom1" in {h.inst for t in sm.voices[2] for h in t.hits}
+        check_tokens(sm.voices[2], m)
 
 
 # --- rolls ------------------------------------------------------------------------

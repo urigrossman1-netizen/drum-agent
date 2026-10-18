@@ -169,15 +169,16 @@ def test_case14_triplet_half_beats(rendered):
 
 def test_case15_march_roll_over_kick(rendered):
     # No cymbal anywhere: one voice, stems up, accents above. The roll bars alone are in two
-    # voices (the roll up, the drums down), in the PDF and the MusicXML alike.
+    # voices, the hands up and the feet down, in the PDF and the MusicXML alike: the accented
+    # snare after the roll keeps its stem and accent above, with no rest over it.
     _, report = rendered["15_march_roll_over_kick"]
     ly = _ly(report)
     one = "\\oneVoice \\stemUp \\override Script.direction = #UP"
     up = ly.split("upMusic = ")[1].split("downMusic = ")[0]
     down = ly.split("downMusic = ")[1].split("\n}\n")[0]
     assert down.split("\\autoBeamOff")[1].strip().startswith(one)
-    assert down.count("\\voiceTwo kick8[ kick8] <kick snare>4-> " + one + " |") == 2
-    assert up.count("snare4:32 r4 |") == 2 and "kick" not in up and "R1" not in up
+    assert down.count("\\voiceTwo kick8[ kick8] kick4 " + one + " |") == 2
+    assert up.count("snare4:32 snare4-> |") == 2 and "kick" not in up and "R1" not in up
     root = _xml(report)
     for m in root.iter("measure"):
         notes = m.findall("note")
@@ -186,6 +187,9 @@ def test_case15_march_roll_over_kick(rendered):
         if any(n.find("notations/ornaments/tremolo") is not None for n in notes):
             assert voices == {"1", "2"}
             assert stems == {"up", "down"}
+            down = [n for n in notes if n.findtext("voice") == "2" and n.find("rest") is None]
+            assert {n.find("instrument").get("id") for n in down} == {"P1-kick"}
+            assert not [n for n in notes if n.findtext("voice") == "1" and n.find("rest") is not None]
         else:  # the tacet bar's rest included
             assert voices == {"2"} and stems <= {"up"}
 

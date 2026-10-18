@@ -94,7 +94,8 @@ can't disagree about how a rhythm is written.
   (a NullVoice with lyrics under the staff), and a second unfolded `\score`
   with `\midi` used only for verification. A chart with one voice only (a
   snare rudiment) is engraved as one voice, stems up, with no rests for the
-  empty one; only a bar whose roll moved up over the kick has two voices.
+  empty one; only a bar whose roll moved up over the kick has two voices
+  (the hands up, the feet down).
 - `render.py` runs LilyPond. A missing engine, an old version, a non-zero
   exit, missing output or fatal warnings (bar-check failures and similar)
   raise `RenderError` with the log. There is no fallback renderer.
