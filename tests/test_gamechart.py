@@ -482,6 +482,27 @@ def test_cli_gamechart_never_overwrites_the_chart(cli, tmp_path):
     assert r.rc == 1 and "does not exist" in r.err and "Traceback" not in r.err
 
 
+def test_cli_gamechart_writes_no_chart_into_the_song_folder(cli, tmp_path):
+    # A chart under another name is the input too (the default stem overwrote it), in any case.
+    other = rb_midi(tmp_path / "MySong.mid", rock_bar())
+    before = other.read_bytes()
+    for argv in ([], ["--stem", "mysong"]):
+        r = cli("gamechart", other, "-o", tmp_path, "--formats", "midi,json", *argv)
+        assert r.rc != 0 and "overwrite the input" in r.err, r.out + r.err
+    assert other.read_bytes() == before
+    # A notes.mid beside notes.chart is read instead of it (re-import then failed), and on
+    # macOS or Windows Notes.mid is notes.mid. The folder's own name is the default stem.
+    folder = tmp_path / "notes"
+    folder.mkdir()
+    chart_file(folder / "notes.chart", {"ExpertDrums": [(0, 0), (RES, 1)]})
+    for argv in ([], ["--stem", "Notes"]):
+        r = cli("gamechart", folder, "-o", folder, "--formats", "midi,json", *argv)
+        assert r.rc != 0 and "into the song folder" in r.err and "Traceback" not in r.err, r.out + r.err
+    assert [f.name for f in folder.iterdir()] == ["notes.chart"]
+    r = cli("gamechart", folder, "-o", folder, "--stem", "Groove", "--formats", "midi,json")
+    assert r.rc == 0 and (folder / "Groove.mid").exists() and read_gamechart(folder)[1].format == "chart"
+
+
 # ---- end to end: engrave with every check ------------------------------------------
 
 @needs_lilypond
@@ -523,6 +544,56 @@ def test_exact_ticks_stay_exact_at_a_fast_tempo(tmp_path):
     assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
 
 
+@pytest.mark.parametrize("res,late", [(192, 2), (192, 3), (480, 2), (480, 3)])
+def test_one_stray_tick_keeps_the_exact_figure(tmp_path, res, late):
+    # The same figure with the 16th a few ticks late: up to the slack (2 ticks) it is on
+    # the grid, past it a stray of that grid, and the other gems still say 32nds.
+    q = res // 8  # a 32nd
+    snare = [(t, 1) for t in (0, q, 2 * q + late, 4 * q, 8 * q, 16 * q, 24 * q)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": snare}, sync=("0 = TS 4", "0 = B 240000"),
+                      resolution=res)
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/16", "1/8", "1/4", "1/2", "3/4"]
+
+
+@pytest.mark.parametrize("notes,written,merged", [
+    ([0, 58, 96, 144], ["0", "1/16", "1/8", "3/16"], 0),  # a 16th 10 ticks late
+    ([0, 74, 128], ["0", "1/12", "1/6"], 0),  # a triplet 8th 10 ticks late
+    ([0, 12], ["0"], 1),  # a 64th-note double (a charted flam), as test_off_grid_ticks_snap...
+])
+def test_a_gem_near_no_grid_is_placed_by_its_timing(tmp_path, notes, written, merged):
+    # At 192 ticks a beat the 12-grid has a slot within 8 ticks of every tick, but a gem
+    # 4 or more ticks from it is no stray of it: these were written as 32nd sextuplets.
+    snare = [(t, 1) for t in notes] + [(RES * k, 1) for k in (1, 2, 3)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": snare}, sync=("0 = TS 4", "0 = B 240000"))
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == written + ["1/4", "1/2", "3/4"]
+    assert score.analysis["merged_duplicates"] == merged
+
+
+@pytest.mark.parametrize("res,late", [(192, 3), (480, 7)])
+def test_slack_scales_with_a_dotted_quarter_beat(tmp_path, res, late):
+    # In 6/8 the grid positions are 1.5 times as far apart, and so is the slack (3 ticks at
+    # 192): a 32nd that late is still a 32nd, not the 16th 21 ticks away.
+    q = res // 8
+    notes = [(0, 1), (q + late, 1), (4 * q, 1), (8 * q, 1), (12 * q, 0)]
+    path = chart_file(tmp_path / "notes.chart", {"ExpertDrums": notes}, sync=("0 = TS 6 3", "0 = B 90000"),
+                      resolution=res)
+    score, _ = read_gamechart(path, pro=False)
+    assert [p for p, _ in bar(score, 0)] == ["0", "1/32", "1/8", "1/4", "3/8"]
+
+
+@pytest.mark.parametrize("late", [-2, 2])
+def test_a_swung_offbeat_off_by_the_slack_stays_a_swung_8th(tmp_path, late):
+    # The swung grid's offbeat is measured where it sits in the beat (2/3), so a tom 2
+    # ticks early or late is a swung 8th, not the triplet the warp would make of it.
+    notes = [(t + d, 2) for t in range(0, 8 * RES, RES) for d in (0, 128)]
+    notes += [(t, 0 if t % (2 * RES) == 0 else 1) for t in range(0, 8 * RES, RES)]
+    notes += [(8 * RES, 3), (8 * RES + 128 + late, 3)]
+    score, _ = read_gamechart(chart_file(tmp_path / "notes.chart", {"ExpertDrums": notes}), pro=False)
+    assert score.swing and bar(score, 2) == [("0", "tom2"), ("1/8", "tom2")]
+
+
 @pytest.mark.parametrize("sync,message", [
     (("0 = TS 4 100000000000", "0 = B 120000"), "meter"),
     (("0 = TS 1000000", "0 = B 120000"), "meter"),
@@ -542,6 +613,21 @@ def test_corrupt_resolution_offset_and_far_ticks(tmp_path):
     json.dumps(score.to_dict(), allow_nan=False)  # no NaN in score.json
     with pytest.raises(GameChartError, match="corrupt"):
         read_gamechart(chart_file(tmp_path / "c.chart", {"ExpertDrums": [(0, 0), (768_000_000_000, 0)]}))
+
+
+def test_bars_shorter_than_a_tick_or_too_many_are_refused(tmp_path):
+    # A 1/8 bar at 1 tick per quarter is half a tick: the bar loop never ended.
+    coarse = chart_file(tmp_path / "a.chart", {"ExpertDrums": [(0, 0), (4, 1)]},
+                        sync=("0 = TS 1 3", "0 = B 120000"), resolution=1)
+    with pytest.raises(GameChartError, match="resolution 1 is too coarse for a 1/8 bar"):
+        read_gamechart(coarse)
+    with pytest.raises(GameChartError, match="resolution 1 is too coarse for a 1/8 bar"):
+        read_gamechart(rb_midi(tmp_path / "notes.mid", [(0, KICK), (4, RED)], meters=((0, 1, 8),), tpb=1))
+    # A 1/32 meter makes eight bars of every beat, so bars are capped as beats are.
+    tiny = chart_file(tmp_path / "b.chart", {"ExpertDrums": [(0, 0), (RES // 8 * 20_001, 1)]},
+                      sync=("0 = TS 1 5", "0 = B 120000"))
+    with pytest.raises(GameChartError, match="more than 20000 bars"):
+        read_gamechart(tiny)
 
 
 def test_midi_without_ticks_per_beat_is_refused(tmp_path):

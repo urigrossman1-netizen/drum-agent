@@ -103,16 +103,17 @@ def _is_score_json(path: Path) -> bool:
 
 def _guard_input(input_path: str, out_dir: str, stem: str) -> None:
     """Refuse to write an output over the input (a MIDI take, a chart spec): the user's
-    file would be replaced by our export. Re-rendering a score.json in place is the
-    edit-then-render loop and rewrites the same score, so it is allowed."""
+    file would be replaced by our export. Names are compared ignoring case, as macOS and
+    Windows do. Re-rendering a score.json in place is the edit-then-render loop and
+    rewrites the same score, so it is allowed."""
     inp = Path(input_path).resolve()
     if inp.parent != Path(out_dir).resolve():
         return
-    names = {stem + suffix for suffix in _OUTPUT_SUFFIXES}
-    page = re.fullmatch(re.escape(stem) + r"-page\d+\.png", inp.name)
-    if inp.name not in names and not page:
+    names = {(stem + suffix).lower() for suffix in _OUTPUT_SUFFIXES}
+    page = re.fullmatch(re.escape(stem) + r"-page\d+\.png", inp.name, re.IGNORECASE)
+    if inp.name.lower() not in names and not page:
         return
-    if inp.name == f"{stem}.json" and _is_score_json(inp):
+    if inp.name.lower() == f"{stem}.json".lower() and _is_score_json(inp):
         return
     raise SystemExit(f"error: this would overwrite the input {inp} with an export; "
                      f"write to another folder (-o) or pick another name (--stem)")
@@ -173,9 +174,12 @@ def cmd_gamechart(args) -> int:
     kit = _kit(args)
     chart_file, _, _ = locate_chart(args.input)
     stem = args.stem or default_stem(chart_file)
-    for f in chart_file.parent.iterdir():  # every chart file in the song folder, not only the one read
-        if f.name.lower() in ("notes.mid", "notes.midi", "notes.chart"):
-            _guard_input(str(f), args.out, stem)
+    _guard_input(str(chart_file), args.out, stem)  # the chart read, whatever its name
+    if Path(args.out).resolve() == chart_file.resolve().parent and stem.lower() == "notes":
+        # notes.mid here replaces the song's chart, or sits beside its notes.chart and
+        # is read instead of it (by the game and by this importer)
+        raise SystemExit(f"error: this would write {stem}.mid into the song folder {chart_file.parent}, over or "
+                         f"next to its chart; write to another folder (-o) or pick another name (--stem)")
     score, rep = read_gamechart(args.input, difficulty=args.difficulty, pro=False if args.no_pro else None,
                                 title=args.title, artist=args.artist,
                                 options=QuantizeOptions(feel=args.feel, allow_32nds=not args.no_32nds))

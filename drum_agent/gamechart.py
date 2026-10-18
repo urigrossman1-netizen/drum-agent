@@ -565,10 +565,15 @@ def _bars(time_sigs: list[tuple[int, TimeSig]], end_tick: int,
     bars, notes = [], []
     tick, i = 0, 0
     while tick <= end_tick:
+        if len(bars) == MAX_BARS:
+            raise GameChartError(f"more than {MAX_BARS} bars before the last note: the chart's meters, ticks "
+                                 f"or resolution are corrupt")
         while i + 1 < len(metres) and metres[i + 1][0] <= tick:
             i += 1
         ts = metres[i][1]
         length = _bar_ticks(ts, tpb)
+        if length < 1:  # the bar would never end
+            raise GameChartError(f"resolution {tpb} is too coarse for a {ts} bar")
         nxt = metres[i + 1][0] if i + 1 < len(metres) else None
         if nxt is not None and nxt < tick + length:
             short = _short_meter(nxt - tick, ts.den, tpb)
@@ -591,8 +596,11 @@ def _nearest_bar(starts: list[int], tick: int) -> int:
     return i
 
 
-TICK_SLACK = 2  # ticks a gem may sit off a grid position and still be read as on it
+# Ticks a gem may sit off a grid position and still be read as on it, in a quarter-note
+# beat; a longer beat (6/8, 2/2) scales it, as its grids' positions are farther apart.
+TICK_SLACK = 2
 MAX_BEATS = 20_000  # about 80 minutes at 240 BPM: past this a chart's ticks are corrupt
+MAX_BARS = MAX_BEATS  # as many bars as beats: a meter as short as 1/32 must not multiply them
 
 
 def chart_to_score(chart: GameChart, options: QuantizeOptions | None = None) -> tuple[Score, dict]:
@@ -627,9 +635,9 @@ def chart_to_score(chart: GameChart, options: QuantizeOptions | None = None) -> 
 
     onsets = [Onset(time=seconds(g.tick), inst=PAD_TO_KIT[g.pad], accent=g.accent, ghost=g.ghost)
               for g in chart.gems]
-    # Chart ticks are exact positions, not played times: a beat whose ticks all sit on a
-    # spellable grid keeps them (at a fast tempo the time-based costs alone would rewrite
-    # an exact 32nd-16th figure as sextuplets); off-grid ticks are snapped as usual.
+    # Chart ticks are exact positions, not played times: a beat keeps the grid most of its
+    # ticks sit on (at a fast tempo the time-based costs alone would rewrite an exact
+    # 32nd-16th figure as sextuplets); off-grid ticks are snapped as usual.
     exact = replace(options or QuantizeOptions(), exact_tol=TICK_SLACK / tpb)
     result = quantize(onsets, beat_times, bar_defs, exact)
     starts = [s for s, _ in bars]

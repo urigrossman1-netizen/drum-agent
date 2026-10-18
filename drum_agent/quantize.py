@@ -50,8 +50,9 @@ class QuantizeOptions:
     tempo_change_threshold: float = 0.04  # relative change needed for a new tempo mark
     fixed_tempo: float | None = None  # force one tempo mark (quarter BPM)
     uncertain_conf: float = 0.5  # hits below this confidence are "low confidence"
-    # Onsets are exact positions (a game chart's ticks), not played times: a beat whose
-    # onsets all sit on some grid within this share of a beat is written on such a grid.
+    # Onsets are exact positions (a game chart's ticks), not played times: a beat is
+    # written on the grid that places the most of its onsets within this share of a
+    # beat of a slot, of the grids that place none of them much farther off.
     exact_tol: float | None = None
 
 
@@ -74,6 +75,14 @@ _TERNARY_COST = {1: 0.0, 3: 0.5, 6: 2.5, 2: 4.0, 4: 6.0, 12: 7.0}
 # triplet or straight-16th figure is read unwarped with these grids instead.
 _SWING_WARPED = (1, 2)
 _SWING_UNWARPED = {3: 1.5, 6: 4.0, 12: 8.0, 4: 3.0, 8: 6.5}
+# With exact positions, an onset up to this many tolerances off a grid's slot is a stray
+# tick of that grid; one farther off belongs to another grid (or played timing). Never
+# 1/48 of a beat or more: half the distance from an 8-grid slot to the nearest 12-grid
+# one, so a stray is nearer its own slot than any other grid's (at 192 ticks a beat a
+# gem 10 ticks after a 16th is not a stray of the sextuplet 6 ticks on). An onset within
+# the tolerance itself is always on the grid.
+_STRAY_TOL = 3
+_STRAY_MAX = 1 / 48 - 1e-6
 # Without 32nds no slot may be shorter than a 16th-note triplet, whatever the beat.
 _MIN_SLOT_NO_32NDS = Fraction(1, 24)
 
@@ -101,16 +110,30 @@ def _warp(rel: float, swing_pos: float) -> float:
     return 0.5 + (rel - swing_pos) * 0.5 / (1 - swing_pos)
 
 
-def _fits_exactly(n: int, rels: list[tuple[Onset, float]], tol: float) -> bool:
-    """Every onset within `tol` (a share of the beat) of a slot of the n-grid, and no two
-    onsets of one instrument on the same slot (that would merge distinct strokes)."""
-    slots = set()
-    for o, r in rels:
-        slot = round(r * n)
-        if abs(r - slot / n) > tol or (slot, o.inst) in slots:
-            return False
+def _unwarp(pos: float, swing_pos: float) -> float:
+    """Where a position of the swung (warped) grid sits in the beat: the inverse of _warp."""
+    if pos <= 0.5:
+        return pos * swing_pos / 0.5
+    return swing_pos + (pos - 0.5) * (1 - swing_pos) / 0.5
+
+
+def _exact_count(n: int, items: list[tuple[Onset, float]], used: list[tuple[Onset, float]], tol: float,
+                 swing_pos: float | None = None) -> int:
+    """How many onsets sit within `tol` (a share of the beat) of the slot of the n-grid
+    they are written on (`used`: the positions the grid reads, warped for a swung grid
+    whose offbeat is at `swing_pos`). -1 if one is farther from it than a stray tick of this
+    grid sits (_STRAY_TOL, _STRAY_MAX) or two onsets of one instrument share a slot (that
+    would merge distinct strokes)."""
+    stray = max(tol, min(_STRAY_TOL * tol, _STRAY_MAX))
+    slots, exact = set(), 0
+    for (o, r), (_, u) in zip(items, used):
+        slot = round(u * n)
+        off = abs(r - (slot / n if swing_pos is None else _unwarp(slot / n, swing_pos)))
+        if off > stray or (slot, o.inst) in slots:
+            return -1
         slots.add((slot, o.inst))
-    return True
+        exact += off <= tol
+    return exact
 
 
 def _beat_is_binary(length: Fraction) -> bool:
@@ -195,9 +218,16 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         if opts.exact_tol is not None:
             # Time-based costs would let a cheaper grid win at a fast tempo (a 32nd is
             # closer in time to a sextuplet than any timing error); exact positions keep
-            # a grid that fits them all, and off-grid ones are judged as usual.
-            fits = [c for c in candidates if _fits_exactly(c[0], c[2], opts.exact_tol)]
-            candidates = fits or candidates
+            # the grids that place the most of them exactly, so one stray tick doesn't
+            # hand the whole beat back to timing. Distances are measured in the beat
+            # itself (a swung offbeat is as exact early as late), and the epsilon keeps
+            # an onset exactly at the tolerance on the grid.
+            tol = opts.exact_tol + 1e-9
+            counts = [_exact_count(n, items, rels, tol, swing_pos if rels is warped else None)
+                      for n, _, rels in candidates]
+            most = max(counts)
+            if most >= 0:  # some grid places every onset near a slot
+                candidates = [c for c, k in zip(candidates, counts) if k == most]
         best = None
         for n, complexity, rels in candidates:
             cost = complexity

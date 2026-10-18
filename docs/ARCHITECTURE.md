@@ -156,8 +156,9 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
   tempo map, through the same quantizer.
 - `gamechart.py`: Rock Band / Clone Hero drum charts (notes.mid, notes.chart,
   song.ini): pads to instruments (pro drums, disco flip, dynamics), the
-  chart's own tempo map and meters; its ticks are exact, so a beat whose
-  ticks fit a grid keeps it. See `docs/GAMECHARTS.md`.
+  chart's own tempo map and meters; its ticks are exact, so a beat keeps the
+  grid most of its ticks sit on, even with one a few ticks off. See
+  `docs/GAMECHARTS.md`.
 - `song/`: from a song's name to audio: metadata (MusicBrainz, iTunes,
   Deezer), the user's own library (by tags), a direct link, or a video page
   through the user's own yt-dlp. Streaming services are metadata only. See
