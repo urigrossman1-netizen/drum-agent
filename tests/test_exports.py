@@ -217,6 +217,14 @@ def test_line_overflow_is_measured_on_the_page(tmp_path):
     page[400:420, 100:850] = 0  # a line cut off at the page edge: how far it runs is unknown
     Image.fromarray(page).save(tmp_path / "clipped.png")
     assert _overflow_mm([tmp_path / "clipped.png"], "letter") == float("inf")
+    # A title wider than the page is cut off at both edges, but it is text, not a staff:
+    # letters and word spaces break its ink into short runs.
+    title = np.full((1100, 850), 255, dtype=np.uint8)
+    for x in range(0, 850, 24):
+        title[50:80, x:x + 18] = 0
+    title[200:220, 100:780] = 0
+    Image.fromarray(title).save(tmp_path / "title.png")
+    assert _overflow_mm([tmp_path / "title.png"], "letter") == 0.0
 
 
 def _dense_bars(n: int) -> dict:
@@ -242,6 +250,23 @@ def test_dense_line_is_replanned_until_it_fits(tmp_path, monkeypatch):
     assert [d.resolve() == tmp_path.resolve() for d in dirs] == [True, False, True]
 
 
+def test_header_text_wider_than_the_page_is_no_line_overflow(tmp_path, monkeypatch):
+    # A long title runs off both page edges and a long copyright line into the margins,
+    # but every line of music fits: no re-plan (one render), no layout warning.
+    import drum_agent.export.render as render_mod
+    dirs, real = [], render_mod.render
+    monkeypatch.setattr(render_mod, "render", lambda ly, d, stem, **kw: dirs.append(Path(d)) or real(ly, d, stem, **kw))
+    score = compile_spec({"title": "Everybody Wants to Rule the World (Extended Twelve-Inch Remix, 1985)",
+                          "sections": [{"bars": [{"hh": "x-x-x-x-x-x-x-x-", "sn": "----x-------x---",
+                                                  "bd": "x-------x-x-----"}] * 8}]})
+    score.copyright = ("(c) 1985 Example Music Publishing Ltd. All rights reserved. "
+                       "Chart made for personal study only, not for distribution.")
+    report = export_all(score, tmp_path, "title", options=ExportOptions(formats=("pdf",)))
+    assert len(dirs) == 1
+    assert not [w for w in report.warnings if w.startswith("Layout")], report.warnings
+    assert not [n for n in report.notes if "bars per line" in n], report.notes
+
+
 def test_failed_overflow_trial_keeps_the_original(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
@@ -263,3 +288,35 @@ def test_failed_overflow_trial_keeps_the_original(tmp_path, monkeypatch):
     assert not report.notes
     assert len(report.warnings) == 1
     assert report.warnings[0].startswith("Layout: a line runs off the right edge of the page; pass --bars-per-line")
+
+
+def test_lines_cut_off_at_every_plan_keep_the_fewest_bars_per_line(tmp_path, monkeypatch):
+    # A staff size too big for the page cuts every plan off at the edge, even one bar per
+    # line. How far each runs can't be measured, but shorter lines lose less of the music,
+    # and the warning ("even at one bar per line") must describe the chart actually written.
+    from types import SimpleNamespace
+
+    import drum_agent.export.render as render_mod
+    from drum_agent.kit import DEFAULT_KIT
+    from drum_agent.layout import plan_layout
+    from drum_agent.pipeline import ExportReport, _fix_overflow
+    page = np.full((1100, 850), 255, dtype=np.uint8)
+    page[300:320, 100:] = 0  # ink cut off at the page edge
+    Image.fromarray(page).save(tmp_path / "dense.png")
+    dirs = []
+
+    def clipped(ly, out_dir, stem, **kw):
+        dirs.append(Path(out_dir).resolve())
+        return SimpleNamespace(pngs=[tmp_path / "dense.png"], ly=ly)
+    monkeypatch.setattr(render_mod, "render", clipped)
+    score, opts, report = compile_spec(_dense_bars(4)), ExportOptions(bars_per_line=8), ExportReport()
+    plan, res = plan_layout(score, bars_per_line=8), SimpleNamespace(pngs=[tmp_path / "dense.png"])
+    plan, res = _fix_overflow(score, DEFAULT_KIT, plan, opts, res, tmp_path, "dense", report)
+    assert all(b.line_break for b in plan.bars)
+    assert res.ly.count("\\break") == 3
+    # Two trials (two per line, then one) in scratch directories, then the kept plan.
+    assert len(dirs) == 3 and dirs[-1] == tmp_path.resolve() and tmp_path.resolve() not in dirs[:-1]
+    assert report.notes == ["Fewer bars per line: the planned lines were too dense to fit "
+                            "(they ran off the right edge of the page)."]
+    assert report.warnings == ["Layout: a line runs off the right edge of the page even at one bar per line; "
+                               "pass a smaller --staff-size"]
