@@ -20,7 +20,7 @@ from .. import __version__
 from ..kit import DEFAULT_KIT, Kit, position_to_pitch
 from ..layout import LayoutPlan, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import Token, check_tokens, silent_voices, spell_measure, upper_bar_empty
+from ..rhythm import Token, check_tokens, silent_voices, spell_measure, two_voice_bar, upper_bar_empty
 
 _TYPE = {Fraction(2): "breve", Fraction(1): "whole", Fraction(1, 2): "half", Fraction(1, 4): "quarter",
          Fraction(1, 8): "eighth", Fraction(1, 16): "16th", Fraction(1, 32): "32nd", Fraction(1, 64): "64th"}
@@ -73,11 +73,12 @@ class _XmlWriter:
         self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
         self.bar_index = 0
         # One-voice chart (as in the LilyPond engraving): the empty voice is left out and the
-        # other is written stems up, accents above.
+        # other is written stems up, accents above, except in a bar with a roll moved up.
         self.silent = silent_voices(score.measures, kit)
+        self.two_voices = False  # this bar of a one-voice chart is in two voices (a roll moved up)
 
     def stem(self, voice: int) -> str:
-        return "up" if voice == 1 or self.silent else "down"
+        return "up" if voice == 1 or (self.silent and not self.two_voices) else "down"
 
     def ticks(self, dur: Fraction) -> int:
         t = dur * 4 * self.div
@@ -215,7 +216,7 @@ class _XmlWriter:
 
     def _tuplet_into(self, nots: ET.Element, t: Token) -> None:
         if t.tuplet_start:
-            _sub(nots, "tuplet", type="start", bracket="yes")
+            _sub(nots, "tuplet", type="start", bracket="yes" if t.bracket else "no")
         if t.tuplet_stop:
             _sub(nots, "tuplet", type="stop")
 
@@ -369,20 +370,24 @@ def to_musicxml(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         if m.uncertain:
             w.direction_words(mel, "(?)", font_size="9", color="#555555")
         sm = spell_measure(m, kit)
+        w.two_voices = two_voice_bar(sm, w.silent)
         written = False
         for voice in (1, 2):
             tokens = sm.voices[voice]
-            if not tokens or (voice in w.silent and not sm.shared_rest) or (voice == 1 and upper_bar_empty(sm)):
+            if (not tokens or (voice in w.silent and not sm.shared_rest and not w.two_voices)
+                    or (voice == 1 and upper_bar_empty(sm))):
                 continue
             check_tokens(tokens, m)
             if written:
                 b = _sub(mel, "backup")
                 _sub(b, "duration", str(w.ticks(m.actual_length)))
             written = True
+            # An empty bar's rest goes in the voice that carries the chart.
+            xml_voice = 2 if sm.shared_rest and 1 in w.silent else voice
             for t in tokens:
                 if any(h.choke for h in t.hits) and not t.tie_stop:
                     w.direction_words(mel, "choke", font_style="italic", font_size="9")
-                w.note_token(mel, t, voice, m)
+                w.note_token(mel, t, xml_voice, m)
         if pb.volta_end:
             w.direction_words(mel, f"×{pb.volta_times}", font_weight="bold")
             bl = _sub(mel, "barline", location="right")

@@ -1,13 +1,20 @@
 # A 16th-note triplet and an 8th in one beat (and the mirror, an 8th then a
 # triplet) are written as a "3" over half the beat plus a plain 8th, beamed as
 # one beat, the way rudiment books write the single stroke four and the
-# ratamacues. Six even sextuplets stay a "6".
+# ratamacues. Six even sextuplets stay a "6". A pickup of one 16th-note triplet (a
+# "3" lead-in from the half beat) is a "3" too, with no rest over it for the empty
+# cymbal voice. Beamed tuplets print the number alone, also when a flam or drag
+# leads the triplet.
 title: "Case 14: Triplet Half Beats"
 artist: Drum Agent regression suite (original)
 chart_type: pattern_study
 rights: original
 tempo: 76
+pickup: "1/8"
 patterns:
+  lead_in:
+    sn: "xxx"
+    sticking: "RLR"
   groove:
     hh: "x-x-|x-x-|x-x-|x-x-"
     sn: "----|x---|----|x---"
@@ -23,4 +30,4 @@ patterns:
     sticking: "----|----|RLRLRL|RLRL--"
 sections:
   - label: Groove
-    bars: [groove, ratamacue, sextuplets, groove]
+    bars: [lead_in, groove, ratamacue, sextuplets, groove]

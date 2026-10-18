@@ -129,6 +129,8 @@ def test_case08_tuplets_and_rests(rendered):
     assert {"3", "6"} <= actual
     assert root.findall(".//rest[@measure='yes']")
     assert "32nd" in {t.text for t in root.iter("type")}
+    # A beamed tuplet shows the number alone; a quarter and an 8th under a "3" keep the bracket.
+    assert {t.get("bracket") for t in root.iter("tuplet") if t.get("type") == "start"} == {"yes", "no"}
     assert [m.text for m in root.iter("multiple-rest")] == ["4"]  # the tacet section
     assert "R1*4/1" in ly
     glob = ly.split("globalMusic = {")[1].split("\n}")[0]
@@ -142,14 +144,50 @@ def test_case14_triplet_half_beats(rendered):
     ly = _ly(report)
     assert "\\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
     # No cymbal over the ratamacues: their numbers go above the notes, out of the sticking
-    # line; the groove's triplet under the hi-hat keeps the number below.
-    assert "\\tweak direction #UP \\tuplet 3/2 { \\tag #'graces" in ly
+    # line; the groove's triplet under the hi-hat keeps the number below. The drag comes before
+    # the tuplet: inside it, it would bring the bracket back over the beamed group.
+    assert ("\\tag #'graces \\appoggiatura { snare16[ snare16] } \\tweak direction #UP \\tuplet 3/2 "
+            "{ <kick snare>16[") in ly
+    assert "\\tuplet 3/2 { \\tag #'graces" not in ly
     assert "kick4 \\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
     assert "snare16 snare16 } snare8->]" in ly  # the ratamacue's accented 8th, outside the bracket
     assert "\\tuplet 6/4 { <kick snare>16[" in ly and "snare8.]" not in ly
+    # The pickup from the half beat is a "3" too, with no rest over it for the cymbal voice.
+    up = ly.split("upMusic = ")[1].split("downMusic = ")[0]
+    down = ly.split("downMusic = ")[1]
+    assert "\\partial 8" in ly and up.split("\\autoBeamOff")[1].split("|")[0].strip() == "s1*1/8"
+    assert down.split("\\autoBeamOff")[1].split("|")[0].strip().endswith("\\tuplet 3/2 { snare16[ snare16 snare16] }")
     root = _xml(report)
     mods = {(tm.findtext("actual-notes"), tm.findtext("normal-notes")) for tm in root.iter("time-modification")}
     assert ("3", "2") in mods and ("6", "4") in mods
+    pickup = root.find(".//measure")
+    assert {n.findtext("voice") for n in pickup.iter("note")} == {"2"}
+    assert [n.findtext("time-modification/actual-notes") for n in pickup.iter("note")] == ["3"] * 3
+    # Every tuplet here is beamed: no brackets in the MusicXML either, as in the PDF.
+    assert {t.get("bracket") for t in root.iter("tuplet") if t.get("type") == "start"} == {"no"}
+
+
+def test_case15_march_roll_over_kick(rendered):
+    # No cymbal anywhere: one voice, stems up, accents above. The roll bars alone are in two
+    # voices (the roll up, the drums down), in the PDF and the MusicXML alike.
+    _, report = rendered["15_march_roll_over_kick"]
+    ly = _ly(report)
+    one = "\\oneVoice \\stemUp \\override Script.direction = #UP"
+    up = ly.split("upMusic = ")[1].split("downMusic = ")[0]
+    down = ly.split("downMusic = ")[1].split("\n}\n")[0]
+    assert down.split("\\autoBeamOff")[1].strip().startswith(one)
+    assert down.count("\\voiceTwo kick8[ kick8] <kick snare>4-> " + one + " |") == 2
+    assert up.count("snare4:32 r4 |") == 2 and "kick" not in up and "R1" not in up
+    root = _xml(report)
+    for m in root.iter("measure"):
+        notes = m.findall("note")
+        voices = {n.findtext("voice") for n in notes}
+        stems = {n.findtext("stem") for n in notes if n.find("rest") is None and n.find("grace") is None}
+        if any(n.find("notations/ornaments/tremolo") is not None for n in notes):
+            assert voices == {"1", "2"}
+            assert stems == {"up", "down"}
+        else:  # the tacet bar's rest included
+            assert voices == {"2"} and stems <= {"up"}
 
 
 def test_case09_meters(rendered):

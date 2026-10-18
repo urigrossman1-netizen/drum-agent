@@ -54,13 +54,18 @@ further lines; it never runs off the page.
 * **Swing**: a chart written in straight 8ths with `swing` set prints the
   word with its rhythm, ♫ = ♩♪ under a triplet bracket.
 * A lower voice with no hits for a whole bar shows a whole-bar rest. An
-  upper (cymbal) voice with no hits in a bar where the drums play (a fill) is
-  left blank: its whole rest would sit in the top space, on the tom
-  noteheads. If both voices are silent, one whole-bar rest is printed.
+  upper (cymbal) voice with no hits in a bar where the drums play (a fill, or
+  a pickup) is left blank: its whole rest would sit in the top space, on the
+  tom noteheads. If both voices are silent, one whole-bar rest is printed.
+* A snare or tom roll with the bass drum under it moves up to voice 1 for
+  that bar (in the cymbals-up voicing), so the kick is never part of the
+  rolled chord.
 * **One-voice charts.** When one voice has no hits anywhere in the chart (a
   snare rudiment, a snare-and-bass-drum march), the other is engraved as a
   single voice: stems up, accents above the staff, no rests for the empty
-  voice.
+  voice. A bar whose roll moved up over the kick is the exception: that bar
+  alone is in two voices (the roll up, the drums down). The MusicXML writes
+  the single voice, its empty bars included, under one voice number.
 
 ## 3. Instrument map
 
@@ -120,6 +125,11 @@ chosen for readability. No floating-point grid is used in notation.
 2. Grids of 3, 6 or 12 in simple meter become a triplet bracket
    (`3:2`, written in 8ths, 16ths or 32nds). Grids of 2 or 4 in compound meter
    become duplets/quadruplets (`2:3`, `4:6`).
+   A 16th-note triplet and an 8th in one beat (in either order) are written
+   as a `3:2` over that half beat and a plain 8th, one beam over the beat,
+   not as a `6` ending on a dotted 8th; a pickup that starts on the half beat
+   with a 16th-note triplet is a `3` too. Six even sextuplets, or triplets in
+   both halves, stay a `6`.
 3. Quarter-note triplets: if two adjacent beats (one half of a 4/4 bar) have
    onsets only on thirds of that span, they become one `3:2` bracket of
    quarter notes.
@@ -145,7 +155,11 @@ chosen for readability. No floating-point grid is used in notation.
 * **4/4 exception:** two adjacent beats in the same half-bar that both hold
   plain 8th notes (no rests, no shorter values, no tuplets) are beamed as one
   group of four, like the reference chart and LilyPond's 4/4 default.
-* Tuplet groups are beamed within their bracket.
+* Tuplet groups are beamed within their bracket. A tuplet whose notes are
+  beamed together shows its number only; the bracket prints when they aren't
+  (a quarter and an 8th, a tuplet that starts or ends on a rest), in the PDF
+  and in the MusicXML (`bracket="no"` / `"yes"`). A flam or drag on a
+  tuplet's first note sits before the tuplet, outside the bracket.
 * Beams are computed **once**, in `drum_agent/rhythm.py`. Both the LilyPond
   source (explicit `[ ]`) and the MusicXML (`<beam>` levels and hooks) are
   written from that one result, so the two formats always agree.

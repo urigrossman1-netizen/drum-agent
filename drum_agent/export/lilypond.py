@@ -13,7 +13,7 @@ from fractions import Fraction
 from ..kit import DEFAULT_KIT, Kit
 from ..layout import LayoutPlan, PrintedBar, plan_layout, same_meter, volta_restates_meter
 from ..model import CHART_TYPES, STATUSES, Hit, Measure, Score
-from ..rhythm import SpelledMeasure, Token, check_tokens, silent_voices, spell_measure, upper_bar_empty
+from ..rhythm import SpelledMeasure, Token, check_tokens, silent_voices, spell_measure, two_voice_bar, upper_bar_empty
 
 LY_VERSION = "2.24.0"  # minimum syntax level; rendered with 2.26 where available
 
@@ -248,6 +248,22 @@ class _Writer:
         parts.append(name)
         return "".join(parts)
 
+    def graces(self, t: Token) -> str:
+        """The flam or drag before a note."""
+        graces = ""
+        if t.kind == "note" and not t.tie_stop:
+            flams = [h for h in t.hits if h.flam]
+            drags = [h for h in t.hits if h.drag]
+            if flams:
+                g = " ".join(self.kit[h.inst].ly_name for h in flams)
+                g = g if len(flams) == 1 else f"<{g}>"
+                graces += f"\\tag #'graces \\acciaccatura {{ {g}8 }} "
+            if drags:
+                g = " ".join(self.kit[h.inst].ly_name for h in drags)
+                g = g if len(drags) == 1 else f"<{g}>"
+                graces += f"\\tag #'graces \\appoggiatura {{ {g}16[ {g}16] }} "
+        return graces
+
     def token(self, t: Token, voice: int) -> str:
         if t.kind == "measure_rest":
             rest = f"R1*{t.dur.numerator}/{t.dur.denominator}" if t.dur != 1 else "R1"
@@ -259,18 +275,6 @@ class _Writer:
         if t.kind == "rest":
             return f"r{dur}"
         hits = t.hits
-        graces = ""
-        if not t.tie_stop:
-            flams = [h for h in hits if h.flam]
-            drags = [h for h in hits if h.drag]
-            if flams:
-                g = " ".join(self.kit[h.inst].ly_name for h in flams)
-                g = g if len(flams) == 1 else f"<{g}>"
-                graces += f"\\tag #'graces \\acciaccatura {{ {g}8 }} "
-            if drags:
-                g = " ".join(self.kit[h.inst].ly_name for h in drags)
-                g = g if len(drags) == 1 else f"<{g}>"
-                graces += f"\\tag #'graces \\appoggiatura {{ {g}16[ {g}16] }} "
         if len(hits) == 1:
             body = self._note_body(hits[0]) + dur
         else:
@@ -285,7 +289,7 @@ class _Writer:
             body += "^\\markup \\small \\italic \"choke\""
         if t.tie_start:
             body += "~"
-        return graces + body
+        return body
 
     def voice_bar(self, tokens: list[Token], voice: int, measure: Measure,
                   upper: list[Token] | None = None) -> str:
@@ -294,7 +298,10 @@ class _Writer:
             check_tokens(tokens, measure)
         out: list[str] = []
         for i, t in enumerate(tokens):
-            s = ""
+            # Graces go before the tuplet. Inside it they would start the bracket and pull the
+            # number off centre, and 'if-no-beam would see the grace's stem and bracket a beamed
+            # group. Outside, 'if-no-beam gives the brackets of Token.bracket, as MusicXML writes.
+            s = self.graces(t)
             if t.tuplet_start:
                 a, n = t.tuplet
                 if voice == 2 and upper is not None and _upper_free(tokens, i, upper):
@@ -443,6 +450,9 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     bars = plan.bars
     i = 0
     open_volta = False
+    # The only voice left is engraved as one voice, stems up and accents above (as a snare
+    # part or rudiment sheet is; below, they would sit under the bass drum).
+    one = "\\oneVoice \\stemUp \\override Script.direction = #UP"
     while i < len(bars):
         pb = bars[i]
         if pb.volta_start:
@@ -491,7 +501,10 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             down = _skip(m.actual_length)
         else:
             down = w.voice_bar(sm.voices[2], 2, m, upper=sm.voices[1])
-        if 1 in silent:  # one-voice chart: the lower voice carries everything, rests included
+        if two_voice_bar(sm, silent):
+            # A roll over the kick, moved up: this bar alone is in two voices.
+            down = f"\\voiceTwo {down} {one}"
+        elif 1 in silent:  # one-voice chart: the lower voice carries everything, rests included
             up, down = _skip(m.actual_length), (up if sm.shared_rest else down)
         elif 2 in silent:
             down = _skip(m.actual_length)
@@ -538,9 +551,6 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
             open_volta = False
     if open_volta:
         raise AssertionError("unterminated volta in layout plan")
-    # The only voice left is engraved as one voice, stems up and accents above (as a snare
-    # part or rudiment sheet is; below, they would sit under the bass drum).
-    one = "\\oneVoice \\stemUp \\override Script.direction = #UP"
     if 1 in silent:
         down_out.insert(0, one)
     elif 2 in silent:
