@@ -3,13 +3,16 @@
   python scripts/adt/oneshots.py                       # once: the sample library
   python scripts/adt/train.py build --clips 3000 --jobs 4
   python scripts/adt/train.py train --epochs 25
+  python scripts/adt/train.py ensemble v2.npz v3.npz --out drum_agent/data/onset_classifier.npz
 
 `build` synthesizes clips (scripts/adt/generate.py), runs the detector's own
 front end and feature code on each, and labels every candidate onset with the
 classes of the ground-truth strokes nearest to it (within 40 ms). `train` fits
 a multi-layer perceptron with plain numpy (Adam, dropout, class-balanced
 binary cross-entropy), picks per-class thresholds on held-out clips and writes
-drum_agent/data/onset_classifier.npz.
+drum_agent/data/onset_classifier.npz. `ensemble` combines trained models into
+one file whose networks are averaged. docs/MODELS.md lists the seeds, commits
+and commands behind each shipped network.
 
 No real recording is used for training: MDB Drums is the evaluation set only
 (scripts/eval_real.py).
@@ -21,6 +24,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -32,7 +36,8 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(HERE))
 
-from drum_agent.audio.classifier import CLASSES, FEATURE_DIM, FRAME, MODEL_PATH, onset_features  # noqa: E402
+from drum_agent.audio.classifier import (CLASSES, FEATURE_DIM, FRAME, MODEL_PATH, OnsetClassifier,  # noqa: E402
+                                         onset_features)
 
 DATA = Path(os.environ.get("DRUM_AGENT_DATA", Path.home() / ".cache" / "drum-agent")) / "adt" / "shards"
 MATCH_S = 0.04
@@ -249,19 +254,37 @@ def cmd_train(a) -> None:
 def cmd_ensemble(a) -> None:
     """Average trained models: one file whose members' probabilities are averaged at use.
     Models trained on different data make different mistakes; the average is steadier
-    than either. The thresholds are the members' mean."""
-    members = [np.load(m, allow_pickle=False) for m in a.models]
-    classes = [str(c) for c in members[0]["classes"]]
-    if any([str(c) for c in d["classes"]] != classes for d in members):
+    than either. An ensemble given as input contributes each of its networks, and the
+    thresholds are the mean over all networks."""
+    files = [np.load(m, allow_pickle=False) for m in a.models]
+    classes = [str(c) for c in files[0]["classes"]]
+    if any([str(c) for c in d["classes"]] != classes for d in files):
         raise SystemExit("the models have different classes")
-    payload = {"classes": np.array(classes), "members": np.array(len(members)), "version": np.array(a.version),
-               "thresholds": np.mean([d["thresholds"] for d in members], axis=0).astype(np.float32)}
-    for j, d in enumerate(members):
-        for key in d.files:
-            if key in ("n_layers", "mu", "sd") or key[0] in "Wb" and key[1:].isdigit():
-                payload[f"m{j}_{key}"] = d[key]
-    np.savez_compressed(a.out, **payload)
-    print(f"wrote {a.out} ({Path(a.out).stat().st_size / 1e6:.1f} MB): {len(members)} members, thresholds "
+    nets, thresholds = [], []
+    for d in files:
+        for p in [f"m{j}_" for j in range(int(d["members"]))] if "members" in d.files else [""]:
+            keys = ["n_layers", "mu", "sd"] + [f"{w}{i}" for i in range(int(d[p + "n_layers"])) for w in "Wb"]
+            nets.append({k: d[p + k] for k in keys})
+            thresholds.append(d["thresholds"])
+    payload = {"classes": np.array(classes), "members": np.array(len(nets)), "version": np.array(a.version),
+               "thresholds": np.mean(thresholds, axis=0).astype(np.float32)}
+    for j, net in enumerate(nets):
+        payload.update({f"m{j}_{k}": v for k, v in net.items()})
+    # Write beside the target and load it the way the transcriber does before replacing anything.
+    out = Path(a.out)
+    fd, tmp = tempfile.mkstemp(suffix=".npz", dir=out.parent)
+    os.close(fd)
+    try:
+        np.savez_compressed(tmp, **payload)
+        clf = OnsetClassifier(Path(tmp))
+        shape = clf.predict(np.zeros((1, FEATURE_DIM), dtype=np.float32)).shape
+        if len(clf.nets) != len(nets) or shape != (1, len(classes)):
+            raise ValueError(f"{len(clf.nets)} of {len(nets)} networks, output {shape}")
+    except Exception as exc:
+        os.unlink(tmp)
+        raise SystemExit(f"the combined model doesn't load ({type(exc).__name__}: {exc}); {out} is unchanged")
+    os.replace(tmp, out)
+    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB): {len(nets)} networks, thresholds "
           + " ".join(f"{c} {v:.2f}" for c, v in zip(classes, payload["thresholds"])))
 
 
@@ -290,7 +313,8 @@ def main() -> None:
     e = sub.add_parser("ensemble", help="combine trained models into one averaging file")
     e.add_argument("models", nargs="+")
     e.add_argument("--version", default="ensemble")
-    e.add_argument("--out", default=str(MODEL_PATH))
+    e.add_argument("--out", required=True,
+                   help="file to write; there is no default, so the shipped model is replaced only when named")
     a = ap.parse_args()
     {"build": cmd_build, "train": cmd_train, "ensemble": cmd_ensemble}[a.cmd](a)
 
