@@ -210,9 +210,9 @@ and keeps the page uncluttered.
   * `Performance Chart: grooves and roadmap, not a note-for-note transcription`.
   * `Pattern Study`: exercises and examples.
 * Automatic transcriptions that a human hasn't verified carry
-  `Automatic transcription, unverified` in the header. Bars with
-  low-confidence detections get a small "?" above the staff, explained in a
-  footnote on page 1.
+  `Automatic transcription, unverified` in the header. Bars with an
+  uncertain or possibly missing stroke get a small "(?)" above the staff,
+  explained in a footnote on page 1.
 * A Drum Key staff on page 1 shows every instrument used, with labels.
 * Paper is US Letter by default (`--paper a4` is available) at 20 pt staff
   size, which reads well on a music stand and on screen.

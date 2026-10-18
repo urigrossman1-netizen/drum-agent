@@ -118,7 +118,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))
     \override MetronomeMark.font-size = #0
     \override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)
-    \override TupletBracket.bracket-visibility = ##t
+    \override TupletBracket.bracket-visibility = #'if-no-beam
     \override PercentRepeatCounter.font-size = #-2
     countPercentRepeats = ##t
     skipBars = ##t
@@ -180,8 +180,8 @@ upMusic = \drummode {
   \repeat percent 3 { hihatclosed8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihatopen8] | }
   \repeat percent 3 { hihatclosed8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihatopen8] | }
   hihatclosed8[ hihat8 hihat8 hihat8] hihat4 r4 |
-  \repeat percent 3 { R1 | }
-  R1 |
+  \repeat percent 3 { s1 | }
+  s1 |
   \repeat volta 2 {
   crash8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] |
   \repeat percent 2 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
@@ -191,15 +191,15 @@ upMusic = \drummode {
   \repeat percent 3 { hihatclosed8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihatopen8] | }
   \repeat percent 3 { hihatclosed8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihatopen8] | }
   hihatclosed8[ hihat8 hihat8 hihat8] hihat4 r4 |
-  \repeat percent 3 { R1 | }
-  R1 |
+  \repeat percent 3 { s1 | }
+  s1 |
   \repeat volta 2 {
   crash8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] |
   \repeat percent 2 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }
   ride8[ ride8 ride8 ride8] r2 |
   }
   \repeat percent 3 { hihat8[ hihat8 hihat8 hihat8] hihat8[ hihat8 hihat8 hihat8] | }
-  R1*1/2 |
+  s1*1/2 |
   \repeat volta 2 {
   crash8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] |
   \repeat percent 2 { ride8[ ride8 ride8 ride8] ride8[ ride8 ride8 ride8] | }

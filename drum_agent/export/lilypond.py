@@ -640,8 +640,8 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     if with_legend and needs_drum_key(score):
         parts.append(legend(score, kit))
     if has_uncertain:
-        parts.append("\\markup \\small \\italic \"(?) above a bar = it contains low-confidence "
-                     "detections; verify those bars against the recording.\"")
+        parts.append("\\markup \\small \\italic \"(?) above a bar = a stroke there is uncertain or may be "
+                     "missing; verify those bars against the recording.\"")
     parts.append("\\score {\n  \\drumMusic\n  \\layout { }\n}")
     parts.append(
         "\\score {\n"

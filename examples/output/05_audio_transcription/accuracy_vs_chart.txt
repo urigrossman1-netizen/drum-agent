@@ -1,22 +1,22 @@
-Onset accuracy (tolerance 50 ms): F=0.963 P=0.950 R=0.977 (ref 853, est 877)
+Onset accuracy (tolerance 50 ms): F=0.975 P=0.979 R=0.972 (ref 853, est 847)
   crash        F=1.000 P=1.000 R=1.000  ref=  11 est=  11
   floor_tom    F=0.885 P=1.000 R=0.793  ref=  58 est=  46
-  hihat        F=0.997 P=1.000 R=0.994  ref= 157 est= 156
-  hihat_open   F=0.966 P=0.933 R=1.000  ref=  14 est=  15
-  kick         F=0.975 P=0.951 R=1.000  ref= 235 est= 247
-  ride         F=1.000 P=1.000 R=1.000  ref= 185 est= 185
-  snare        F=0.903 P=0.851 R=0.961  ref= 179 est= 202
-  tom1         F=0.800 P=0.667 R=1.000  ref=   2 est=   3
+  hihat        F=0.991 P=0.981 R=1.000  ref= 157 est= 160
+  hihat_open   F=1.000 P=1.000 R=1.000  ref=  14 est=  14
+  kick         F=0.959 P=0.966 R=0.953  ref= 235 est= 232
+  ride         F=0.981 P=0.964 R=1.000  ref= 185 est= 192
+  snare        F=0.997 P=1.000 R=0.994  ref= 179 est= 178
+  tom1         F=1.000 P=1.000 R=1.000  ref=   2 est=   2
   tom2         F=1.000 P=1.000 R=1.000  ref=  12 est=  12
-  families: cymbal 1.00, hihat 1.00, kick 0.97, snare 0.90, toms 0.90
-  median timing offset -1.0 ms
-Notation accuracy (same bar, same position, same instrument): F=0.963 P=0.950 R=0.977 (ref 853, est 877)
+  families: cymbal 0.98, hihat 0.99, kick 0.96, snare 1.00, toms 0.91
+  median timing offset -0.9 ms
+Notation accuracy (same bar, same position, same instrument): F=0.975 P=0.979 R=0.972 (ref 853, est 847)
   crash        F=1.000 P=1.000 R=1.000  ref=  11 est=  11
   floor_tom    F=0.885 P=1.000 R=0.793  ref=  58 est=  46
-  hihat        F=0.997 P=1.000 R=0.994  ref= 157 est= 156
-  hihat_open   F=0.966 P=0.933 R=1.000  ref=  14 est=  15
-  kick         F=0.975 P=0.951 R=1.000  ref= 235 est= 247
-  ride         F=1.000 P=1.000 R=1.000  ref= 185 est= 185
-  snare        F=0.903 P=0.851 R=0.961  ref= 179 est= 202
-  tom1         F=0.800 P=0.667 R=1.000  ref=   2 est=   3
+  hihat        F=0.991 P=0.981 R=1.000  ref= 157 est= 160
+  hihat_open   F=1.000 P=1.000 R=1.000  ref=  14 est=  14
+  kick         F=0.959 P=0.966 R=0.953  ref= 235 est= 232
+  ride         F=0.981 P=0.964 R=1.000  ref= 185 est= 192
+  snare        F=0.997 P=1.000 R=0.994  ref= 179 est= 178
+  tom1         F=1.000 P=1.000 R=1.000  ref=   2 est=   2
   tom2         F=1.000 P=1.000 R=1.000  ref=  12 est=  12

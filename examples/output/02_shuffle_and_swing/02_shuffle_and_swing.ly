@@ -119,7 +119,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))
     \override MetronomeMark.font-size = #0
     \override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)
-    \override TupletBracket.bracket-visibility = ##t
+    \override TupletBracket.bracket-visibility = #'if-no-beam
     \override PercentRepeatCounter.font-size = #-2
     countPercentRepeats = ##t
     skipBars = ##t
@@ -163,7 +163,7 @@ downMusic = \drummode {
   \autoBeamOff
   \repeat percent 2 { \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 \parenthesize snare4 } | }
   \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 <kick \parenthesize snare>4 } |
-  \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ snare8->] } \tuplet 3/2 { <kick snare>8[ snare8 snare8] } \tuplet 3/2 { snare8->[ tomone8 tomone8] } |
+  \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ snare8->] } \tweak direction #UP \tuplet 3/2 { <kick snare>8[ snare8 snare8] } \tweak direction #UP \tuplet 3/2 { snare8->[ tomone8 tomone8] } |
   \repeat volta 3 {
   \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick4 <hihatpedal \parenthesize kick>4 |
   \parenthesize kick4 <hihatpedal \parenthesize kick>4 \parenthesize kick8[ \parenthesize snare8 <hihatpedal \parenthesize kick>8 snare8] |

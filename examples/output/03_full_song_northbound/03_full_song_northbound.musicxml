@@ -9,7 +9,7 @@
   <creator type="arranger">Transcribed by Drum Agent</creator>
   <encoding>
    <software>Drum Agent 1.0.0</software>
-   <encoding-date>2026-10-17</encoding-date>
+   <encoding-date>2026-10-18</encoding-date>
    <supports element="beam" type="yes" />
    <supports element="stem" type="yes" />
    <supports element="print" type="yes" attribute="new-system" value="yes" />
@@ -2528,14 +2528,6 @@
     </direction-type>
    </direction>
    <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
-   <note>
     <unpitched>
      <display-step>F</display-step>
      <display-octave>4</display-octave>
@@ -2697,14 +2689,6 @@
     </measure-style>
    </attributes>
    <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
-   <note>
     <unpitched>
      <display-step>F</display-step>
      <display-octave>4</display-octave>
@@ -2860,14 +2844,6 @@
    </note>
   </measure>
   <measure number="15">
-   <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
    <note>
     <unpitched>
      <display-step>F</display-step>
@@ -3029,14 +3005,6 @@
      <measure-repeat type="stop" />
     </measure-style>
    </attributes>
-   <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
    <note>
     <unpitched>
      <display-step>F</display-step>
@@ -5751,14 +5719,6 @@
     </direction-type>
    </direction>
    <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
-   <note>
     <unpitched>
      <display-step>F</display-step>
      <display-octave>4</display-octave>
@@ -5920,14 +5880,6 @@
     </measure-style>
    </attributes>
    <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
-   <note>
     <unpitched>
      <display-step>F</display-step>
      <display-octave>4</display-octave>
@@ -6083,14 +6035,6 @@
    </note>
   </measure>
   <measure number="31">
-   <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
    <note>
     <unpitched>
      <display-step>F</display-step>
@@ -6252,14 +6196,6 @@
      <measure-repeat type="stop" />
     </measure-style>
    </attributes>
-   <note>
-    <rest measure="yes" />
-    <duration>16</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>16</duration>
-   </backup>
    <note>
     <unpitched>
      <display-step>F</display-step>
@@ -7842,14 +7778,6 @@
      <measure-repeat type="stop" />
     </measure-style>
    </attributes>
-   <note>
-    <rest measure="yes" />
-    <duration>8</duration>
-    <voice>1</voice>
-   </note>
-   <backup>
-    <duration>8</duration>
-   </backup>
    <note>
     <unpitched>
      <display-step>F</display-step>
