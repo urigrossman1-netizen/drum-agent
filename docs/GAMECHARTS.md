@@ -13,7 +13,10 @@ Options: `--difficulty expert|hard|medium|easy` (default expert), `--no-pro`,
 `--title`, `--artist`, `--transcriber`, `--rights`, `--feel`, `--sections`,
 plus the export options shared with `render` and `midi` (`--formats`,
 `--paper`, `--repeats`, `--kit`, `--voicing`, ...). The chart is written as a
-full transcription with the status *imported, unverified*.
+full transcription with the status *imported, unverified*. The export never
+replaces the chart you give it, and `-o` may be the song folder only with a
+name other than `notes` (`--stem`): a `notes.mid` there would replace the
+song's chart, or be read instead of its `notes.chart`.
 
 ## How it is read
 

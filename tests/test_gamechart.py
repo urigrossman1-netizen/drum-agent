@@ -482,6 +482,27 @@ def test_cli_gamechart_never_overwrites_the_chart(cli, tmp_path):
     assert r.rc == 1 and "does not exist" in r.err and "Traceback" not in r.err
 
 
+def test_cli_gamechart_writes_no_chart_into_the_song_folder(cli, tmp_path):
+    # A chart under another name is the input too (the default stem overwrote it), in any case.
+    other = rb_midi(tmp_path / "MySong.mid", rock_bar())
+    before = other.read_bytes()
+    for argv in ([], ["--stem", "mysong"]):
+        r = cli("gamechart", other, "-o", tmp_path, "--formats", "midi,json", *argv)
+        assert r.rc != 0 and "overwrite the input" in r.err, r.out + r.err
+    assert other.read_bytes() == before
+    # A notes.mid beside notes.chart is read instead of it (re-import then failed), and on
+    # macOS or Windows Notes.mid is notes.mid. The folder's own name is the default stem.
+    folder = tmp_path / "notes"
+    folder.mkdir()
+    chart_file(folder / "notes.chart", {"ExpertDrums": [(0, 0), (RES, 1)]})
+    for argv in ([], ["--stem", "Notes"]):
+        r = cli("gamechart", folder, "-o", folder, "--formats", "midi,json", *argv)
+        assert r.rc != 0 and "into the song folder" in r.err and "Traceback" not in r.err, r.out + r.err
+    assert [f.name for f in folder.iterdir()] == ["notes.chart"]
+    r = cli("gamechart", folder, "-o", folder, "--stem", "Groove", "--formats", "midi,json")
+    assert r.rc == 0 and (folder / "Groove.mid").exists() and read_gamechart(folder)[1].format == "chart"
+
+
 # ---- end to end: engrave with every check ------------------------------------------
 
 @needs_lilypond
