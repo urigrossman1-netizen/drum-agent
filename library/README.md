@@ -80,7 +80,7 @@ flam or drag (the grace notes come from the other hand).
 | [G16](grooves/g16_new_orleans_second_line.yaml) | New Orleans: Second Line | 4/4 | Second line, loose 16ths |
 | [G17](grooves/g17_shuffle_12_8.yaml) | Shuffle: 12/8 Feel | 12/8 | Shuffle |
 | [G18](grooves/g18_blues_shuffle_swing.yaml) | Blues: Shuffle in Swing 8ths | 4/4 | Swing, blues shuffle |
-| [G19](grooves/g19_half_time_shuffle_ghosts.yaml) | Shuffle: Half-Time with Ghost Notes | 4/4 | Half-time shuffle |
+| [G19](grooves/g19_half_time_shuffle_ghosts.yaml) | Shuffle: Half-Time with Ghost Notes | 12/8 | Half-time shuffle |
 | [G20](grooves/g20_hip_hop_boom_bap.yaml) | Hip-Hop: Boom Bap | 4/4 | Hip-hop, laid back |
 | [G21](grooves/g21_hip_hop_swung_16ths.yaml) | Hip-Hop: Swung 16ths Feel | 4/4 | Hip-hop, swung 16ths (written straight) |
 | [G22](grooves/g22_trap_hihat_rolls.yaml) | Trap: Hi-Hat Rolls | 4/4 | Trap, half-time |
