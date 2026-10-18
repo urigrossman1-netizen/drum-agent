@@ -27,7 +27,7 @@ can't hear, so you know which parts of a chart to distrust.
    rules) for comparison.
 4. **Grid** (`beats.py`): drum-weighted beat tracking; tempo candidates
    (×½, ×⅔, ×¾, ×1, ×4/3, ×1.5, ×2) scored by grid fit, backbeat spacing and a tempo prior
-   (roll and grace strokes don't count as pulse; near ties are ranked by a steady grid);
+   (roll and grace strokes don't count as pulse; near ties are ranked by a steady grid when the winning beats had to bend);
    meter 3 vs 4 by bar-repetition; downbeat by kick/crash/backbeat placement.
    Where crashes move off beat 1 for good, a short bar (2/4, 3/4, 1/4) is
    inserted and the song re-quantized; inserted bars are always flagged.
@@ -66,6 +66,7 @@ mix; never quote these numbers for a real recording.
 | Symptom in report or PDF | Likely cause | Fix |
 |---|---|---|
 | Tempo twice or half what you hear; "tempo ambiguous" | double/half-time ambiguity | re-run with `--bpm` |
+| A swing tune at 3/4 of its tempo, its ride written in dotted 8ths and 16ths | swung 8ths line up with a 16th grid at 3/4 speed | re-run with `--bpm` |
 | Every backbeat on 1 and 3 | downbeat a beat off | `--downbeat <seconds of a beat 1>` |
 | Waltz written in 4/4, "meter uncertain" | meter detection | `--time-signature 3/4` |
 | Bridge in 12/8 starts or ends a bar late | section meter boundary | edit, or transcribe the passage with `--start/--end --time-signature 12/8` |

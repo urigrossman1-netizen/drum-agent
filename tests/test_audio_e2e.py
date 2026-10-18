@@ -101,6 +101,15 @@ def test_rolls_dont_double_the_tempo(tmp_path):
     assert notation_accuracy(ref, est).f >= 0.85
 
 
+def test_a_dense_band_take_doesnt_double_the_tempo(tmp_path):
+    # Case 07 on the held-out jazz kit with a band, humanized: DP beats have twice as many
+    # beats to bend at double tempo, and 184 BPM scored as well as 92. The near-tied octave
+    # is decided by constant grids (beats._rescore_ties).
+    ref, est = transcribe(tmp_path, "tests/cases/07_ghost_accent_roll.yaml", 32, True, 8)
+    tempo = float(est.analysis["tempo_estimate"].split()[0])
+    assert abs(tempo / ref.tempo_at(0) - 1) < 0.04
+
+
 @needs_lilypond
 def test_transcription_engraves_and_all_checks_pass(tmp_path):
     from drum_agent.pipeline import export_all

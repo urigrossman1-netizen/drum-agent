@@ -133,7 +133,7 @@ as the foot closes it); in transcriptions those bars are flagged.
 | Candidates | `detect.py` | Superflux onsets on the (percussive part of the) spectrogram: high recall, 86-100% of every class on real recordings |
 | Classification | `classifier.py` | a small neural network (1300 level-invariant log-mel features per candidate, 11 classes) trained on synthesized drumming from 40+ sampled kits (docs/MODELS.md); rules after it: one hi-hat state, two hands, pedal under a stick stroke; toms named by NMF evidence or per-recording pitch; flams from grace energy; accents and ghosts from each drum's typical level |
 | Classification (`--detector nmf`) | `detect.py` | the original: semi-adaptive KL-NMF with 68 GM-kit templates plus an accompaniment basis, activation shares, adaptive floors and rules |
-| Grid | `beats.py` | drum-weighted beat tracking, tempo candidates scored by grid fit, backbeat and prior (roll and grace strokes don't count as pulse; near ties between metrical levels are ranked by a constant grid); meter by repetition; downbeat by kick/crash/backbeat placement |
+| Grid | `beats.py` | drum-weighted beat tracking, tempo candidates scored by grid fit, backbeat and prior (roll and grace strokes don't count as pulse; near ties are ranked by a constant grid when the winning beats had to bend); meter by repetition; downbeat by kick/crash/backbeat placement |
 | Quantization | `quantize.py` | per-beat grid choice by timing error plus complexity, swing/triplet feel, tempo map, uncertain-bar flags |
 | Structure | `structure.py`, `transcribe.py` | sections at groove/meter changes, 12/8 section refinement, roll notation, bass-bleed warning |
 

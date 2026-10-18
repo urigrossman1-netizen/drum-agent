@@ -92,3 +92,53 @@ def test_bars_with_near_misses_are_flagged():
     assert "snare" in bars[0].notes[-1] and "crash" in bars[1].notes[-1]
     near_downbeat = [(5.98, "kick", 0.8)]  # within 30 ms before a barline: the next bar's downbeat
     assert _flag_near_misses(bars, near_downbeat) == 1 and bars[2].uncertain
+
+
+# --- tempo: near ties ---------------------------------------------------------------
+
+def strokes(bpm0, bpm1, seconds, pattern, seed=1):
+    """Synthetic strokes for the beat tracker, the tempo moving linearly from bpm0 to bpm1.
+    pattern(beat, rng, add) calls add(fraction of the beat, inst, strength, ghost)."""
+    import random
+    rng = random.Random(seed)
+    out, t, beat = [], 0.2, 0
+    while t < seconds:
+        p = 60 / (bpm0 + (bpm1 - bpm0) * t / seconds)
+        pattern(beat, rng, lambda frac, inst, s=1.0, ghost=False:
+                out.append(DrumHit(t + frac * p + rng.gauss(0, 0.01), inst, s, 80, 0.9, ghost=ghost)))
+        t += p
+        beat += 1
+    return sorted(out, key=lambda h: h.time)
+
+
+def tracked_tempo(hits, seconds):
+    from drum_agent.audio.beats import drum_envelope, track_beats
+    from drum_agent.audio.features import HOP, SR
+    return track_beats(drum_envelope(hits, int(seconds * SR / HOP) + 10), seconds, None, hits)[0]
+
+
+def test_steady_swing_is_not_read_at_three_quarter_tempo():
+    # Ride on every beat, the skip note on the last triplet of 2 and 4, hi-hat foot on 2 and
+    # 4, some comping. Swung 8ths fall exactly on a constant 16th grid at 3/4 of the tempo,
+    # so re-ranking near ties by their constant grids moved this 120 BPM take to 90.
+    def jazz_ride(beat, rng, add):
+        add(0, "ride", 0.8)
+        if beat % 2:
+            add(2 / 3, "ride", 0.6)
+            add(0, "hihat_pedal", 0.7)
+        if rng.random() < 0.3:
+            add(rng.choice([0, 2 / 3]), "snare", 0.4, ghost=True)
+        if rng.random() < 0.15:
+            add(2 / 3, "kick", 0.6)
+    assert abs(tracked_tempo(strokes(120, 120, 20, jazz_ride), 20) / 120 - 1) < 0.04
+
+
+def test_a_slowing_take_keeps_its_metrical_level():
+    def roll_groove(beat, rng, add):  # 8 snare strokes a beat, kick on 1 and 3, crash on 1
+        for k in range(8):
+            add(k / 8, "snare", 0.5)
+        if beat % 2 == 0:
+            add(0, "kick")
+        if beat % 4 == 0:
+            add(0, "crash")
+    assert 100 <= tracked_tempo(strokes(130, 100, 30, roll_groove), 30) <= 130  # it was 88, 3/4 of the tempo
