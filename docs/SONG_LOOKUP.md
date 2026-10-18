@@ -11,14 +11,16 @@ python -m drum_agent song "Song Title" --artist "Band"
 # Your own file, used where it is
 python -m drum_agent song "Song Title" --artist "Band" --audio ~/Bounces/take3.wav --rights own -o out/song
 
-# Your music folders only, no network at all
-python -m drum_agent song "Song Title" --no-online --library ~/Bounces --rights own -o out/song
+# Your music folders only, no network at all: list what matches (and analyse the best),
+# then transcribe the file you name by its number in that list
+python -m drum_agent song "Song Title" --no-online --library ~/Bounces
+python -m drum_agent song "Song Title" --no-online --library ~/Bounces --pick 2 --rights own -o out/song
 
 # A direct link to an audio file you may use, with transcription hints
 python -m drum_agent song "Song Title" --url https://example.com/audio/take.flac --rights permission -o out/song --bpm 96 --drums-only
 
-# Another candidate from the list, and the metadata BPM as the tempo hint
-python -m drum_agent song "Song Title" --artist "Band" --pick 2 --use-metadata-bpm --rights licensed -o out/song
+# A video the search found, named by its link, and the metadata BPM as the tempo hint
+python -m drum_agent song "Song Title" --artist "Band" --url "https://www.youtube.com/watch?v=VIDEO_ID" --use-metadata-bpm --rights licensed -o out/song
 ```
 
 It takes every transcription hint that `transcribe` takes (`--bpm`,
@@ -41,7 +43,9 @@ Each step is printed as it happens.
    This step is metadata only: no audio is requested.
 2. **Choose the audio**, in this order:
    * `--audio FILE`: your file, used in place, never copied or modified;
-   * `--url URL`: a direct link to an audio file, or a page on a video site;
+   * `--url URL`: a direct link to an audio file, or a page on a video site
+     (any other web page goes through your yt-dlp too, and must hold one
+     recording: a playlist or album page is refused);
    * your library: audio files under `~/Music` and `DRUM_AGENT_MUSIC_DIRS`
      (or the `--library` folders), matched by their tags (read with
      ffprobe) or their names (`Artist - Title.flac`, `Artist/Album/03 Title.mp3`);
@@ -52,9 +56,14 @@ Each step is printed as it happens.
    licence; the best is used, `--pick N` takes another. Drumless versions,
    backing tracks, covers, live takes and remixes rank last unless your own
    words ask for them. With `--rights`, a search result is never chosen for
-   you: after a video search, or when several library files match, name the
-   recording your basis covers with `--pick N` (a basis is a statement about
-   one recording, and the first search result can be a reupload).
+   you, even when it is the only match (a basis is a statement about one
+   recording, and the first or only match can be a reupload, a cover or
+   another band's live take). Name the recording your basis covers:
+   * a file from your library with `--pick N`, its number in the list;
+   * a video with `--url URL`, its exact link. The refusal prints the
+     `--url` of each video found. `--pick` doesn't name a video here: the
+     search runs again on the next run and can rank differently (another
+     metadata answer, another order from the site).
 3. **Check the length** against the identified recording. More than 10 % off
    prints a warning: it may be another version (live, edit, remix) or another
    song.
@@ -80,8 +89,14 @@ Each step is printed as it happens.
 ## What is never done
 
 * **No audio from Spotify, Apple Music, Tidal, Deezer or Amazon Music.**
-  Their streams are DRM-protected, so links to them (and `spotify:` URIs)
-  are refused with a message; these services are used for metadata only.
+  Their streams are DRM-protected, so links to them and their audio CDNs
+  (and `spotify:` URIs) are refused with a message; these services are used
+  for metadata only. A link is matched on the host name the resolver will
+  look up (`%XX` decoded, then IDNA: a percent-escape, a soft hyphen or a
+  full-width dot doesn't hide one), and every redirect is checked before it
+  is followed. A direct download from a host name that isn't plain ASCII, or
+  has `%XX` in it, is refused with the name to give instead (the `xn--` form
+  of a non-ASCII one).
 * **No yt-dlp dependency.** Drum Agent uses yt-dlp only when you have it
   (the `yt-dlp` executable on PATH, or `python -m yt_dlp`). Without it, the
   message says `pip install yt-dlp`. What a video site's terms allow, and
@@ -101,8 +116,8 @@ Each step is printed as it happens.
 | What | Limit |
 |---|---|
 | Metadata answer | 2 MB, 8 s timeout per request, 3 Deezer track lookups |
-| Direct download | 200 MB (Content-Length checked first, then while streaming); audio content types only (or a generic type with an audio extension); web pages and playlists refused |
-| yt-dlp | the same 200 MB cap (`--max-filesize`), live streams skipped, best audio format, no playlists |
+| Direct download | 200 MB (Content-Length checked first, then while streaming); given up when slower than 16 kB/s on average after the first 30 s (checked after every receive); audio content types only (or a generic type with an audio extension); a web page goes to yt-dlp; playlists refused |
+| yt-dlp | the same 200 MB cap (`--max-filesize`), live streams skipped, best audio format, no playlists (a page with several recordings is refused) |
 | Library scan | 20,000 audio files, tags read for at most 300 (name matches first), 20 s, each folder once (symlink loops are safe), hidden entries skipped |
 
 Library extensions: mp3, m4a, flac, wav, ogg, aiff, opus.

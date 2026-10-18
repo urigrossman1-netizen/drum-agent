@@ -366,6 +366,18 @@ def test_safe_names():
     ("https://www.deezer.com./track/3001", "Deezer"),
     ("https://p.scdn.co/mp3-preview/abc", "Spotify"),  # the services' audio CDNs
     ("https://cdns-preview-d.dzcdn.net/stream/c-123.mp3", "Deezer"),
+    # the host the resolver looks up: urllib decodes %XX, IDNA drops a soft hyphen (U+00AD), maps
+    # "\u00ba" to "o" and reads U+3002 and U+FF0E as dots
+    ("http://p.s%63dn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("https://open.spotify%2Ecom/track/abc", "Spotify"),
+    ("http://p.s%C2%ADcdn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("http://p.s\u00adcdn.co/mp3-preview/abc.mp3", "Spotify"),
+    ("https://open.spo\u00adtify.com/track/abc", "Spotify"),
+    ("https://open.sp\u00batify.com/track/abc", "Spotify"),
+    ("https://open.spotify\u3002com/track/abc", "Spotify"),
+    ("https://p\uff0escdn\uff0eco/mp3-preview/abc", "Spotify"),
+    ("https://www.amazon.com/-/es/music/player/albums/B000000000", "Amazon Music"),
+    ("https://smile.amazon.com/music/player", "Amazon Music"),
 ])
 def test_drm_streaming_links_are_refused(url, service, monkeypatch):
     monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("a streaming link was opened"))
@@ -376,8 +388,21 @@ def test_drm_streaming_links_are_refused(url, service, monkeypatch):
 
 def test_other_links_are_not_streaming_services():
     for url in ("https://example.com/take.mp3", "https://www.youtube.com/watch?v=x", "/home/me/Music/a.flac",
-                "https://www.amazon.com/some-book"):
+                "https://www.amazon.com/some-book", "https://www.amazon.com/musical-instruments/b"):
         assert fetch.streaming_service(url) is None
+
+
+def test_a_host_name_that_is_not_plain_ascii_is_refused_with_a_message(monkeypatch):
+    # The request would go to the decoded or IDNA form of the name: say so, rather than crash or ask
+    # another host.
+    monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("the link was opened"))
+    for url, match in (("http://example\u3002com/take.mp3", "example.com"),
+                       ("http://exam\u00adple.com/take.mp3", "example.com"),
+                       ("http://ex%61mple.com/take.mp3", "example.com"),  # urllib asks for the decoded name
+                       ("http://b\u00fccher.example/take.mp3", "xn--bcher-kva.example"),
+                       ("http://a\u3002\u3002b/take.mp3", "ASCII")):
+        with pytest.raises(FetchError, match=match):
+            fetch.fetch_audio(url)
 
 
 def test_licence_hints_are_suggestions_only():
@@ -647,15 +672,19 @@ def test_song_with_rights_transcribes_the_chosen_video(cli, services, ytdlp, eve
 
     monkeypatch.setattr(rights_module, "require_rights", gate_before_download)
     out = tmp_path / "out"
-    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out,
-                        "--formats", FAST, "--library", tmp_path / "empty-library", "--candidates", 3, "--pick", 1)
+    song = ["song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out, "--formats", FAST]
+    rc, text, err = cli(*song, "--library", tmp_path / "empty-library", "--candidates", 3)
+    assert rc == 1 and "2. Audio: nothing in your library" in text  # the search names the links, nothing more
+    official = re.search(r"--url '(\S+tg-official)'", err).group(1)
+    rc, text, err = cli(*song, "--url", official)
     assert rc == 0, text + err
     assert kinds(events) == ["rights", "transcribe"]
     assert "watch?v=tg-official" in events[0][1]
     path, opts = events[1][1]
     assert path.parent == (tmp_path / "cache").resolve() and opts.bpm is None  # the metadata BPM is only a hint
-    for line in ("1. Identified 'Test Groove' by The Placeholders", "2. Audio: nothing in your library",
-                 "using 1)", "3. Length: 0:", "matches the identified recording", "4. Transcription (--rights own)",
+    for line in ("1. Identified 'Test Groove' by The Placeholders",
+                 "2. Audio: video: The Placeholders - Test Groove (Official Audio)", "3. Length: 0:",
+                 "matches the identified recording", "4. Transcription (--rights own)",
                  "metadata BPM 118.5: a hint only", "check: MusicXML: OK", "check: MIDI: OK"):
         assert line in text, line
     assert len(downloads(ytdlp())) == 1
@@ -690,8 +719,8 @@ def test_song_without_rights_is_analysis_only(cli, services, ytdlp, events, groo
 def test_song_uses_the_metadata_bpm_only_when_asked(cli, services, ytdlp, events, groove_wav, tmp_path):
     services(duration_s=wav_seconds(groove_wav))
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "original", "-o",
-                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm", "--library", tmp_path / "none",
-                        "--pick", 1)
+                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm",
+                        "--url", "https://www.youtube.com/watch?v=tg-official")
     assert rc == 0, text + err
     assert events[-1][1][1].bpm == 118.5
     assert "tempo hint: the metadata BPM 118.5" in text
@@ -723,7 +752,7 @@ def test_song_from_the_library_offline(cli, events, library, tmp_path, monkeypat
     before = take.read_bytes()
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--no-online", "--library", library,
-                        "--rights", "own", "-o", out, "--formats", "json")
+                        "--rights", "own", "-o", out, "--formats", "json", "--pick", 1)
     assert rc == 0, text + err
     assert "1. Identify: skipped (--no-online)" in text and "found in your library" in text
     assert kinds(events) == ["rights", "transcribe"] and events[1][1][0] == take.resolve()
@@ -816,7 +845,7 @@ def test_song_end_to_end_chart(cli, services, ytdlp, fluid_wav, tmp_path, monkey
     services(duration_s=wav_seconds(fluid_wav))
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out,
-                        "--library", tmp_path / "none", "--pick", 1)
+                        "--url", "https://www.youtube.com/watch?v=tg-official")
     assert rc == 0, text + err
     for name in ("test_groove.pdf", "test_groove.musicxml", "test_groove.mid", "test_groove.json",
                  "test_groove.report.md"):
@@ -847,14 +876,28 @@ def test_song_end_to_end_analysis(cli, services, ytdlp, fluid_wav, tmp_path, mon
 
 # ---- review regressions -------------------------------------------------------------
 
-def test_rights_after_a_search_needs_an_explicit_pick(cli, services, ytdlp, events, tmp_path):
-    # A basis is a statement about one recording; the first search result may be a
-    # reupload or a cover, so it is never picked for the user.
+def test_rights_after_a_video_search_needs_the_exact_link(cli, services, ytdlp, events, tmp_path):
+    # A basis is a statement about one recording; the first search result may be a reupload or
+    # a cover, and the search runs again (and can rank differently) on the next run, so a video
+    # is named by its link, never by its place in the list.
     services()
-    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own",
-                        "-o", tmp_path / "out", "--library", tmp_path / "none")
-    assert rc != 0 and "--pick N" in err
+    for pick in ((), ("--pick", 1)):
+        rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own",
+                            "-o", tmp_path / "out", "--library", tmp_path / "none", *pick)
+        assert rc == 1 and "--url 'https://www.youtube.com/watch?v=tg-official'" in err, err
+        assert "--url 'https://www.youtube.com/watch?v=tg-cover'" in err and "using" not in text
     assert kinds(events) == [] and downloads(ytdlp()) == []
+
+
+def test_rights_with_one_library_match_still_needs_a_pick(cli, events, library, tmp_path, monkeypatch):
+    # One fuzzy match (here another band's live take) is still a search result, not the recording
+    # the user stated a basis for.
+    monkeypatch.setattr(lookup, "http_get_json", lambda *a, **k: pytest.fail("network used with --no-online"))
+    write_wav(library / "rips" / "Cover Band - Test Groove (Live).wav")
+    rc, text, err = cli("song", "Test Groove", "--no-online", "--library", library, "--rights", "own",
+                        "-o", tmp_path / "out", "--formats", "json")
+    assert rc == 1 and "--pick N" in err and "1) your library:" in text and "Cover Band" in text
+    assert events == [] and not (tmp_path / "out").exists()
 
 
 def test_drumless_and_backing_tracks_rank_last():
@@ -906,10 +949,58 @@ def test_redirect_to_ftp_is_not_followed(tmp_path):
     server = http.server.HTTPServer(("127.0.0.1", 0), Redirect)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        with pytest.raises(FetchError, match="refused|302"):
+        with pytest.raises(FetchError, match=r"HTTP 302 \(redirect to a ftp URL refused\)"):
             fetch.fetch_audio(f"http://127.0.0.1:{server.server_port}/take.wav", tmp_path / "cache", timeout=3)
     finally:
         server.shutdown()
+        server.server_close()
+
+
+def test_each_redirect_is_checked_before_it_is_followed(monkeypatch, tmp_path):
+    # Every host name resolves to this local server, and no proxy is used: nothing leaves the machine.
+    import http.server
+    import socket
+    import urllib.request
+    hits = []
+    hops = {"example.test/song.mp3": "http://p.scdn.co/mp3-preview/abc",  # straight to a streaming CDN
+            "example.test/hop.mp3": "http://p.scdn.co/hop",  # through one, to a host that isn't listed
+            "p.scdn.co/hop": "http://other.test/final.mp3",
+            "example.test/enc.mp3": "http://p.s%63dn.co/mp3-preview/abc"}  # urllib asks for p.scdn.co
+
+    class Hops(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            here = self.headers["Host"].split(":")[0] + self.path
+            hits.append(here)
+            if here in hops:
+                self.send_response(302)
+                self.send_header("Location", hops[here])
+                self.end_headers()
+                return
+            body = b"ID3" + b"\0" * 4000
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/mpeg")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+    server = http.server.HTTPServer(("127.0.0.1", 0), Hops)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    real = socket.getaddrinfo
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, port, *a, **k: real("127.0.0.1", server.server_port,
+                                                                                 *a, **k))
+    monkeypatch.setattr(urllib.request, "getproxies", dict)  # no proxy: {}
+    try:
+        for start in ("example.test/song.mp3", "example.test/hop.mp3", "example.test/enc.mp3"):
+            hits.clear()
+            with pytest.raises(FetchError, match="Spotify streams are DRM-protected"):
+                fetch.fetch_audio(f"http://{start}", tmp_path / "cache", timeout=3)
+            assert hits == [start]  # the streaming host was never asked
+        assert fetch.fetch_audio("http://other.test/final.mp3", tmp_path / "cache", timeout=3).path.is_file()
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def test_a_download_that_slows_to_a_trickle_is_given_up(monkeypatch, tmp_path):
@@ -924,16 +1015,115 @@ def test_a_download_that_slows_to_a_trickle_is_given_up(monkeypatch, tmp_path):
     assert list(tmp_path.iterdir()) == []  # no partial file left behind
 
 
+def test_a_trickling_server_is_given_up(monkeypatch, tmp_path):
+    # A real socket: HTTPResponse.read(n) waits for all n bytes (every byte restarts the socket
+    # timeout), so the rate has to be checked after each receive, not after each 64 KiB.
+    import http.server
+    import time
+
+    class Trickle(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/wav")
+            self.send_header("Content-Length", str(1 << 20))
+            self.end_headers()
+            try:
+                for _ in range(60):  # 1 kB every 0.1 s (10 kB/s) for 6 s, then the connection drops
+                    self.wfile.write(b"\0" * 1024)
+                    self.wfile.flush()
+                    time.sleep(0.1)
+            except OSError:
+                pass
+
+        def log_message(self, *a):
+            pass
+    monkeypatch.setattr(fetch, "SLOW_GRACE_S", 0.5)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Trickle)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        t0 = time.monotonic()
+        with pytest.raises(FetchError, match="too slow"):
+            fetch.fetch_audio(f"http://127.0.0.1:{server.server_port}/take.wav", tmp_path / "cache", timeout=10)
+        assert time.monotonic() - t0 < 4, "the rate check waited for a whole chunk"
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert cache_files(tmp_path) == []
+
+
+def test_a_web_page_sent_in_small_pieces_is_still_recognised(tmp_path):
+    class Pieces:  # what a socket gives when the page arrives a few bytes at a time
+        def __init__(self, body):
+            self.body = body
+
+        def read1(self, n):
+            piece, self.body = self.body[:3], self.body[3:]
+            return piece
+        read = read1
+    with pytest.raises(FetchError, match="sent a web page"):
+        fetch._stream_to(Pieces(b"\n  <!DOCTYPE html><html><body>Sign in</body></html>"), tmp_path / "take.mp3",
+                         10 ** 6, "http://example.com/take.mp3")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_web_page_given_as_a_link_is_checked_like_a_video_page(web, tmp_path, monkeypatch):
+    # A page on a host that isn't a known video site still goes to yt-dlp: it must be one
+    # recording, and its title, uploader and licence go on the source line.
+    base, www, _ = web
+    for name in ("album.html", "single.html"):
+        (www / name).write_text("<!doctype html><title>a page</title>")
+    calls = []
+
+    def run(exe, args, timeout):
+        calls.append(args)
+        page = args[-1]
+        if "--dump-json" in args:
+            n = 2 if page.endswith("album.html") else 1
+            infos = [{"webpage_url": page if n == 1 else f"{page}#t{i}", "title": f"Track {i}", "id": f"t{i}",
+                      "uploader": "The Placeholders", "license": CC_BY} for i in range(1, n + 1)]
+            return subprocess.CompletedProcess(args, 0, "\n".join(json.dumps(i) for i in infos), "")
+        saved = Path(args[args.index("-P") + 1]) / "Track_1-t1.wav"
+        saved.write_bytes(b"RIFF")
+        return subprocess.CompletedProcess(args, 0, f"{saved}\n", "")
+    monkeypatch.setattr(fetch, "_run_ytdlp", run)
+    with pytest.raises(FetchError, match="holds 2 recordings"):
+        fetch.fetch_audio(base + "/album.html", ytdlp=["yt-dlp"])
+    assert downloads(calls) == []
+    audio = fetch.fetch_audio(base + "/single.html", ytdlp=["yt-dlp"])
+    assert (audio.origin, audio.title, audio.uploader, audio.license) == ("video", "Track 1", "The Placeholders",
+                                                                           CC_BY)
+    assert downloads(calls)[0][-1] == base + "/single.html"
+
+
 def test_the_suggested_rights_command_keeps_the_source_and_options():
-    from types import SimpleNamespace
-    from drum_agent.song.run import _rerun_command
-    args = SimpleNamespace(query="Test Groove", artist="The Placeholders", out="out", title="Test Groove (mine)",
-                           transcriber=None, bpm=120.0, time_signature="6/8", downbeat=None, sensitivity=1.0,
-                           start=12.5, end=None, sections=None, chart_type=None, use_metadata_bpm=False,
-                           drums_only=True, no_32nds=False, feel="swing", detector="auto")
-    audio = AudioSource(Path("/cache/x.wav"), "video", url="https://www.youtube.com/watch?v=tg-official")
-    cmd = _rerun_command(args, audio)
+    import argparse
+
+    from drum_agent.song import run
+    parser = build_parser()
+    given = parser.parse_args([
+        "song", "--artist", "The Placeholders", "--title=-Untitled-", "--transcriber", "Me", "--bpm", "120",
+        "--time-signature", "6/8", "--downbeat", "125.0625", "--feel", "swing", "--drums-only", "--sensitivity", "1.5",
+        "--no-32nds", "--start", "12.5", "--end", "60", "--sections", "Intro:1,Verse:5", "--chart-type",
+        "performance_chart", "--detector", "nmf", "--use-metadata-bpm", "--stem", "tg", "--formats", "pdf,midi",
+        "--paper", "a4", "--staff-size", "18", "--repeats", "none", "--bars-per-line", "3", "--no-legend",
+        "--midi-timing", "performed", "--kit", "my kit.json", "--voicing", "hands-up", "--candidates", "3",
+        "--library", "/music", "-o", "out dir", "--", "-ism"])
+    video = AudioSource(Path("/cache/x.wav"), "video", url="https://www.youtube.com/watch?v=tg-official")
+    cmd = run._rerun_command(given, video)
     assert "--url 'https://www.youtube.com/watch?v=tg-official'" in cmd and "/cache/x.wav" not in cmd
-    for part in ("--title 'Test Groove (mine)'", "--bpm 120", "--time-signature 6/8", "--start 12.5",
-                 "--drums-only", "--feel swing", "--rights BASIS -o out"):
-        assert part in cmd, part
+    assert "--rights BASIS" in cmd and cmd.endswith(" -- -ism")
+    again = parser.parse_args(shlex.split(cmd.replace("BASIS", "own"))[3:])
+    assert (again.url, again.audio, again.rights) == (video.url, None, "own")
+    source = {"audio", "url", "library", "candidates", "pick", "rights"}  # replaced by the source and the basis
+    for name, value in vars(given).items():
+        if name not in source:
+            assert getattr(again, name) == value, name
+    # ... and that holds for every option `song` has, not only the ones given here
+    song = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction)).choices["song"]
+    options = {a.dest for a in song._actions if a.option_strings and a.dest != "help"}
+    assert options - {attr for _, attr, _ in run._CARRIED} == source | {"out"}
+    defaults = {a.dest: a.default for a in song._actions}
+    assert [(attr, default) for _, attr, default in run._CARRIED if defaults[attr] != default] == []
+    mine = AudioSource(Path("/music/x.wav"), "file")
+    mine_cmd = run._rerun_command(given, mine).replace("BASIS", "own")
+    assert parser.parse_args(shlex.split(mine_cmd)[3:]).audio == "/music/x.wav"

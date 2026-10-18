@@ -164,6 +164,19 @@ def _host_is(host: str, suffix: str) -> bool:
     return host == suffix or host.endswith("." + suffix)
 
 
+def _host(parts: urllib.parse.SplitResult) -> str:
+    """The host name the resolver will look up: urllib decodes %XX in it ("p.s%63dn.co" is
+    p.scdn.co), and Python IDNA-encodes a non-ASCII name, which drops a soft hyphen, maps "º" to
+    "o" and reads U+3002 as a dot. "open.spotify.com." is the same host."""
+    host = urllib.parse.unquote(parts.hostname or "").lower()
+    if not host.isascii():
+        try:
+            host = host.encode("idna").decode("ascii").lower()
+        except UnicodeError:
+            raise FetchError(f"{host!r} is not a valid host name; give it in ASCII") from None
+    return host.rstrip(".")
+
+
 def streaming_service(source: str) -> str | None:
     """The DRM streaming service a link or URI belongs to, if any."""
     parts = urllib.parse.urlsplit(source.strip())
@@ -172,12 +185,13 @@ def streaming_service(source: str) -> str | None:
         return _STREAMING_SCHEMES[scheme]
     if scheme not in ("http", "https"):
         return None
-    host = (parts.hostname or "").lower().rstrip(".")  # "open.spotify.com." is the same host
+    host = _host(parts)
     for suffix, name in _STREAMING_HOSTS:
         if _host_is(host, suffix):
             return name
-    if re.match(r"^(?:.+\.)?music\.amazon\.[a-z.]+$", host) or (
-            re.match(r"^(?:www\.)?amazon\.[a-z.]+$", host) and parts.path.lower().startswith("/music")):
+    if re.match(r"^(?:.+\.)?music\.amazon\.[a-z.]+$", host) or (  # also www./smile., and /-/es/music...
+            re.match(r"^(?:.+\.)?amazon\.[a-z.]+$", host) and re.match(r"(?:/-/[\w-]+)?/music(?:/|$)",
+                                                                         parts.path.lower())):
         return "Amazon Music"
     return None
 
@@ -192,7 +206,7 @@ def refuse_streaming(source: str) -> None:
 
 
 def is_video_page(url: str) -> bool:
-    host = (urllib.parse.urlsplit(url).hostname or "").lower().rstrip(".")
+    host = _host(urllib.parse.urlsplit(url))
     return any(_host_is(host, h) for h in _VIDEO_HOSTS)
 
 
@@ -286,11 +300,16 @@ def download_url(url: str, cache_dir: str | Path | None = None, *, max_bytes: in
                  timeout: float = DOWNLOAD_TIMEOUT, ytdlp: list[str] | None = None) -> AudioSource:
     """Download a direct link to an audio file into the cache (a web page goes to yt-dlp if installed)."""
     refuse_streaming(url)
+    parts = urllib.parse.urlsplit(url)
+    host = _host(parts)
+    if host != (parts.hostname or "").rstrip("."):  # %XX or not ASCII: the request would go to `host`, say so
+        raise FetchError(f"{url}: the host name {parts.hostname!r} is not plain ASCII (or has %XX in it); give the "
+                         f"link with the host written as {host}")
     cache = cache_root(cache_dir)
     try:
-        resp = open_url(url, timeout)
+        resp = open_url(url, timeout, refuse=refuse_streaming)  # every redirect, before it is followed
     except urllib.error.HTTPError as exc:
-        raise FetchError(f"{url}: HTTP {exc.code}") from None
+        raise FetchError(f"{url}: HTTP {exc.code} ({' '.join(str(exc.msg).split())})") from None
     except (urllib.error.URLError, OSError, http.client.HTTPException, MetadataError) as exc:
         raise FetchError(f"{url}: can't download it ({getattr(exc, 'reason', exc)})") from None
     with resp:
@@ -308,7 +327,8 @@ def download_url(url: str, cache_dir: str | Path | None = None, *, max_bytes: in
                                  f"install yt-dlp yourself (pip install yt-dlp); otherwise give a direct link to "
                                  f"the audio file.")
             resp.close()
-            return download_with_ytdlp(url, cache, ytdlp=exe, max_bytes=max_bytes)
+            info = video_info(url, ytdlp=exe)  # one recording only; its title, uploader and licence
+            return download_with_ytdlp(url, cache, info=info, ytdlp=exe, max_bytes=max_bytes)
         if ctype in _PLAYLIST_TYPES:
             raise FetchError(f"{url} is a playlist or a live stream ({ctype}), not an audio file")
         if not _is_audio_type(ctype, url_ext):
@@ -333,8 +353,12 @@ def _stream_to(resp, final: Path, max_bytes: int, url: str) -> None:
     """Copy the body to a hidden temp file next to `final`, then rename: no half file ever has the real name."""
     fd, tmp_name = tempfile.mkstemp(dir=final.parent, prefix=".", suffix=".part")
     tmp = Path(tmp_name)
+    # read(n) waits for all n bytes, and each byte restarts the socket timeout: read what has
+    # arrived instead, so that a trickle is measured after every receive.
+    read = getattr(resp, "read1", resp.read)
     try:
         n = 0
+        head = b""  # the first bytes, which may arrive a few at a time
         t0 = time.monotonic()
         with os.fdopen(fd, "wb") as out:
             while True:
@@ -343,13 +367,15 @@ def _stream_to(resp, final: Path, max_bytes: int, url: str) -> None:
                     raise FetchError(f"{url}: the download is too slow ({n / elapsed / 1024:.0f} kB/s); try again "
                                      f"later or give a file with --audio")
                 try:
-                    chunk = resp.read(CHUNK)
+                    chunk = read(CHUNK)
                 except (OSError, http.client.HTTPException) as exc:
                     raise FetchError(f"{url}: download interrupted ({exc or type(exc).__name__})") from None
                 if not chunk:
                     break
-                if n == 0 and _looks_like_html(chunk):
-                    raise FetchError(f"{url} sent a web page, not audio")
+                if n < 64:
+                    head += chunk
+                    if _looks_like_html(head):
+                        raise FetchError(f"{url} sent a web page, not audio")
                 n += len(chunk)
                 if n > max_bytes:
                     raise FetchError(f"{url} is larger than the download limit of {max_bytes / 1e6:.0f} MB")

@@ -94,12 +94,18 @@ size? section names?), choose the conventional default and say so.
 3. **Transcribe only on a stated basis** (rule 3), with the researched hints
    when the analysis disagrees with them:
    ```bash
+   # a file from the user's library, by its number in the list
    python -m drum_agent song "Song Title" --artist "Band" --pick 1 --rights own -o out/song --bpm 96 --sections "Intro:1,Verse:5,Chorus:13"
+   # a video the search found, by its exact link
+   python -m drum_agent song "Song Title" --artist "Band" --url "https://www.youtube.com/watch?v=VIDEO_ID" --rights own -o out/song --bpm 96
    ```
-   A basis covers one recording, so after a video search (or with several
-   library matches) `--rights` needs `--pick N`: show the user the list and
-   let them name the one their basis covers. `--audio FILE` uses a file the
-   user gave you, `--url URL` one link.
+   A basis covers one recording, so with `--rights` a search result is never
+   taken for you, even when it is the only match: show the user the list and
+   let them name the one their basis covers. Name a library file with
+   `--pick N` (needed even for a single match) and a video with `--url URL`
+   (the refusal prints the `--url` of each video; `--pick` is refused for
+   videos, because the search runs again and can rank differently).
+   `--audio FILE` uses a file the user gave you, `--url URL` one link.
    Details: [docs/SONG_LOOKUP.md](../../../docs/SONG_LOOKUP.md).
 4. Continue with step 3 below (report, pages, QC). In the delivery, list which
    hints came from research (with the links) and which came from the audio.

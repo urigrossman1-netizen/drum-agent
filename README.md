@@ -61,9 +61,11 @@ python -m drum_agent transcribe song.wav --rights own --title "Song" --artist "B
 python -m drum_agent analyze song.wav
 
 # A song by name: identify it, find audio (your library, --audio, --url, or your own yt-dlp),
-# check its length, then analyse; with --rights (and --pick N after a search) transcribe it
+# check its length, then analyse; with --rights transcribe the recording you name: a library
+# match by its number (--pick N), a video the search found by its link (--url)
 python -m drum_agent song "Song Title" --artist "Band"
 python -m drum_agent song "Song Title" --artist "Band" --pick 1 --rights own -o out/song
+python -m drum_agent song "Song Title" --artist "Band" --url "https://www.youtube.com/watch?v=VIDEO_ID" --rights own -o out/song
 
 # A Rock Band / Clone Hero chart (notes.mid, notes.chart or the song folder)
 python -m drum_agent gamechart "Songs/Band - Title" -o out/title
