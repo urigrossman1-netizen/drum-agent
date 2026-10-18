@@ -33,6 +33,10 @@ CLASSES = ("kick", "snare", "cross_stick", "hihat", "hihat_open", "hihat_pedal",
            "crash", "tom", "other")
 FRAME = HOP / SR
 NEAR_MISS = 0.4  # a class this close to its threshold is recorded as a near miss
+# A candidate whose onset strength is this small a share of the strongest one within
+# LOCAL_S seconds is the ring-out of that stroke, or noise, not a stroke of its own.
+LOCAL_FLUX_GATE = 0.03
+LOCAL_S = 0.5
 EDGE = 40  # frames of padding so every window exists
 ATTACK = (-1, 0, 1, 2, 3, 4, 5)
 DECAY = ((6, 10), (10, 16), (16, 24), (24, 36))
@@ -270,9 +274,11 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     # not accepted, or one a rule removed. A bar holding one may be missing a stroke, which
     # hit confidences can't show (a missed stroke has no confidence).
     near: list[tuple[float, str, float]] = []
+    from scipy.ndimage import maximum_filter1d
+    local_max = maximum_filter1d(fe.flux, size=2 * int(LOCAL_S / FRAME) + 1)
     for k, t in enumerate(fe.cand):
         time = float(t * FRAME) - PAD
-        if time < -0.02:
+        if time < -0.02 or fe.flux[t] < LOCAL_FLUX_GATE * local_max[t]:
             continue
         p = P[k]
         for c in model.classes:

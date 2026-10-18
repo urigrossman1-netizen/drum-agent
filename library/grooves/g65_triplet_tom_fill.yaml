@@ -17,7 +17,7 @@ patterns:
     t2: "---|---|Xxx|---"
     ft: "---|---|---|Xxx"
     bd: "x--|x--|x--|x--"
-    sticking: "RLR|LRL|RLR|LRL"
+    sticking: "RLR|RLR|RLR|RLR"
   fill_b:
     hh: "x-x-|x-x-|----|----"
     sn: "----|x---|Xx-|X--"
@@ -25,7 +25,7 @@ patterns:
     t2: "----|----|---|-x-"
     ft: "----|----|---|--x"
     bd: "x---|----|x--|x--"
-    sticking: "----|----|RLR|LRL"
+    sticking: "----|----|RLR|LRR"
   crash:
     cr: "x---|----|----|----"
     hh: "--x-|x-x-|x-x-|x-x-"

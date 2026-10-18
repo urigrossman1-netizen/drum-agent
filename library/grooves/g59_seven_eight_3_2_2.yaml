@@ -1,5 +1,6 @@
 # 7/8 grouped 3+2+2: counted "1 2 3, 1 2, 1 2", the long group first. The
-# bass drum marks each group, the snare the second and third.
+# bass drum marks the long group (its first and third 8th), the snare the two
+# short groups.
 title: "G59 Odd Meter: 7/8 (3+2+2)"
 chart_type: pattern_study
 rights: original
@@ -21,7 +22,7 @@ patterns:
     t1: "---|xx|--"
     ft: "---|--|xx"
     bd: "x--|--|--"
-    sticking: "RLR|LR|LR"
+    sticking: "RLR|RL|RL"
   ending:
     cr: "x--|--|--"
     bd: "x--|--|--"

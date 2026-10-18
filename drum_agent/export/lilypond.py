@@ -287,14 +287,20 @@ class _Writer:
             body += "~"
         return graces + body
 
-    def voice_bar(self, tokens: list[Token], voice: int, measure: Measure) -> str:
+    def voice_bar(self, tokens: list[Token], voice: int, measure: Measure,
+                  upper: list[Token] | None = None) -> str:
+        """One voice's bar. `upper`: the upper voice's tokens of the bar, for voice 2."""
         if tokens:
             check_tokens(tokens, measure)
         out: list[str] = []
-        for t in tokens:
+        for i, t in enumerate(tokens):
             s = ""
             if t.tuplet_start:
                 a, n = t.tuplet
+                if voice == 2 and upper is not None and _upper_free(tokens, i, upper):
+                    # Below the stems-down beam the number lands in the sticking line, between
+                    # its letters; with no cymbal over the tuplet it goes above the notes.
+                    s += "\\tweak direction #UP "
                 s += f"\\tuplet {a}/{n} {{ "
             s += self.token(t, voice)
             if t.beams.get(1) == "begin":
@@ -407,6 +413,15 @@ def _partial(length: Fraction) -> str:
     return rv
 
 
+def _upper_free(tokens: list[Token], i: int, upper: list[Token]) -> bool:
+    """No upper-voice note sounds during the tuplet that starts at tokens[i]."""
+    j = i
+    while not tokens[j].tuplet_stop:
+        j += 1
+    start, end = tokens[i].pos, tokens[j].pos + tokens[j].dur
+    return not any(u.kind == "note" and u.pos < end and u.pos + u.dur > start for u in upper)
+
+
 def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, str, str, list[str]]:
     """Return (global, up, down, sticking, sticking texts): LilyPond music with the same
     repeat structure, and the texts the sticking line prints in order."""
@@ -475,7 +490,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         if sm.shared_rest:
             down = _skip(m.actual_length)
         else:
-            down = w.voice_bar(sm.voices[2], 2, m)
+            down = w.voice_bar(sm.voices[2], 2, m, upper=sm.voices[1])
         if 1 in silent:  # one-voice chart: the lower voice carries everything, rests included
             up, down = _skip(m.actual_length), (up if sm.shared_rest else down)
         elif 2 in silent:

@@ -76,3 +76,19 @@ def test_repetition_score_prefers_bars_that_repeat_earlier_ones():
     b = Measure(TS, [Hit(F(k, 8), "ride") for k in range(8)] + [Hit(F(1, 2), "snare")])
     assert _repetition_score([a, a, a, a], 2, 2) == 1.0
     assert _repetition_score([a, a, b, b], 2, 2) < 0.2
+
+
+def test_bars_with_near_misses_are_flagged():
+    # A class the classifier almost accepted (half its threshold or more) marks a likely
+    # missed stroke: its bar is flagged and the note names the instrument.
+    from drum_agent.audio.transcribe import NEAR_FLAG, _flag_near_misses
+    from drum_agent.model import Measure, TimeSig
+    bars = [Measure(time_sig=TimeSig(4, 4), start_time=2.0 * i) for i in range(3)]
+    near = [(0.5, "snare", NEAR_FLAG + 0.1),   # bar 1
+            (2.4, "tom", NEAR_FLAG - 0.1),     # too far below its threshold: no flag
+            (3.9, "crash", 0.9)]               # bar 2
+    assert _flag_near_misses(bars, near) == 2
+    assert [m.uncertain for m in bars] == [True, True, False]
+    assert "snare" in bars[0].notes[-1] and "crash" in bars[1].notes[-1]
+    near_downbeat = [(5.98, "kick", 0.8)]  # within 30 ms before a barline: the next bar's downbeat
+    assert _flag_near_misses(bars, near_downbeat) == 1 and bars[2].uncertain

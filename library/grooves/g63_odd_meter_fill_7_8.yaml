@@ -16,7 +16,7 @@ patterns:
     sn: "Xxxx|----|------"
     t1: "----|Xxxx|------"
     t2: "----|----|Xx----"
-    ft: "----|----|--Xxxx"
+    ft: "----|----|--xxxx"
     bd: "x---|----|------"
     sticking: "RLRL|RLRL|RLRLRL"
   crash:

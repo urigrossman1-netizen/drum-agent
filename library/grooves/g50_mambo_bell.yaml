@@ -11,11 +11,11 @@ patterns:
   two:
     cb: "x-x-xx-x"
     cs: "--x-x---"
-    bd: "---x---x"
+    bd: "---x--x-"
   three:
     cb: "x-xx-xx-"
     cs: "x--x--x-"
-    bd: "---x---x"
+    bd: "---x--x-"
   ending:
     cr: "x-------"
     bd: "x-------"

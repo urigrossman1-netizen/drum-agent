@@ -141,6 +141,10 @@ def test_case14_triplet_half_beats(rendered):
     _, report = rendered["14_triplet_half_beats"]
     ly = _ly(report)
     assert "\\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
+    # No cymbal over the ratamacues: their numbers go above the notes, out of the sticking
+    # line; the groove's triplet under the hi-hat keeps the number below.
+    assert "\\tweak direction #UP \\tuplet 3/2 { \\tag #'graces" in ly
+    assert "kick4 \\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
     assert "snare16 snare16 } snare8->]" in ly  # the ratamacue's accented 8th, outside the bracket
     assert "\\tuplet 6/4 { <kick snare>16[" in ly and "snare8.]" not in ly
     root = _xml(report)

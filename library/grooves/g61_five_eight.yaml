@@ -20,7 +20,7 @@ patterns:
     sn: "xxx|--"
     ft: "---|xx"
     bd: "x--|--"
-    sticking: "RLR|LR"
+    sticking: "RLL|RL"
   ending:
     cr: "x--|--"
     bd: "x--|--"

@@ -1,6 +1,6 @@
-# Jazz shuffle in 12/8: the ride plays the full triplet shuffle ("x-x" with the
-# middle triplet played softly in the variation), snare on 2 and 4 with ghosted
-# triplets, the bass drum feathering every beat.
+# Jazz shuffle in 12/8: the ride plays the shuffle (first and third triplet,
+# "x-x"), the snare 2 and 4 with the middle triplets ghosted in the variation,
+# the bass drum feathering every beat.
 title: "G43 Jazz: 12/8 Shuffle"
 chart_type: pattern_study
 rights: original
@@ -24,7 +24,7 @@ patterns:
     t1: "---|---|---|-x-"
     ft: "---|---|---|--x"
     bd: "g--|g--|---|---"
-    sticking: "---|---|RLR|LRL"
+    sticking: "---|---|LRL|RLR"
   ending:
     cr: "x--|---|---|---"
     bd: "x--|---|---|---"

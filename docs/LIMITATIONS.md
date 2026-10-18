@@ -95,12 +95,15 @@ band mixes, on unfamiliar sounds and on real recordings, which is why it is
 the default.
 
 ### Review flags
-Bars marked "(?)" are those with low-confidence strokes, a structural
-decision (e.g. an inserted short bar) or strokes one drummer can't play
-together. Across the runs above, 68% of flagged bars contained an error, but
-flags caught only 12% of the wrong bars: the classifier is confident even
-when wrong, and a missed stroke has no confidence at all. **Flags help you
-find problems; they don't replace listening to every bar.**
+Bars marked "(?)" are those with low-confidence strokes, a stroke the
+classifier almost heard (a class at half its threshold or more that it did
+not accept, or one a playability rule removed: a likely missed or misheard
+stroke), a structural decision (e.g. an inserted short bar) or strokes one
+drummer can't play together. Across the runs above, 67% of flagged bars
+contained an error and the flags caught 76% of the wrong bars; 45% of all
+bars were flagged. (The near-miss threshold was chosen on library grooves,
+not on these charts; without near misses the flags caught 13%.) **Flags show
+you where to listen first; they don't replace listening to every bar.**
 
 ### Long recordings
 An 8.5-minute band mix (`scripts/stress_long.py`) took 195 s and peaked at

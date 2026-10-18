@@ -49,11 +49,24 @@ def test_every_kit_piece_is_found_in_a_musical_context(tmp_path):
 
 @needs_fluidsynth
 def test_snare_flam_is_one_flammed_stroke(tmp_path):
-    score = compile_spec({"tempo": 60, "sections": [{"bars": [{"sn": "-f--"}, {"sn": "----"}]}]})
+    # In a groove (an isolated stroke in silence is out of context, see above), at a tempo
+    # where the rendered grace sits 37 ms early, as a played flam does: each flam is one
+    # flammed snare stroke, its grace note no stroke of its own and no crash.
+    score = compile_spec({"tempo": 100, "sections": [{"bars": [
+        {"hh": "x-x-x-x-", "sn": "--x---f-", "bd": "x---x---"},
+        {"hh": "x-x-x-x-", "sn": "--f---x-", "bd": "x---x---"}]}]})
     hits = detect(render(tmp_path, score), DetectOptions(drums_only=True)).hits
     snares = [h for h in hits if h.inst == "snare"]
-    assert len(snares) == 1 and snares[0].flam
+    assert [h.flam for h in snares] == [False, True, True, False]
     assert not [h for h in hits if h.inst == "crash"]
+
+
+@needs_fluidsynth
+def test_a_stroke_ringing_out_is_not_a_new_stroke(tmp_path):
+    # A lone snare in silence rings for a while; the ring's small onsets are not strokes.
+    score = compile_spec({"tempo": 60, "sections": [{"bars": [{"sn": "-x--"}, {"sn": "----"}]}]})
+    hits = detect(render(tmp_path, score), DetectOptions(drums_only=True)).hits
+    assert len([h for h in hits if h.inst == "snare"]) == 1
 
 
 @needs_fluidsynth

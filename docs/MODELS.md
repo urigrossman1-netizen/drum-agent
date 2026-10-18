@@ -135,7 +135,9 @@ How the model was chosen: each candidate was measured with
 `scripts/eval_detection.py` and `scripts/eval_notation.py` (synthesized
 charts, exact answers, the Jazz and Brush kits held out) and with
 `scripts/eval_real.py --split train` (the 12 MDB Drums development
-recordings). The 11 test recordings were run once, for the chosen model.
+recordings). The 11 test recordings were run once, for the chosen model
+(before the ring-out gate in `classifier.py` was added; the gate changed none of
+the development or synthetic results).
 
 | Model | Notation F (40 synthetic runs) | Real drum stems, dev / test | Real band mixes, dev / test |
 |---|---|---|---|
