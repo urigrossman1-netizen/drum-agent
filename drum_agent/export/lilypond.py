@@ -7,6 +7,7 @@ source, tests can read LilyPond's MIDI to verify what was actually engraved.
 
 from __future__ import annotations
 
+import math
 import re
 from fractions import Fraction
 
@@ -87,10 +88,58 @@ def preamble(kit: Kit) -> str:
     ])
 
 
-def header(score: Score) -> str:
-    lines = ["\\header {", f"  title = {ly_string(score.title)}"]
+PAPER_WIDTH_MM = {"letter": 215.9, "legal": 215.9, "a4": 210.0, "a5": 148.0, "a3": 297.0, "tabloid": 279.4}
+MARGIN_MM = 14.0  # left and right page margins (paper())
+# Width of one text unit (a typical lowercase letter, see _text_units) in each header font
+# at staff size 20, in mm: the widest measured on rendered titles. It scales with the staff
+# size. And the baseline-to-baseline distance of wrapped lines, in staff spaces (LilyPond's
+# title block spaces its own lines 3.5 apart, too tight for a large title).
+_TITLE = (4.0, 4.4)
+_SUBTITLE = (2.9, 3.0)
+_FOOTER = (2.5, 2.6)
+_NARROW, _WIDE = set("iljtfrI.,;:'!|()[] "), set("mwMW")
+
+
+def _text_units(text: str) -> float:
+    """Printed width in units of a typical lowercase letter."""
+    return sum(0.55 if c in _NARROW else 1.5 if c in _WIDE else 1.3 if c.isupper() else 1.0 for c in text)
+
+
+def _header_text(text: str, font: tuple[float, float], paper_size: str, staff_size: float) -> str:
+    """A header line as a string, or as centred lines of balanced width when it would run
+    past the margins (LilyPond centres one line and cuts it off at both page edges)."""
+    unit_mm, skip = font
+    width = PAPER_WIDTH_MM.get(paper_size.lower(), PAPER_WIDTH_MM["letter"]) - 2 * MARGIN_MM
+    limit = width / (unit_mm * staff_size / 20)
+    words = text.split()
+    if _text_units(text) <= limit or len(words) < 2:
+        return ly_string(text)
+
+    def fill(w: float) -> list[str]:
+        lines, cur = [], ""
+        for word in words:
+            if cur and _text_units(f"{cur} {word}") > w:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = f"{cur} {word}" if cur else word
+        return lines + [cur]
+
+    n = math.ceil(_text_units(text) / limit)
+    w = _text_units(text) / n
+    while len(fill(w)) > n and w < limit:
+        w += 0.5
+    return (f"\\markup \\pad-markup #0.7 \\override #'(baseline-skip . {skip:g}) \\center-column {{ "
+            + " ".join(ly_string(line) for line in fill(w)) + " }")
+
+
+def header(score: Score, paper_size: str = "letter", staff_size: float = 20) -> str:
+    title = _header_text(score.title, _TITLE, paper_size, staff_size)
+    lines = ["\\header {", f"  title = {title}"]
+    if title.startswith("\\markup"):
+        lines.append(f"  pdftitle = {ly_string(score.title)}")
     if score.artist:
-        lines.append(f"  subtitle = {ly_string(score.artist)}")
+        lines.append(f"  subtitle = {_header_text(score.artist, _SUBTITLE, paper_size, staff_size)}")
     info = CHART_TYPES[score.chart_type]
     status = STATUSES.get(score.status)
     sub = info + (f"  ·  {status}" if status else "")
@@ -98,7 +147,7 @@ def header(score: Score) -> str:
     if score.transcriber:
         lines.append(f"  composer = {ly_string('Transcribed by ' + score.transcriber)}")
     if score.copyright:
-        lines.append(f"  copyright = {ly_string(score.copyright)}")
+        lines.append(f"  copyright = {_header_text(score.copyright, _FOOTER, paper_size, staff_size)}")
     lines.append("  tagline = ##f")
     lines.append("}")
     return "\n".join(lines)
@@ -123,8 +172,8 @@ def paper(paper_size: str, staff_size: float, ragged_last: bool, page_count: int
         "  short-indent = 0\\mm\n"
         "  top-margin = 12\\mm\n"
         "  bottom-margin = 12\\mm\n"
-        "  left-margin = 14\\mm\n"
-        "  right-margin = 14\\mm\n"
+        f"  left-margin = {MARGIN_MM:g}\\mm\n"
+        f"  right-margin = {MARGIN_MM:g}\\mm\n"
         "  ragged-last-bottom = ##t\n"
         "  ragged-bottom = ##f\n"
         "  markup-system-spacing.basic-distance = #7\n"
@@ -147,6 +196,9 @@ def layout_block() -> str:
         "    \\override SectionLabel.font-size = #1\n"
         "    \\override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))\n"
         "    \\override MetronomeMark.font-size = #0\n"
+        # A tuplet number just right of the tempo mark (a "3" lead-in) read as part of it
+        # ("= 76 3"); with this padding the mark moves up over anything that close.
+        "    \\override MetronomeMark.outside-staff-horizontal-padding = #1.5\n"
         "    \\override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)\n"
         "    \\override TupletBracket.bracket-visibility = #'if-no-beam\n"
         "    \\override PercentRepeatCounter.font-size = #-2\n"
@@ -629,7 +681,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
     has_uncertain = any(m.uncertain for m in score.measures)
     parts = [
         preamble(kit),
-        header(score),
+        header(score, paper_size, staff_size),
         paper(paper_size, staff_size, _short_last_line(score, plan), page_count),
         layout_block(),
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",

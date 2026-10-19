@@ -188,7 +188,8 @@ and keeps the page uncluttered.
 ## 6. Bars, tempo and structure
 
 * **Time signatures** are printed at the start and at every change.
-* **Tempo:** a metronome mark at bar 1 and at every change. In compound
+* **Tempo:** a metronome mark at bar 1 and at every change, kept clear of
+  a tuplet number beside it (a "3" lead-in) so the two never read as one. In compound
   meter (and 3/8) the beat unit is the dotted beat (dotted quarter in x/8).
   Short x/8 bars are beamed by beat: 2/8 and 3/8 as one group, 4/8 as 2 + 2. A detected swing feel adds the
   text "Swing" to the mark and the 8ths stay straight (standard practice).
@@ -222,7 +223,10 @@ and keeps the page uncluttered.
 ## 7. Page and header
 
 * Title (song), subtitle (artist), transcriber credit on the right, and a
-  **chart-type line** that is always present:
+  **chart-type line** that is always present. A title, artist or copyright
+  line too wide for the page is wrapped into centred lines of balanced width
+  (estimated from its letters, capitals counted wider), never cut off at the
+  page edges; the PDF's title metadata keeps it whole. The chart types:
   * `Full Drum Transcription`: every bar transcribed note for note.
   * `Performance Chart: grooves and roadmap, not a note-for-note transcription`.
   * `Pattern Study`: exercises and examples.

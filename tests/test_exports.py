@@ -8,6 +8,7 @@ For each case in tests/cases/:
 * case-specific notation features appear in the sources.
 """
 
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -158,6 +159,8 @@ def test_case14_triplet_half_beats(rendered):
     down = ly.split("downMusic = ")[1]
     assert "\\partial 8" in ly and up.split("\\autoBeamOff")[1].split("|")[0].strip() == "s1*1/8"
     assert down.split("\\autoBeamOff")[1].split("|")[0].strip().endswith("\\tuplet 3/2 { snare16[ snare16 snare16] }")
+    # ...and the tempo mark keeps its distance from that "3" (it read as "= 76 3").
+    assert "MetronomeMark.outside-staff-horizontal-padding" in ly
     root = _xml(report)
     mods = {(tm.findtext("actual-notes"), tm.findtext("normal-notes")) for tm in root.iter("time-modification")}
     assert ("3", "2") in mods and ("6", "4") in mods
@@ -293,8 +296,9 @@ def test_dense_line_is_replanned_until_it_fits(tmp_path, monkeypatch):
 
 
 def test_header_text_wider_than_the_page_is_no_line_overflow(tmp_path, monkeypatch):
-    # A long title runs off both page edges and a long copyright line into the margins,
-    # but every line of music fits: no re-plan (one render), no layout warning.
+    # A long title and a long copyright line are wrapped into centred lines inside the
+    # margins (one line, LilyPond would cut them off at both page edges), and they are never
+    # taken for a line of music running over: no re-plan (one render), no layout warning.
     import drum_agent.export.render as render_mod
     dirs, real = [], render_mod.render
     monkeypatch.setattr(render_mod, "render", lambda ly, d, stem, **kw: dirs.append(Path(d)) or real(ly, d, stem, **kw))
@@ -307,6 +311,35 @@ def test_header_text_wider_than_the_page_is_no_line_overflow(tmp_path, monkeypat
     assert len(dirs) == 1
     assert not [w for w in report.warnings if w.startswith("Layout")], report.warnings
     assert not [n for n in report.notes if "bars per line" in n], report.notes
+    ly = _ly(report)
+    assert '\\center-column { "Everybody Wants to Rule the World" "(Extended Twelve-Inch Remix, 1985)" }' in ly
+    assert 'pdftitle = "Everybody Wants to Rule the World (Extended Twelve-Inch Remix, 1985)"' in ly
+    assert "copyright = \\markup" in ly
+    ink = np.asarray(Image.open(report.files["png1"]).convert("L")) < 128
+    px_per_mm = ink.shape[1] / 215.9
+    rows = np.nonzero(ink.any(axis=1))[0]
+    header, footer = ink[: rows[0] + int(30 * px_per_mm)], ink[rows[-1] - int(12 * px_per_mm):]
+    for band in (header, footer):
+        cols = np.nonzero(band.any(axis=0))[0]
+        assert cols[0] >= 13 * px_per_mm and cols[-1] <= ink.shape[1] - 13 * px_per_mm
+
+
+def test_long_header_lines_wrap_into_balanced_centred_lines():
+    from drum_agent.export.lilypond import _SUBTITLE, _TITLE, _header_text, _text_units
+    assert _header_text("Northbound", _TITLE, "letter", 20) == '"Northbound"'
+    assert _header_text("Supercalifragilisticexpialidocious" * 3, _TITLE, "letter", 20).startswith('"')  # one word
+    title = "BOHEMIAN RHAPSODY (LIVE AT WEMBLEY STADIUM 1986)"  # capitals: wider than its length says
+    out = _header_text(title, _TITLE, "letter", 20)
+    lines = re.findall(r'"([^"]*)"', out)
+    assert lines == ["BOHEMIAN RHAPSODY (LIVE", "AT WEMBLEY STADIUM 1986)"] and " ".join(lines) == title
+    assert _header_text(title, _TITLE, "letter", 12) == f'"{title}"'  # a small staff size: it fits
+    for paper, staff, n in (("a5", 20, 2), ("a5", 26, 3)):  # every line fits the narrower page
+        lines = re.findall(r'"([^"]*)"', _header_text(title, _TITLE, paper, staff))
+        assert len(lines) == n and " ".join(lines) == title
+        assert all(_text_units(line) * _TITLE[0] * staff / 20 <= 148.0 - 28 for line in lines)
+    artist = "The Extremely Long Band Name Orchestra and Friends featuring Special Guests Live"
+    lines = re.findall(r'"([^"]*)"', _header_text(artist, _SUBTITLE, "letter", 20))
+    assert len(lines) == 2 and abs(_text_units(lines[0]) - _text_units(lines[1])) < 8
 
 
 def test_failed_overflow_trial_keeps_the_original(tmp_path, monkeypatch):

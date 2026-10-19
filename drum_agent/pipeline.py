@@ -16,6 +16,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .export.lilypond import MARGIN_MM, PAPER_WIDTH_MM
 from .kit import DEFAULT_KIT, Kit
 from .layout import plan_layout
 from .model import CHART_TYPES, STATUSES, Score
@@ -200,8 +201,7 @@ def _fit_fewer_pages(score, kit, plan, opts, res, out: Path, stem: str):
     return render(ly, out, stem, png=True)
 
 
-PAPER_WIDTH_MM = {"letter": 215.9, "legal": 215.9, "a4": 210.0, "a5": 148.0, "a3": 297.0, "tabloid": 279.4}
-RIGHT_MARGIN_MM = 14.0  # export/lilypond.py paper()
+RIGHT_MARGIN_MM = MARGIN_MM  # export/lilypond.py paper()
 OVERFLOW_MM = 2.0  # a staff this far into the right margin: a line too full to fit
 CLIPPED = float("inf")  # a staff cut off at the page edge: how far it runs is unknown
 MAX_REPLANS = 4  # trial renders one chart may spend looking for a layout that fits

@@ -117,6 +117,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
     \override SectionLabel.font-size = #1
     \override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))
     \override MetronomeMark.font-size = #0
+    \override MetronomeMark.outside-staff-horizontal-padding = #1.5
     \override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)
     \override TupletBracket.bracket-visibility = #'if-no-beam
     \override PercentRepeatCounter.font-size = #-2
