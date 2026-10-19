@@ -89,8 +89,8 @@ Full tables and what they mean: [LIMITATIONS.md](LIMITATIONS.md).
 
 ## 5. How it was checked
 
-- `python -m pytest -q`: **834 passed** in 5 minutes on a 4-CPU container with
-  LilyPond 2.26.0: 700 fast tests and 134 slow ones (all 113 library charts
+- `python -m pytest -q`: **839 passed** in 5.5-6 minutes on a 4-CPU container with
+  LilyPond 2.26.0: 705 fast tests and 134 slow ones (all 113 library charts
   rendered and read back, 17 audio end-to-end transcriptions, 4 CLI and song
   runs). Includes random-score fuzzing across seven meters and a regression
   test for every confirmed review finding.
@@ -125,7 +125,7 @@ Rendered and checked by eye as well as by the automatic checks:
 - Simile runs, `|: A B :| ×8`, multi-bar rests split at tempo, section and
   meter changes; a 17-instrument Drum Key.
 - From audio: a 60-bar song with a 2/4 bar, short bars inserted from crash
-  placement, an 8.5-minute band mix (145 s, 1.1 GB, notation F 0.977).
+  placement, an 8.5-minute band mix (145-165 s, 1.1 GB, notation F 0.977).
 - Hostile text (quotes, backslashes, `#(...)`, control characters) printed
   literally; a kit file trying to run a command is refused.
 
