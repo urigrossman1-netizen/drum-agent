@@ -93,6 +93,9 @@ choosing the chart type, the rights check, transcription hints, reading the
 report, checking every page against a QC checklist, correcting with `edit`,
 and delivering honestly. Ask for "a drum chart of ..." or run
 `/drum-chart <file or description>`.
+In a Claude Code on the web session, `.claude/hooks/session-start.sh` installs
+LilyPond, FluidSynth, ffmpeg and the package when the session starts, so you can
+ask for a chart straight away.
 
 ## Examples
 
