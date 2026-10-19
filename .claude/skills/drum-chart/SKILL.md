@@ -71,7 +71,8 @@ Don't work around a missing engine.
 | Audio, rights unclear | ask; offer `analyze AUDIO` (see rule 3) | none |
 | A MIDI drum track (e-kit, DAW) | `midi FILE.mid -o OUT` (add `--rights own` etc. when the user states it, so the report records it): exact strokes, but the bar grid still needs checking | full_transcription / unverified_import |
 | A Rock Band / Clone Hero chart (notes.mid, notes.chart, song folder) | `gamechart PATH -o OUT` ([GAMECHARTS](../../../docs/GAMECHARTS.md)): one lane per colour, so cymbal identity, open hi-hat and ghosts are approximations | full_transcription / unverified_import |
-| A described groove, rudiment or arrangement | start from the closest `library/` chart, write a chart spec, `render SPEC.yaml -o OUT` | performance_chart or pattern_study / entered |
+| A described groove, fill, rudiment or exercise | start from the closest `library/` chart, write a chart spec, `render SPEC.yaml -o OUT` | pattern_study / entered |
+| A described song arrangement (sections, road map) | the same, with sections and cues | performance_chart / entered |
 | An existing score.json to fix | `edit score.json ... --render OUT` | unchanged |
 
 If the request is ambiguous (full transcription or performance chart? paper
@@ -217,7 +218,9 @@ format, symbols and examples from simple to full song are in
   engraver compresses only *identical* bars into simile marks and repeats.
 - Put the requested style or feel on the chart with `tempo_text` (Funk,
   Half-time feel, Shuffle, Swing).
-- A performance chart must say so (`chart_type: performance_chart`).
+- Set `chart_type` to what the chart is: `pattern_study` for a groove, fill,
+  rudiment or exercise; `performance_chart` for a song's road map;
+  `full_transcription` only when every bar was transcribed.
 - Then do steps 3 to 6 exactly as for audio: read the report, read every page,
   go through the QC checklist, deliver with assumptions.
 

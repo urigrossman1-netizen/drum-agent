@@ -7,7 +7,7 @@ A chart spec is an *input* that compiles to score.json. Render it with
 title: Song Title               # only what the user called it
 artist: Band                    # omit unless the user gave it
 transcriber: Name               # omit unless the user gave it; never guess a name
-chart_type: performance_chart   # full_transcription | performance_chart | pattern_study
+chart_type: pattern_study       # groove/fill/rudiment/exercise; performance_chart for a song road map
 rights: original                # own | permission | licensed | public_domain | original
 tempo: 100                      # quarter notes per minute, or "4.=72" / "2=60"
 tempo_text: Funk                # style/feel printed with the tempo mark (also per section)
