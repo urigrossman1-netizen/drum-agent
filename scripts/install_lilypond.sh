@@ -24,7 +24,7 @@ fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 echo "Downloading ${URL}"
-curl -fL --retry 3 -o "${tmp}/${ASSET}" "${URL}"
+curl -fsSL --retry 3 -o "${tmp}/${ASSET}" "${URL}"
 mkdir -p "${PREFIX}"
 tar -xzf "${tmp}/${ASSET}" -C "${PREFIX}"
 "${PREFIX}/lilypond-${VERSION}/bin/lilypond" --version | head -1
