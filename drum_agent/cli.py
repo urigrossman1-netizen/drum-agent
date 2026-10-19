@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from fractions import Fraction
@@ -45,7 +46,7 @@ def _add_export_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--formats", default="pdf,musicxml,midi,json",
                    help="comma list of pdf,ly,musicxml,midi,json (default: all)")
     p.add_argument("--paper", default="letter", choices=["letter", "a4"])
-    p.add_argument("--staff-size", type=float, default=20)
+    p.add_argument("--staff-size", type=_staff_size, default=20, help="staff size in points (default 20)")
     p.add_argument("--repeats", default="auto", choices=["auto", "percent", "none"],
                    help="compress exactly repeated bars (auto), simile marks only, or write everything out")
     p.add_argument("--bars-per-line", type=float, default=4.0)
@@ -81,6 +82,16 @@ def _print_report(report, out: Path) -> int:
 # Every file export_all can write for a stem (plus "<stem>-page<N>.png").
 _OUTPUT_SUFFIXES = (".ly", ".pdf", ".png", ".midi", ".log", ".musicxml", ".mid", ".performed.mid",
                     ".json", ".report.md", ".report.json")
+
+
+def _staff_size(text: str) -> float:
+    try:
+        size = float(text)
+    except ValueError:
+        size = 0.0
+    if not (math.isfinite(size) and size > 0):
+        raise argparse.ArgumentTypeError(f"a staff size is a positive number of points (20 is standard), got {text!r}")
+    return size
 
 
 def _channel(text: str) -> int:

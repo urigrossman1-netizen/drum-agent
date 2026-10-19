@@ -185,6 +185,13 @@ check.
 Then go back to step 3: read the new report and the new pages.
 
 ### 6. Deliver
+Write charts under `out/` in the repository (`-o out/<name>`): it is git-ignored,
+and in a cloud session the Claude app can open files there. Show the user every
+page: send the PNG pages with your file-sending tool if you have one, otherwise
+give their paths. Never commit audio, or a chart of a song the user doesn't own
+(don't force-add `out/`); commit a chart only when asked and it is their own
+composition or public domain.
+
 Report:
 - the PDF, MusicXML and MIDI paths;
 - chart type and status, in plain words;

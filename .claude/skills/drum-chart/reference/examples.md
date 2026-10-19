@@ -48,8 +48,8 @@ Fits one page (the layout pulls a near-empty last page back automatically).
 ## 5. From audio (you own the recording)
 ```bash
 # Make a test recording from the full-song chart (FluidSynth + bass/keys):
-python -m drum_agent synth examples/specs/03_full_song_northbound.yaml -o northbound.wav --accompaniment
-python -m drum_agent transcribe northbound.wav --rights original --title "Northbound" \
+python -m drum_agent synth examples/specs/03_full_song_northbound.yaml -o out/northbound.wav --accompaniment
+python -m drum_agent transcribe out/northbound.wav --rights original --title "Northbound" \
     --sections "Intro:1,Verse 1:5,Pre-Chorus:13,Chorus:17" -o out/northbound
 python -m drum_agent evaluate examples/specs/03_full_song_northbound.yaml out/northbound/northbound.json
 ```

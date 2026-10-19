@@ -9,3 +9,13 @@ dist/
 tests/_artifacts/
 examples/output/**/*.midi
 .claude/worktrees/
+# audio is never committed (recordings, downloads, synthesized test audio)
+*.[wW][aA][vV]
+*.[mM][pP]3
+*.[mM]4[aA]
+*.[aA][aA][cC]
+*.[fF][lL][aA][cC]
+*.[oO][gG][gG]
+*.[oO][pP][uU][sS]
+*.[aA][iI][fF]
+*.[aA][iI][fF][fF]

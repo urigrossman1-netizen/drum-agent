@@ -26,6 +26,12 @@ trap 'rm -rf "$tmp"' EXIT
 echo "Downloading ${URL}"
 curl -fsSL --retry 3 -o "${tmp}/${ASSET}" "${URL}"
 mkdir -p "${PREFIX}"
-tar -xzf "${tmp}/${ASSET}" -C "${PREFIX}"
+# Unpack beside the final place and move it there in one step: an interrupted install never
+# leaves a lilypond executable without the rest of LilyPond (the check above would trust it).
+stage="$(mktemp -d "${PREFIX}/.lilypond-${VERSION}.XXXXXX")"
+trap 'rm -rf "$tmp" "$stage"' EXIT
+tar -xzf "${tmp}/${ASSET}" -C "${stage}"
+rm -rf "${PREFIX:?}/lilypond-${VERSION}"  # what is there has no lilypond executable: incomplete
+mv "${stage}/lilypond-${VERSION}" "${PREFIX}/"
 "${PREFIX}/lilypond-${VERSION}/bin/lilypond" --version | head -1
 echo "Installed. Check with: python -m drum_agent doctor"
