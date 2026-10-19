@@ -747,6 +747,12 @@ def test_midi_channel_must_exist(cli, tmp_path):
     assert r.rc == 2 and "1-16" in r.err
 
 
+@pytest.mark.parametrize("size", ["0", "-20", "nan", "inf", "big"])
+def test_staff_size_must_be_a_positive_number(cli, tmp_path, size):
+    r = cli("midi", gm_drum_midi(tmp_path / "b.mid"), "-o", tmp_path / "out", "--staff-size", size)
+    assert r.rc == 2 and "positive number" in r.err
+
+
 def test_yaml_text_fields_keep_what_was_written(tmp_path):
     p = tmp_path / "c.yaml"
     p.write_text('title: 1999\nartist: Yes\ntranscriber: 311\ntempo: 100\nsections:\n'

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 from fractions import Fraction
 
 from ..kit import DEFAULT_KIT, Kit
@@ -91,9 +92,10 @@ def preamble(kit: Kit) -> str:
 PAPER_WIDTH_MM = {"letter": 215.9, "legal": 215.9, "a4": 210.0, "a5": 148.0, "a3": 297.0, "tabloid": 279.4}
 MARGIN_MM = 14.0  # left and right page margins (paper())
 # Width of one text unit (a typical lowercase letter, see _text_units) in each header font
-# at staff size 20, in mm: the widest measured on rendered titles. It scales with the staff
-# size. And the baseline-to-baseline distance of wrapped lines, in staff spaces (LilyPond's
-# title block spaces its own lines 3.5 apart, too tight for a large title).
+# at staff size 20, in mm: the widest measured on rendered titles (a typical title measures
+# about 5% less). It scales with the staff size. And the baseline-to-baseline distance of
+# wrapped lines, in staff spaces (LilyPond's title block spaces its own lines 3.5 apart, too
+# tight for a large title).
 _TITLE = (4.0, 4.4)
 _SUBTITLE = (2.9, 3.0)
 _FOOTER = (2.5, 2.6)
@@ -101,18 +103,39 @@ _NARROW, _WIDE = set("iljtfrI.,;:'!|()[] "), set("mwMW")
 
 
 def _text_units(text: str) -> float:
-    """Printed width in units of a typical lowercase letter."""
-    return sum(0.55 if c in _NARROW else 1.5 if c in _WIDE else 1.3 if c.isupper() else 1.0 for c in text)
+    """Printed width in units of a typical lowercase letter (a CJK character is 1.65)."""
+    return sum(0.55 if c in _NARROW else 1.5 if c in _WIDE else 1.3 if c.isupper()
+               else 1.65 if unicodedata.east_asian_width(c) in "WF" else 1.0 for c in text)
+
+
+def _cut(word: str, limit: float) -> list[str]:
+    """A word wider than a line (a long URL, a title in a script written without spaces)
+    cut into pieces of about equal width, each within the limit."""
+    units = _text_units(word)
+    if units <= limit:
+        return [word]
+    size = min(limit, units / math.ceil(units / limit) + 2)  # + 2: no sliver of a last piece
+    pieces, cur = [], ""
+    for c in word:
+        if cur and _text_units(cur + c) > size:
+            pieces.append(cur)
+            cur = ""
+        cur += c
+    return pieces + [cur]
 
 
 def _header_text(text: str, font: tuple[float, float], paper_size: str, staff_size: float) -> str:
-    """A header line as a string, or as centred lines of balanced width when it would run
-    past the margins (LilyPond centres one line and cuts it off at both page edges)."""
+    """A header line as a string, or as centred lines of balanced width, each inside the
+    margins, when it would run well into them (LilyPond centres one line and cuts it off at
+    both page edges). The letter widths are the widest measured, so one line may reach
+    halfway into the margins: a title that fits the page stays on one line."""
     unit_mm, skip = font
+    text = _CONTROL.sub("", text)
     width = PAPER_WIDTH_MM.get(paper_size.lower(), PAPER_WIDTH_MM["letter"]) - 2 * MARGIN_MM
-    limit = width / (unit_mm * staff_size / 20)
-    words = text.split()
-    if _text_units(text) <= limit or len(words) < 2:
+    scale = unit_mm * staff_size / 20
+    limit = width / scale
+    words = [piece for word in text.split() for piece in _cut(word, limit)]
+    if _text_units(text) <= (width + MARGIN_MM) / scale or len(words) < 2:
         return ly_string(text)
 
     def fill(w: float) -> list[str]:
@@ -125,10 +148,11 @@ def _header_text(text: str, font: tuple[float, float], paper_size: str, staff_si
                 cur = f"{cur} {word}" if cur else word
         return lines + [cur]
 
-    n = math.ceil(_text_units(text) / limit)
-    w = _text_units(text) / n
+    total = _text_units(" ".join(words))
+    n = math.ceil(total / limit)
+    w = total / n
     while len(fill(w)) > n and w < limit:
-        w += 0.5
+        w = min(w + 0.5, limit)
     return (f"\\markup \\pad-markup #0.7 \\override #'(baseline-skip . {skip:g}) \\center-column {{ "
             + " ".join(ly_string(line) for line in fill(w)) + " }")
 
@@ -138,7 +162,7 @@ def header(score: Score, paper_size: str = "letter", staff_size: float = 20) -> 
     lines = ["\\header {", f"  title = {title}"]
     if title.startswith("\\markup"):
         lines.append(f"  pdftitle = {ly_string(score.title)}")
-    if score.artist:
+    if score.artist and score.artist.strip():  # a blank one would print an empty line
         lines.append(f"  subtitle = {_header_text(score.artist, _SUBTITLE, paper_size, staff_size)}")
     info = CHART_TYPES[score.chart_type]
     status = STATUSES.get(score.status)
@@ -146,7 +170,7 @@ def header(score: Score, paper_size: str = "letter", staff_size: float = 20) -> 
     lines.append(f"  subsubtitle = \\markup \\normal-text \\italic {ly_string(sub)}")
     if score.transcriber:
         lines.append(f"  composer = {ly_string('Transcribed by ' + score.transcriber)}")
-    if score.copyright:
+    if score.copyright and score.copyright.strip():
         lines.append(f"  copyright = {_header_text(score.copyright, _FOOTER, paper_size, staff_size)}")
     lines.append("  tagline = ##f")
     lines.append("}")

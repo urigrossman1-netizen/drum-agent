@@ -224,9 +224,11 @@ and keeps the page uncluttered.
 
 * Title (song), subtitle (artist), transcriber credit on the right, and a
   **chart-type line** that is always present. A title, artist or copyright
-  line too wide for the page is wrapped into centred lines of balanced width
-  (estimated from its letters, capitals counted wider), never cut off at the
-  page edges; the PDF's title metadata keeps it whole. The chart types:
+  line too wide for the page (one that would reach more than halfway into the
+  margins) is wrapped into centred lines of balanced width inside the margins
+  (estimated from its letters, capitals and CJK characters counted wider; a
+  word wider than a line is cut), never cut off at the page edges; the PDF's
+  title metadata keeps it whole. The chart types:
   * `Full Drum Transcription`: every bar transcribed note for note.
   * `Performance Chart: grooves and roadmap, not a note-for-note transcription`.
   * `Pattern Study`: exercises and examples.

@@ -327,7 +327,24 @@ def test_header_text_wider_than_the_page_is_no_line_overflow(tmp_path, monkeypat
 def test_long_header_lines_wrap_into_balanced_centred_lines():
     from drum_agent.export.lilypond import _SUBTITLE, _TITLE, _header_text, _text_units
     assert _header_text("Northbound", _TITLE, "letter", 20) == '"Northbound"'
-    assert _header_text("Supercalifragilisticexpialidocious" * 3, _TITLE, "letter", 20).startswith('"')  # one word
+    # Titles that fit the page stay on one line (rendered, these measure 187 and 178 mm,
+    # inside the margins): the letter widths are the widest measured, so a line may reach
+    # halfway into the margins before it is wrapped.
+    for fits in ("Case 10: Full Arrangement with Tempo and Meter Changes",
+                 "G39 Jazz: Ride with Snare Comping and Feathered Kick"):
+        assert _header_text(fits, _TITLE, "letter", 20) == f'"{fits}"'
+    # A word wider than the page (or a title in a script written without spaces) is cut
+    # into pieces that fit, never cut off at the page edges.
+    for word, n in (("Supercalifragilisticexpialidocious" * 3, 2), ("残酷な天使のテーゼ" * 5, 2)):
+        lines = re.findall(r'"([^"]*)"', _header_text(word, _TITLE, "letter", 20))
+        assert len(lines) == n and "".join(lines) == word
+        assert all(_text_units(line) * _TITLE[0] <= 215.9 - 28 for line in lines)
+    # Every wrapped line is still a LilyPond string: quotes and backslashes escaped,
+    # control characters dropped, nothing read as Scheme or markup.
+    hostile = 'Say "Hi" to C:\\Kit\x07 and #(system "ls") \\markup in a title far too long for one line'
+    out = _header_text(hostile, _TITLE, "letter", 20)
+    assert out.startswith("\\markup") and '"Say \\"Hi\\" to C:\\\\Kit and' in out and "\x07" not in out
+    assert re.sub(r'"(?:[^"\\]|\\.)*"', "", out.split("center-column")[1]).split() == ["{", "}"]
     title = "BOHEMIAN RHAPSODY (LIVE AT WEMBLEY STADIUM 1986)"  # capitals: wider than its length says
     out = _header_text(title, _TITLE, "letter", 20)
     lines = re.findall(r'"([^"]*)"', out)
@@ -340,6 +357,10 @@ def test_long_header_lines_wrap_into_balanced_centred_lines():
     artist = "The Extremely Long Band Name Orchestra and Friends featuring Special Guests Live"
     lines = re.findall(r'"([^"]*)"', _header_text(artist, _SUBTITLE, "letter", 20))
     assert len(lines) == 2 and abs(_text_units(lines[0]) - _text_units(lines[1])) < 8
+    from drum_agent.export.lilypond import header
+    blank = compile_spec({"title": "T", "artist": "   ", "sections": [{"bars": [{"sn": "x-x-"}]}]})
+    blank.copyright = " \t"
+    assert "  subtitle" not in header(blank) and "copyright" not in header(blank)  # no empty lines
 
 
 def test_failed_overflow_trial_keeps_the_original(tmp_path, monkeypatch):
