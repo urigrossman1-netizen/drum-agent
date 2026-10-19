@@ -7,7 +7,7 @@ set -euo pipefail
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
-cd "$CLAUDE_PROJECT_DIR"
+cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}"
 
 # FluidSynth and the GM soundfont (synthesized audio for tests and evals) and ffmpeg
 # (MP3/M4A input) are optional, so a failed install only warns.
@@ -17,9 +17,9 @@ command -v ffmpeg >/dev/null || missing+=(ffmpeg)
 [ -f /usr/share/sounds/sf2/FluidR3_GM.sf2 ] || missing+=(fluid-soundfont-gm)
 if [ ${#missing[@]} -gt 0 ]; then
   sudo=""
-  [ "$(id -u)" -ne 0 ] && sudo="sudo"
-  if ! { $sudo apt-get update -qq && DEBIAN_FRONTEND=noninteractive \
-        $sudo apt-get install -y -qq --no-install-recommends "${missing[@]}"; } >/dev/null 2>&1; then
+  [ "$(id -u)" -ne 0 ] && sudo="sudo -n"  # never wait for a password
+  if ! { $sudo apt-get update -qq && $sudo env DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y -qq --no-install-recommends "${missing[@]}"; } >/dev/null 2>&1; then
     echo "warning: could not install ${missing[*]} (optional: synthesized audio, MP3/M4A input)" >&2
   fi
 fi
