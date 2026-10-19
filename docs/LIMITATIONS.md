@@ -6,7 +6,7 @@ Two different questions, two different answers:
   the score it was made from: LilyPond's own MIDI, the MusicXML (notes,
   articulations, meters, schema) and our MIDI (notes, tempo map, barlines).
   For hand-written charts, the chart library and MIDI or game-chart input
-  this makes the PDF/MusicXML/MIDI trustworthy, and 786 automated tests
+  this makes the PDF/MusicXML/MIDI trustworthy, and 834 automated tests
   (including random-score fuzzing and all 113 library charts) back it up.
 - **Are the notes right?** For audio this can only be measured where the
   answer is known: synthesized recordings of original charts (exact answers)
@@ -106,10 +106,11 @@ not on these charts; without near misses the flags caught 13%.) **Flags show
 you where to listen first; they don't replace listening to every bar.**
 
 ### Long recordings
-An 8.5-minute band mix (`scripts/stress_long.py`) took 195 s and peaked at
-1.1 GB of memory on a 4-CPU machine with the NMF detector (3 minutes: about
-80 s, 0.6 GB); the classifier adds about a second per minute of audio. Memory
-grows with length; very long files (20+ minutes) need several GB.
+An 8.5-minute band mix (`scripts/stress_long.py`: the Northbound example three
+times, with bass and keys) is transcribed and engraved in 145 s with a peak of
+1.1 GB of memory on a 4-CPU machine, at notation F 0.977 against its chart
+(the NMF detector took 195 s). Memory grows with length; very long files
+(20+ minutes) need several GB.
 
 Charts of non-commercial-licensed material are not committed.
 

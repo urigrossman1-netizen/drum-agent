@@ -1,150 +1,164 @@
 # Final report
 
-What was built, how it was checked, and what is still unverified. Every number
-here was measured in this repository; nothing is estimated.
+What was built, how it was checked, and what is still weak. Every number here
+was measured in this repository; nothing is estimated.
 
-## 1. What was wrong
+## 1. Starting point
 
 The repository was empty: no commits, no code, no skill (details in
-[AUDIT.md](AUDIT.md)). There was nothing that could produce drum notation, no
-internal representation, no engraving engine and no tests. Pretrained drum
-separation or transcription models could not be downloaded in this
-environment, so audio detection had to be built from signal processing.
+[AUDIT.md](AUDIT.md)). Pretrained drum separation or transcription models
+could not be downloaded in this environment, so listening had to be built here:
+first signal processing (NMF templates), then a neural onset classifier
+trained on synthesized drumming.
 
-## 2. What changed and why
+## 2. What the agent does
+
+| You give it | It does | Command |
+|---|---|---|
+| A song's name | identifies the recording from public metadata, finds audio (your files, a link, or a video page through your own yt-dlp; streaming services are metadata only), checks the length, then analyses, or transcribes once you state your rights | `song` |
+| An audio file | transcribes it note by note (needs a rights basis), or gives tempo, meter and form only | `transcribe`, `analyze` |
+| A MIDI drum track | imports it with pickups, meters, tempi and markers | `midi` |
+| A Rock Band / Clone Hero chart | imports `notes.mid` or `notes.chart` exactly, tick by tick | `gamechart` |
+| A described groove or a chart spec | engraves it | `render` |
+| A chart that is wrong somewhere | edits strokes, bars and labels, then re-renders | `edit` |
+
+Every run writes PDF, PNG, MusicXML 4.0, MIDI, LilyPond source, the score
+(JSON) and a report, all generated from one score and read back against it.
+
+## 3. What was built
 
 - **One score format** (`drum_agent/model.py`): exact `Fraction` positions,
-  instruments from one kit table (`kit.py`). Every output is generated from
-  it, so the formats can't disagree.
-- **A rhythm speller** (`rhythm.py`) implementing the notation rules (beats
-  never hidden, rests by metrical level, tuplets, rolls), shared by the
-  LilyPond and MusicXML writers.
-- **Real engraving** with LilyPond 2.26 (`export/lilypond.py`), MusicXML 4.0
-  (`export/musicxml.py`) and MIDI (`export/midi.py`). No fallback produces a
-  chart without LilyPond.
-- **Automatic verification** (`verify.py`): LilyPond's own MIDI, the MusicXML
-  (notes, articulations, meters, schema) and our MIDI (notes, tempo map,
-  barlines) are each read back and compared with the score.
-- **Layout** (`layout.py`): simile marks, repeats with ×N, multi-bar rests,
-  balanced line breaks, sections on new systems, page fitting.
-- **Inputs**: chart specs (YAML/JSON), General MIDI drum tracks (with pickup,
-  meter, tempo and marker handling), and audio (NMF detection, beat/meter/
-  downbeat, quantizer with feel, short-bar detection, uncertainty flags).
-- **Rights gate** (`rights.py`): note-for-note audio transcription needs a
-  stated rights basis; `analyze` gives tempo, meter and form only.
-- **The `drum-chart` skill** and its references, tested through real headless
-  Claude Code sessions.
-- **Two independent code reviews** (timing/import, notation, robustness/
-  safety). Every confirmed finding was fixed with a regression test, including
-  a kit-file code-execution hole and three ways the tool could overwrite a
-  user's file.
+  instruments from one kit table (`kit.py`). The formats can't disagree.
+- **Rhythm spelling** (`rhythm.py`): beats never hidden, rests by metrical
+  level, tuplets (a 16th triplet and an 8th written "3" plus an 8th), rolls,
+  flams and drags, beams by beat group, one voice when nothing sounds in the
+  other.
+- **Engraving** with LilyPond 2.26 in the look of the reference chart you
+  sent: cymbals stems up, snare and kick down, hi-hat 8ths beamed in fours,
+  sticking letters under fills, a "Swing" mark with its rhythm, cue text above
+  the staff, rests in the lower voice, multi-bar rests, four bars per line.
+  `--voicing hands-up` gives the Weinberg/PAS drum-book layout. A line that
+  would run past the right margin is detected in the rendered page and
+  re-planned.
+- **Verification** (`verify.py`): LilyPond's own MIDI, the MusicXML (notes,
+  articulations, meters, schema) and our MIDI (notes, tempo map, barlines)
+  are each read back and compared with the score on every run.
+- **Listening** (`audio/`): candidate onsets from the spectrogram, then an
+  ensemble of two neural onset classifiers trained on 6500 synthesized clips
+  from 44 sampled kits in many recording conditions (rooms, compression,
+  band mixes, MP3, old-tape chains); beat, meter and downbeat tracking;
+  playability rules; review flags ([MODELS.md](MODELS.md)).
+- **Review flags**: bars with a low-confidence stroke, a stroke the
+  classifier almost heard, a structural decision or an unplayable combination
+  get "(?)" above the staff.
+- **The library**: 113 charts, the 40 PAS rudiments and 73 grooves and fills
+  (rock, funk, jazz, shuffles, Latin and Afro-Cuban, odd meters, linear
+  fills), all rendered and held to the house rules by `tests/test_library.py`
+  ([library/README.md](../library/README.md)).
+- **Rights and safety** (`rights.py`, `song/`): note-for-note transcription
+  needs a stated rights basis, and a basis found through a search needs an
+  explicit choice of recording; streaming CDNs and DRM services are refused,
+  at every redirect; downloads are bounded in size and rate.
+- **The `drum-chart` skill** (`.claude/skills/drum-chart/`): the workflow,
+  the rights check, transcription hints, the QC checklist and honest
+  delivery, tested through real headless Claude Code sessions.
 
-## 3. Engine and convention
+## 4. Measured accuracy
 
-LilyPond 2.26.0 renders the PDF/PNG. The notation follows the Weinberg/PAS
-drum-set convention: hands stems up, feet stems down, cymbals with x
-noteheads above the staff, a Drum Key whenever anything beyond kick, snare
-and hi-hat is used. The full contract is [NOTATION_SPEC.md](NOTATION_SPEC.md);
-`tests/test_kit.py` enforces that the kit table matches it.
+**Real recordings** (MDB Drums, 23 recordings with every stroke annotated;
+onset F at 50 ms, all five classes). The 11 test recordings were held out and
+run once:
 
-## 4. The skill
+| | Dev, drum stem | Dev, band mix | Test, drum stem | Test, band mix |
+|---|---|---|---|---|
+| Onset classifier (shipped) | 0.856 | 0.696 | 0.772 | 0.591 |
+| NMF templates (first detector) | 0.791 | 0.484 | 0.662 | 0.421 |
 
-`.claude/skills/drum-chart/`:
-- `SKILL.md`: non-negotiables (rights, honest status, no invented header text),
-  workflow steps 0-6, the input-path table, delivery rules.
-- `reference/notation.md`, `chart-spec.md`, `examples.md`,
-  `transcription-guide.md` (method, measured accuracy, failure modes),
-  `qc-checklist.md`, `troubleshooting.md`.
+Per class on the held-out drum stems: kick 0.96, snare 0.87, hi-hat 0.72,
+toms 0.50, cymbals 0.27. **Cymbals in band mixes are the weakest point**
+(0.09).
 
-Use: ask Claude Code for "a drum chart of ..." (the skill is auto-discovered)
-or run `/drum-chart <file or description>`.
+**Synthesized recordings of original charts** (exact answers): mean notation
+F 0.963 over 40 runs (10 charts × standard kit, held-out jazz kit, band mix,
+humanized band mix); stroke-level onset F 0.956-0.984 in six conditions,
+held-out kits and band mixes included (0.83 on deliberately unfamiliar
+synthetic timbres). Review flags: 67% of flagged bars hold an error, and the
+flags catch 76% of the wrong bars.
 
-Tested through `claude -p` in fresh clones, five scenarios:
+Full tables and what they mean: [LIMITATIONS.md](LIMITATIONS.md).
 
-| Scenario | Result |
-|---|---|
-| Groove described in words | pass; its finding (a hand-entered chart reported as "Verified by a human") led to the `entered` status |
-| MIDI take with pickup, 12/8 bridge, tempo change | pass: notation F 1.000 (381/381), pickup, meters, tempi and sections exact |
-| Audio, no rights stated | pass: no transcription, asked about rights, offered `analyze` |
-| Audio, "I own it", no slash command | pass: auto-discovered, `--rights own`, notation F 0.882 vs. the source chart |
-| Fix an existing chart | pass: exactly one kick added, bar 4 hi-hat → ride, nothing else changed |
+## 5. How it was checked
 
-## 5. Working formats
+- `python -m pytest -q`: **834 passed** in 5 minutes on a 4-CPU container with
+  LilyPond 2.26.0: 700 fast tests and 134 slow ones (all 113 library charts
+  rendered and read back, 17 audio end-to-end transcriptions, 4 CLI and song
+  runs). Includes random-score fuzzing across seven meters and a regression
+  test for every confirmed review finding.
+- End to end by name: `song "Northbound" --no-online --library <folder>` found
+  the recording, analysed it without `--rights`, refused `--rights` until the
+  recording was picked, then transcribed it (`--pick 1`) at notation F 0.975
+  against the chart it was synthesized from.
+- Every notation change was also looked at as a rendered page; a passing
+  test alone doesn't prove the engraving reads well.
+- Detection changes were measured with both synthetic eval scripts and on the
+  real-recording dev split before being accepted; no change was kept that
+  regressed a held-out kit or a band mix.
+- **Independent adversarial reviews**, each finding reproduced by a second
+  agent before it was fixed: timing and import, notation, robustness and
+  safety (round 1); game charts and song lookup; all 113 library charts
+  (wrong clave kicks, crossed arms in fill stickings, comments that didn't
+  match the pattern); the engine changes (tempo ties, voice handling, tuplet
+  brackets, layout overflow, exact game-chart ticks); and the download and
+  rights paths (host-name tricks, redirects through a streaming CDN, a
+  trickling server, a search result picked without the user seeing it).
 
-| Format | Produced by | Checked by |
-|---|---|---|
-| PDF + PNG pages | LilyPond | LilyPond's MIDI vs. the score (notes, tempo map); visual review |
-| MusicXML 4.0 | own writer | read back (notes, articulations, meters); XSD schema |
-| MIDI (`.mid`) | own writer | read back (notes, tempo map, barlines) |
-| LilyPond source (`.ly`) | own writer | compiled every run |
-| Score (`.json`) | the IR | reloads; schema version checked |
-| Report (`.report.md/.json`) | pipeline | lists every check and the flagged bars |
-
-## 6. Test suites and results
-
-`python -m pytest -q`: **441 passed** (424 fast, 17 slow audio end-to-end) in 3 min 12 s
-on a 4-CPU container, LilyPond 2.26.0.
-
-- `tests/cases/` (10 notation charts) and `tests/audio_cases/` (3 audio charts).
-- `tests/test_exports.py`: every case engraves cleanly and all formats agree.
-- `tests/test_fuzz_exports.py`: random scores across seven meters.
-- `tests/test_review_regressions.py`, `tests/test_cli.py`: one test per
-  confirmed review finding.
-- `tests/test_audio_e2e.py` (slow): chart → synthesized recording →
-  transcription → scored against the chart.
-- `scripts/eval_notation.py`: 10 charts × 4 conditions, mean notation F 0.897,
-  median 0.972. `scripts/eval_detection.py`: onset F 0.900-0.989 on GM kits.
-
-## 7. Difficult cases verified
+## 6. Difficult cases verified
 
 Rendered and checked by eye as well as by the automatic checks:
-- Flams and drags on a downbeat, at a meter change and at a line start
-  (graces after the barline, `tests/cases/08`).
+- Flams and drags on a downbeat, at a meter change and at a line start.
 - Pickups (quarter and sub-beat), meter changes 4/4 → 12/8 → 4/4 with tempo
-  marks in dotted quarters, tempo changes (`tests/cases/10`).
-- 3/4, 7/8 (2+2+3), 5/4, 6/8, 12/8, 5/8, 3/8, 2/4 (`tests/cases/09`).
-- Triplets, sextuplets, 32nds, rests by metrical level (`tests/cases/08`).
-- Ghost notes, accents, rolls (tied across beats, dotted-half), flams
-  (`tests/cases/07`).
-- Open/closed/half-open hi-hat with "+" after an open note, hi-hat foot
-  (`tests/cases/05`).
-- Tom fills across the barline (`tests/cases/06`).
-- Repeats: simile runs, `|: A B :| ×8`, rests inside repeats, tempo or meter
-  changes inside a phrase (written out, not repeated).
-- Multi-bar rests split at tempo, section and meter changes.
-- A 17-instrument Drum Key that wraps inside the page.
-- From audio: a 60-bar song with a 2/4 bar (notation F 0.948-0.983 across conditions),
-  short bars inserted from crash placement, an 8.5-minute mix (195 s, 1.1 GB).
+  marks in dotted quarters, tempo changes, 3/4, 7/8 (2+2+3), 5/4, 6/8, 12/8,
+  5/8, 3/8, 2/4.
+- Triplets, sextuplets, a 16th triplet sharing a beat with an 8th, 32nds,
+  rests by metrical level, ghost notes, accents, rolls tied across beats.
+- Open, closed and half-open hi-hat, hi-hat foot, tom fills over the barline.
+- Simile runs, `|: A B :| ×8`, multi-bar rests split at tempo, section and
+  meter changes; a 17-instrument Drum Key.
+- From audio: a 60-bar song with a 2/4 bar, short bars inserted from crash
+  placement, an 8.5-minute band mix (145 s, 1.1 GB, notation F 0.977).
 - Hostile text (quotes, backslashes, `#(...)`, control characters) printed
   literally; a kit file trying to run a command is refused.
 
-## 8. Limitations (unverified or weak)
+## 7. Limitations
 
 Full list with numbers: [LIMITATIONS.md](LIMITATIONS.md). In short:
-- **All accuracy numbers come from synthesized audio.** Real recordings were
-  only spot-checked (three Creative Commons files, no ground truth); expect
-  lower accuracy and listen to every bar.
-- Hi-hat foot strokes are not detected; drags are never detected; ghost notes
-  next to the hi-hat and cymbals in band mixes are weak.
-- Tempo can come out doubled or halved; odd meters from audio are not
-  supported (MIDI and chart specs handle them).
-- "(?)" flags catch 44% of wrong bars: they help, but don't replace listening.
-- No neural source separation was available; `--drums-only` with a stem from
-  another tool is the best path for full mixes.
+- Real recordings are harder than synthetic ones: on a full band mix about
+  three strokes in five are found right. Cymbals (one in four on a stem,
+  fewer in a mix) and toms (half on a stem) are the weak classes. Listen to
+  every bar, starting with the flagged ones.
+- Drags are never detected; ghost notes next to the hi-hat are often missed.
+- Tempo can still come out doubled or halved on unusual material, and fast
+  swing at 3/4 of its tempo: check the report's tempo line and pass `--bpm`
+  when it is wrong. Odd meters from audio are not supported (MIDI, game
+  charts and chart specs handle them).
+- No source separation: `--drums-only` with a stem from another tool is the
+  best path for a full mix.
 
-## 9. Exact commands
+## 8. Exact commands
 
 ```bash
 pip install -e ".[test]" && scripts/install_lilypond.sh && python -m drum_agent doctor
-python -m drum_agent render examples/specs/03_full_song_northbound.yaml -o out/northbound
-python -m drum_agent midi take.mid --title "Take" --rights own -o out/take
+python -m drum_agent song "Song Title" --artist "Band"            # identify, find audio, analyse
 python -m drum_agent transcribe song.wav --rights own --title "Song" -o out/song
-python -m drum_agent analyze song.wav
+python -m drum_agent midi take.mid --title "Take" --rights own -o out/take
+python -m drum_agent gamechart "Songs/Band - Title" -o out/title
+python -m drum_agent render library/rudiments/r16_single_paradiddle.yaml -o out/paradiddle
 python -m drum_agent edit out/song/song.json --add 12:3/8:snare:ghost --render out/song
-python -m drum_agent verify out/song/song.json
 python -m pytest -q -m "not slow"     # fast suite
 python -m pytest -q                   # everything, including audio end to end
 python scripts/eval_notation.py --jobs 4 && python scripts/eval_detection.py
+python scripts/eval_real.py --split train   # real recordings (MDB Drums, cached locally)
 ```
 
-Rendered examples: `examples/output/` (01-04 from chart specs, 05 from audio).
+Rendered examples: `examples/output/` (01-04 from chart specs, 05 transcribed
+from a synthesized band recording).
