@@ -97,6 +97,7 @@ def synthesize(score: Score, out: str | Path, method: str = "fluidsynth", kit_pr
                accompaniment: bool = False, humanize_ms: float = 0.0, seed: int = 0,
                gain: float = 0.7) -> Path:
     out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
     if method == "numpy":
         audio = numpy_drums(score, humanize_ms=humanize_ms, seed=seed)
         sf.write(out, audio, SR)
