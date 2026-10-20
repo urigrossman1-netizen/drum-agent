@@ -20,6 +20,9 @@
 ## Transcription confidence
 * Written as a chart spec: nothing was detected automatically, and nobody has checked it against a recording. It shows what was written, not necessarily what is played.
 
+## Layout notes
+* A full page was spaced slightly tighter than usual (1.9 staff spaces in total).
+
 ## Files
 * json: `03_full_song_northbound.json`
 * ly: `03_full_song_northbound.ly`

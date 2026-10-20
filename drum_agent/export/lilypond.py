@@ -221,8 +221,14 @@ def layout_block() -> str:
         "    \\override SectionLabel.stencil = #(lambda (grob) (box-stencil (ly:text-interface::print grob) 0.15 0.4))\n"
         "    \\override MetronomeMark.font-size = #0\n"
         # A tuplet number just right of the tempo mark (a "3" lead-in) read as part of it
-        # ("= 76 3"); with this padding the mark moves up over anything that close.
+        # ("= 76 3"); with this padding the mark moves up over anything that close. The
+        # section box gets the same padding and more clearance above what is under it, so it
+        # always sits on top of a tempo mark at the same spot; without them a box at a line
+        # start could stay down by the staff, under or beside a tempo mark lifted by open
+        # hi-hat circles.
         "    \\override MetronomeMark.outside-staff-horizontal-padding = #1.5\n"
+        "    \\override SectionLabel.outside-staff-horizontal-padding = #1.5\n"
+        "    \\override SectionLabel.outside-staff-padding = #1.0\n"
         "    \\override SpacingSpanner.base-shortest-duration = #(ly:make-moment 1/16)\n"
         "    \\override TupletBracket.bracket-visibility = #'if-no-beam\n"
         "    \\override PercentRepeatCounter.font-size = #-2\n"

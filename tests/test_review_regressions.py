@@ -528,6 +528,33 @@ def test_a_big_kit_drum_key_wraps_inside_the_page(tmp_path):
     assert max(max(xs) for xs in rows.values()) < 0.85 * width  # labels start well inside the page
 
 
+@needs_lilypond
+@pytest.mark.parametrize("chart", ["library/grooves/g56_calypso_soca.yaml", "tests/cases/05_hihat_open_closed.yaml"])
+def test_section_box_sits_above_the_tempo_mark_it_starts_with(chart, tmp_path):
+    # Open hi-hat circles over the first notes lift the tempo mark; the box at the line start
+    # then stayed down by the staff, under or beside it (G56 "Soca", case 05 "A"), while
+    # every other chart has the box on top.
+    import subprocess
+    from conftest import ROOT
+    from drum_agent.charts import load_any
+    from drum_agent.export.render import find_lilypond
+    report = export_all(load_any(ROOT / chart), tmp_path, "s")
+    assert report.rendering_ok
+    ly = (tmp_path / "s.ly").read_text().replace(
+        "    \\Score\n", "    \\Score\n"
+        "    \\override SectionLabel.output-attributes = #'((class . \"Box\"))\n"
+        "    \\override MetronomeMark.output-attributes = #'((class . \"Tempo\"))\n", 1)
+    (tmp_path / "t.ly").write_text(ly)
+    subprocess.run([find_lilypond(), "-dbackend=svg", "-o", str(tmp_path / "t"), str(tmp_path / "t.ly")],
+                   capture_output=True, check=True)
+    svg = (tmp_path / "t.svg").read_text()
+
+    def baseline(cls):  # the text baseline of the first grob tagged cls
+        group = re.search(rf'<g class="{cls}">(.*?)</a>\s*</g>', svg, re.S).group(1)
+        return max(float(y) for y in re.findall(r'translate\([\d.\-]+,\s*([\d.\-]+)\)">\s*<text', group))
+    assert baseline("Box") < baseline("Tempo")  # SVG y grows downward
+
+
 def test_short_eighth_meters_are_beamed_as_one_beat_with_a_dotted_quarter_mark():
     from drum_agent.rhythm import spell_measure
     assert [TimeSig.parse(t).groups() for t in ("2/8", "3/8", "4/8")] == [(2,), (3,), (2, 2)]
