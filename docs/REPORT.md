@@ -89,8 +89,8 @@ Full tables and what they mean: [LIMITATIONS.md](LIMITATIONS.md).
 
 ## 5. How it was checked
 
-- `python -m pytest -q`: **841 passed** in 4-6 minutes on a 4-CPU container with
-  LilyPond 2.26.0: 707 fast tests and 134 slow ones (all 113 library charts
+- `python -m pytest -q`: **844 passed** in 4-6 minutes on a 4-CPU container with
+  LilyPond 2.26.0: 710 fast tests and 134 slow ones (all 113 library charts
   rendered and read back, 17 audio end-to-end transcriptions, 4 CLI and song
   runs). Includes random-score fuzzing across seven meters and a regression
   test for every confirmed review finding.

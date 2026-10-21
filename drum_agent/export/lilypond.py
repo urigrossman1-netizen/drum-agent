@@ -312,6 +312,7 @@ class _Writer:
         self.hh_marks = score.hihat_close_marks()  # closed strokes that get "+"
         self.bar_index = 0  # bar being written (set by music_streams)
         self.shared_rest = False
+        self.one_voice = False  # the whole chart is one voice (set by music_streams)
 
     # -- tokens ------------------------------------------------------------
     def _hit_name(self, h: Hit) -> str:
@@ -330,20 +331,28 @@ class _Writer:
         parts.append(name)
         return "".join(parts)
 
-    def graces(self, t: Token) -> str:
+    def graces(self, t: Token, voice: int = 1) -> str:
         """The flam or drag before a note."""
         graces = ""
         if t.kind == "note" and not t.tie_stop:
             flams = [h for h in t.hits if h.flam]
             drags = [h for h in t.hits if h.drag]
+            # Under a cymbal voice the graces took the stems-down direction and their slurs
+            # crossed the stems and beams: there they are stems up with no slur (a slashed
+            # grace note reads as a flam). A one-voice part keeps the slur, as rudiment
+            # sheets print it.
+            plain = voice == 2 and not self.one_voice
+            up, revert = ("\\temporary \\override Stem.direction = #UP ", " \\revert Stem.direction") if plain else ("", "")
             if flams:
                 g = " ".join(self.kit[h.inst].ly_name for h in flams)
                 g = g if len(flams) == 1 else f"<{g}>"
-                graces += f"\\tag #'graces \\acciaccatura {{ {g}8 }} "
+                kind = "slashedGrace" if plain else "acciaccatura"
+                graces += f"\\tag #'graces \\{kind} {{ {up}{g}8{revert} }} "
             if drags:
                 g = " ".join(self.kit[h.inst].ly_name for h in drags)
                 g = g if len(drags) == 1 else f"<{g}>"
-                graces += f"\\tag #'graces \\appoggiatura {{ {g}16[ {g}16] }} "
+                kind = "grace" if plain else "appoggiatura"
+                graces += f"\\tag #'graces \\{kind} {{ {up}{g}16[ {g}16]{revert} }} "
         return graces
 
     def token(self, t: Token, voice: int) -> str:
@@ -383,7 +392,7 @@ class _Writer:
             # Graces go before the tuplet. Inside it they would start the bracket and pull the
             # number off centre, and 'if-no-beam would see the grace's stem and bracket a beamed
             # group. Outside, 'if-no-beam gives the brackets of Token.bracket, as MusicXML writes.
-            s = self.graces(t)
+            s = self.graces(t, voice)
             if t.tuplet_start:
                 a, n = t.tuplet
                 if voice == 2 and upper is not None and _upper_free(tokens, i, upper):
@@ -404,7 +413,7 @@ class _Writer:
     # -- bars ----------------------------------------------------------------
     def global_bar(self, pb: PrintedBar, idx: int, prev: Measure | None,
                    end_bar: str | None = None, restate_time: bool = False, grace_skip: str = "",
-                   length: Fraction | None = None) -> str:
+                   length: Fraction | None = None, lift_tempo: bool = False) -> str:
         m = self.score.measures[idx]
         items: list[str] = []
         if pb.line_break and prev is not None:
@@ -415,6 +424,10 @@ class _Writer:
             items.append(f"\\partial {_partial(m.actual_length)}")
         tempo = _tempo_mark(m, self.score, idx)
         if tempo:
+            if lift_tempo:
+                # A tuplet number under the end of the mark read as part of it ("= 76 3"):
+                # the padding moves the mark over it, this keeps a clear gap above it.
+                items.append("\\once \\override Score.MetronomeMark.outside-staff-padding = #1.5")
             items.append(tempo)
         if m.section:
             items.append(f"\\sectionLabel {ly_string(m.section)}")
@@ -517,6 +530,7 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
     w = _Writer(score, kit, plan)
     spelled: dict[int, SpelledMeasure] = {}
     silent = silent_voices(score.measures, kit)
+    w.one_voice = 1 in silent
 
     def spelled_bar(idx: int) -> SpelledMeasure:
         if idx not in spelled:
@@ -573,8 +587,10 @@ def music_streams(score: Score, kit: Kit, plan: LayoutPlan) -> tuple[str, str, s
         g_up = downbeat_grace_skip(sm.voices[1])
         g_down = "" if sm.shared_rest else downbeat_grace_skip(sm.voices[2])
         grace = max(g_up, g_down, key=lambda g: sum(Fraction(1, int(d[1:])) for d in g.split()))
+        first_beat = Fraction(m.time_sig.groups()[0], m.time_sig.den)
+        lift = any(t.tuplet_start and t.pos < first_beat for v in (1, 2) for t in sm.voices[v])
         gbar = w.global_bar(pb, idx, prev, end_bar if run == 1 else None, restate_time=restate,
-                            grace_skip=grace)
+                            grace_skip=grace, lift_tempo=lift)
         w.bar_index = idx
         w.shared_rest = sm.shared_rest
         up = w.voice_bar(sm.voices[1], 1, m)
@@ -701,6 +717,13 @@ def _sticking_music(stick: str, syllables: list[str]) -> str:
             "stickText = \\lyricmode { " + " ".join(ly_string(t) for t in syllables) + " }")
 
 
+def _lower_accents(score: Score, kit: Kit) -> str:
+    """Accents under the stems-down voice sit this far below the stem end: closer, a beam
+    sloping down from the stem or the slanted stem of the next 16th rest ran into them.
+    (Placed against the skyline instead, they made LilyPond overfill dense pages.)"""
+    return "" if 1 in silent_voices(score.measures, kit) else "\\override Script.padding = #0.7\n  "
+
+
 def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = None,
                 paper_size: str = "letter", staff_size: float = 20, with_legend: bool = True,
                 repeats: str = "auto", bars_per_line: float = 4.0, page_count: int | None = None) -> str:
@@ -716,7 +739,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         layout_block(),
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",
         f"upMusic = \\drummode {{\n  \\autoBeamOff\n  {up}\n}}",
-        f"downMusic = \\drummode {{\n  \\autoBeamOff\n  {down}\n}}",
+        f"downMusic = \\drummode {{\n  \\autoBeamOff\n  {_lower_accents(score, kit)}{down}\n}}",
         _sticking_music(stick, syllables),
         "drumMusic = \\new DrumStaff = \"drums\" <<\n"
         "  \\new DrumVoice = \"global\" \\globalMusic\n"

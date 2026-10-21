@@ -153,6 +153,7 @@ upMusic = \drummode {
 
 downMusic = \drummode {
   \autoBeamOff
+  \override Script.padding = #0.7
   kick4 snare4 kick4 snare4 |
   kick4 snare4 kick8[ kick8] snare4 |
   kick4 snare8[ kick8] kick8[ kick8] snare4 |

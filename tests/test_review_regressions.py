@@ -378,7 +378,8 @@ def _svg_positions(ly_path, tmp_path):
         "    \\Score\n", "    \\Score\n"
         "    \\override BarLine.output-attributes = #'((class . \"BarLine\"))\n"
         "    \\override TimeSignature.output-attributes = #'((class . \"TimeSig\"))\n", 1)
-    for g in ("\\acciaccatura {", "\\appoggiatura {"):
+    # (a grace under a cymbal voice is written stems up: tag it after that override)
+    for g in ("\\acciaccatura {", "\\appoggiatura {", "\\override Stem.direction = #UP"):
         ly = ly.replace(g, g + " \\once \\override NoteHead.output-attributes = #'((class . \"Grace\"))")
     src = tmp_path / "tagged.ly"
     src.write_text(ly)
@@ -581,3 +582,23 @@ def test_a_section_starts_a_new_system_unless_it_is_short():
     s = spec([{"label": "Hit", "bars": [{"cr": "x-------", "bd": "x-------"}]},
               {"label": "Tag", "bars": [A, fill]}, {"label": "Out", "bars": [A, B, A, fill]}])
     assert systems(plan_layout(s)) == [[0, 1, 2], [3, 4, 5, 6]]  # the whole short section fits
+
+
+@needs_lilypond
+def test_lower_voice_accents_and_graces_clear_the_stems_and_beams(tmp_path):
+    # Under a cymbal voice: accents sat on the stem end, where a beam sloping down from it
+    # (G12 "snare8->[ kick8]") or the next 16th rest (G16) ran through them, and the flams'
+    # grace notes took the stems-down direction, their slurs crossing stems and beams (G67).
+    from conftest import ROOT
+    from drum_agent.charts import load_any
+    ly = to_lilypond(load_any(ROOT / "library/grooves/g67_flam_tom_fill.yaml"))
+    down = ly.split("downMusic = ")[1].split("\n}\n")[0]
+    assert down.split("\\autoBeamOff")[1].lstrip().startswith("\\override Script.padding = #0.7")
+    assert "\\slashedGrace { \\temporary \\override Stem.direction = #UP snare8 \\revert Stem.direction }" in down
+    assert "\\acciaccatura" not in ly and "\\appoggiatura" not in ly
+    # A one-voice part (a rudiment sheet: stems up, accents above) keeps the slurred grace
+    # notes and the usual accent distance.
+    rud = to_lilypond(load_any(ROOT / "library/rudiments/r20_flam.yaml"))
+    assert "\\acciaccatura { snare8 }" in rud and "Script.padding" not in rud
+    report = export_all(load_any(ROOT / "library/grooves/g67_flam_tom_fill.yaml"), tmp_path, "s")
+    assert report.rendering_ok and not report.warnings

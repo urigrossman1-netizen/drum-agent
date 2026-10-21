@@ -234,6 +234,7 @@ upMusic = \drummode {
 
 downMusic = \drummode {
   \autoBeamOff
+  \override Script.padding = #0.7
   kick4 snare8[ kick8] kick4 snare4 |
   \repeat percent 2 { kick4 snare8[ kick8] kick4 snare4 | }
   kick4 snare8[ kick8] <kick snare>16[ snare16 tomone16 tomone16] floortom16[ floortom16 floortom16 floortom16] |
@@ -241,16 +242,16 @@ downMusic = \drummode {
   \repeat percent 3 { kick4 snare8[ kick16 \parenthesize snare16] kick8[ kick8] snare4 | }
   \repeat percent 3 { kick4 snare8[ kick16 \parenthesize snare16] kick8[ kick8] snare4 | }
   kick4 snare8[ kick16 \parenthesize snare16] kick4 snare16[ snare16 snare16 snare16] |
-  floortom8[ floortom8 snare8-> \tag #'graces \acciaccatura { floortom8 } floortom8] floortom8[ floortom8 <kick snare>8-> floortom8] |
+  floortom8[ floortom8 snare8-> \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP floortom8 \revert Stem.direction } floortom8] floortom8[ floortom8 <kick snare>8-> floortom8] |
   floortom8[ floortom8 snare8 floortom8] floortom8[ floortom8 <kick snare>8 floortom8] |
   <kick floortom>8[ floortom8 <kick snare>8 floortom8] floortom8[ floortom8 <kick snare>8-> floortom8] |
   <kick snare>4-> snare4-> <kick snare>16[ snare16 snare16 snare16] <kick snare>16->[ snare16-> snare16-> snare16->] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 | }
-  kick8[ kick8 snare8 kick8] \tag #'graces \acciaccatura { snare8 } <kick snare>16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } snare16->[ tomtwo16 tomtwo16 floortom16] |
+  kick8[ kick8 snare8 kick8] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } <kick snare>16[ snare8 snare16] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } snare16->[ tomtwo16 tomtwo16 floortom16] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 | }
-  kick8[ kick8 snare8 kick8] \tag #'graces \acciaccatura { snare8 } snare16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } snare16->[ tomtwo16 tomtwo16 floortom16] |
+  kick8[ kick8 snare8 kick8] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } snare16[ snare8 snare16] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } snare16->[ tomtwo16 tomtwo16 floortom16] |
   kick4 snare8[ kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick4 snare8[ kick16 \parenthesize snare16] kick8[ kick8] snare4 | }
   kick4 snare8[ kick16 \parenthesize snare16] kick8[ kick8] snare4 |
@@ -258,11 +259,11 @@ downMusic = \drummode {
   kick4 snare8[ kick16 \parenthesize snare16] kick4 snare16[ snare16 snare16 snare16] |
   <kick floortom>8[ floortom8 snare8-> floortom8] <kick floortom>8[ floortom8 <kick snare>8-> floortom8] |
   <kick floortom>8[ floortom8 snare8 floortom8] <kick floortom>8[ floortom8 <kick snare>8 floortom8] |
-  floortom8[ floortom8 snare8 floortom8] floortom8[ \tag #'graces \acciaccatura { floortom8 } floortom8 snare8-> \tag #'graces \acciaccatura { floortom8 } floortom8] |
+  floortom8[ floortom8 snare8 floortom8] floortom8[ \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP floortom8 \revert Stem.direction } floortom8 snare8-> \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP floortom8 \revert Stem.direction } floortom8] |
   <kick snare>4-> snare4-> snare16[ snare16 snare16 snare16] <kick snare>16->[ snare16-> snare16-> snare16->] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 | }
-  kick8[ kick8 snare8 kick8] \tag #'graces \acciaccatura { snare8 } <kick snare>16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } snare16->[ tomtwo16 tomtwo16 floortom16] |
+  kick8[ kick8 snare8 kick8] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } <kick snare>16[ snare8 snare16] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } snare16->[ tomtwo16 tomtwo16 floortom16] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 | }
   kick8[ kick8 snare8 kick8] <kick snare>16[ snare8 snare16] <kick snare>16->[ tomtwo16 tomtwo16 floortom16] |
@@ -271,10 +272,10 @@ downMusic = \drummode {
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
-  kick8[ kick8 snare8 kick8] \tag #'graces \acciaccatura { snare8 } <kick snare>16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } snare16->[ tomtwo16 tomtwo16 floortom16] |
+  kick8[ kick8 snare8 kick8] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } <kick snare>16[ snare8 snare16] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } snare16->[ tomtwo16 tomtwo16 floortom16] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   \repeat percent 2 { kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 | }
-  kick8[ kick8 snare8 kick8] <kick snare>16[ snare8 snare16] \tag #'graces \acciaccatura { snare8 } <kick snare>16->[ tomtwo16 tomtwo16 floortom16] |
+  kick8[ kick8 snare8 kick8] <kick snare>16[ snare8 snare16] \tag #'graces \slashedGrace { \temporary \override Stem.direction = #UP snare8 \revert Stem.direction } <kick snare>16->[ tomtwo16 tomtwo16 floortom16] |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   kick8[ kick8 snare8 kick8] kick8[ kick8] snare4 |
   kick8[ kick8 snare8-> kick8] kick8[ kick8] snare4-> |

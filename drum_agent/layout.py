@@ -193,6 +193,7 @@ class _Atom:
     volta_times: int = 0
     rest_run: int = 0
     in_rest: bool = False  # inside a multi-bar rest: no width, never starts a line
+    counted: bool = True  # a bar the reader counts on the line (not a pickup, not inside a rest)
 
 
 def _atoms(score: Score, repeats: str, weights: list[float]) -> list[_Atom]:
@@ -239,11 +240,18 @@ def _line_weight(line: list[_Atom]) -> float:
     return first + sum(a.weight for a in line[1:])
 
 
-def _balance(atoms: list[_Atom], capacity: float, first_room: float) -> list[int]:
+def _bar_count(line: list[_Atom]) -> int:
+    return sum(a.counted for a in line)
+
+
+def _balance(atoms: list[_Atom], capacity: float, first_room: float,
+             max_bars: int, first_bars: int) -> list[int]:
     """Break points (indices where a new line starts) minimizing squared slack.
 
     `first_room` is the space left on the line this paragraph starts on
-    (less than capacity when a short previous line is continued).
+    (less than capacity when a short previous line is continued), and `first_bars`
+    the number of bars that line can still take. Light bars (2/4, 3/4, sparse 6/8)
+    weigh less than a 4/4 bar, but a line never holds more than `max_bars` of them.
     """
     n = len(atoms)
     INF = float("inf")
@@ -253,12 +261,14 @@ def _balance(atoms: list[_Atom], capacity: float, first_room: float) -> list[int
     for j in range(1, n + 1):
         if j < n and atoms[j].in_rest:
             continue  # a line can't end inside a multi-bar rest
+        count = 0
         for i in range(j - 1, -1, -1):
+            count += atoms[i].counted
             if atoms[i].in_rest:
                 continue
             room = first_room if i == 0 else capacity
             w = _line_weight(atoms[i:j])
-            if w > room + 1e-9 and j - i > 1:
+            if (w > room + 1e-9 or count > (first_bars if i == 0 else max_bars)) and j - i > 1:
                 break
             slack = max(0.0, room - w)
             # Breaking before a simile mark rewrites it as a full bar: small penalty.
@@ -280,7 +290,10 @@ def plan_layout(score: Score, repeats: str = "auto", bars_per_line: float = 4.0)
         raise ValueError(f"repeats must be one of {REPEAT_MODES}")
     weights = [_weight(m) for m in score.measures]
     capacity = bars_per_line
+    max_bars = max(1, int(bars_per_line + 1e-9))
     atoms = _atoms(score, repeats, weights)
+    for a in atoms:
+        a.counted = not a.in_rest and not score.measures[a.index].is_pickup
 
     # Paragraphs: runs of atoms between hard boundaries.
     paragraphs: list[list[_Atom]] = []
@@ -298,6 +311,7 @@ def plan_layout(score: Score, repeats: str = "auto", bars_per_line: float = 4.0)
         boundary = para[0].boundary
         room = capacity - carry
         can_share = (pos > 0 and boundary in ("section", "volta") and carry < SHORT_LINE * capacity)
+        append = False
         if boundary == "section" and pos > 0:
             # Each section starts a new system, except (a) after a lone pickup, (b) when the
             # whole short section fits on the rest of a short line, or (c) a short section
@@ -307,21 +321,26 @@ def plan_layout(score: Score, repeats: str = "auto", bars_per_line: float = 4.0)
             weight = _line_weight(para)
             short = whole and not para[-1].volta_end and weight < SHORT_LINE * capacity
             pickup_only = all(score.measures[a.index].is_pickup for a in last_line)
-            fits = whole and not para[-1].volta_end and weight <= room + 1e-9
+            fits = (whole and not para[-1].volta_end and weight <= room + 1e-9
+                    and _bar_count(last_line) + _bar_count(para) <= max_bars)
             nxt = paragraphs[pi + 1] if pi + 1 < len(paragraphs) else None
             next_joins = (nxt is not None and nxt[0].boundary == "section"
                           and (pi + 2 == len(paragraphs) or paragraphs[pi + 2][0].boundary == "section")
-                          and not nxt[-1].volta_end and weight + _line_weight(nxt) <= capacity + 1e-9)
+                          and not nxt[-1].volta_end and weight + _line_weight(nxt) <= capacity + 1e-9
+                          and _bar_count(para) + _bar_count(nxt) <= max_bars)
+            # ...at most one bar more than a full line.
             append = (short and not next_joins and not after_repeat
-                      and carry + weight <= OVERFULL * capacity + 1e-9)
+                      and carry + weight <= OVERFULL * capacity + 1e-9
+                      and _bar_count(last_line) + _bar_count(para) <= max_bars + 1)
             can_share = (can_share and (pickup_only or fits)) or append
             if append:
                 room = OVERFULL * capacity - carry
+        bar_room = (max_bars + 1 if append else max_bars) - _bar_count(last_line)
         if can_share:
-            breaks = _balance(para, capacity, room)
+            breaks = _balance(para, capacity, room, max_bars, bar_room)
             breaks = [b for b in breaks if b > 0]
         else:
-            breaks = _balance(para, capacity, capacity)
+            breaks = _balance(para, capacity, capacity, max_bars, max_bars)
         for b in breaks:
             line_starts.add(pos + b)
         if pos == 0 or not can_share:

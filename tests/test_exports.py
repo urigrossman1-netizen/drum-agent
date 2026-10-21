@@ -116,7 +116,11 @@ def test_case07_articulations(rendered):
     assert root.findall(".//ornaments/tremolo")
     assert root.findall(".//tie[@type='start']")
     ly = _ly(report)
-    assert "\\parenthesize" in ly and "\\acciaccatura" in ly and ":32" in ly and "~" in ly
+    assert "\\parenthesize" in ly and ":32" in ly and "~" in ly
+    # Flams under the hi-hat: a stems-up slashed grace with no slur (the slurs crossed the
+    # stems and beams of the stems-down voice).
+    assert "\\slashedGrace { \\temporary \\override Stem.direction = #UP snare8 \\revert Stem.direction }" in ly
+    assert "\\acciaccatura" not in ly
     assert "snare2:32" in ly  # half-bar roll as one half note
     assert "snare2.:32" in ly  # three-beat roll from the downbeat: one dotted half
     assert "snare4:32~" in ly  # a roll across the middle of the bar stays tied
@@ -148,7 +152,8 @@ def test_case14_triplet_half_beats(rendered):
     # No cymbal over the ratamacues: their numbers go above the notes, out of the sticking
     # line; the groove's triplet under the hi-hat keeps the number below. The drag comes before
     # the tuplet: inside it, it would bring the bracket back over the beamed group.
-    assert ("\\tag #'graces \\appoggiatura { snare16[ snare16] } \\tweak direction #UP \\tuplet 3/2 "
+    assert ("\\tag #'graces \\grace { \\temporary \\override Stem.direction = #UP snare16[ snare16] \\revert Stem.direction } "
+            "\\tweak direction #UP \\tuplet 3/2 "
             "{ <kick snare>16[") in ly
     assert "\\tuplet 3/2 { \\tag #'graces" not in ly
     assert "kick4 \\tuplet 3/2 { snare16[ kick16 kick16 } kick8]" in ly
@@ -159,8 +164,11 @@ def test_case14_triplet_half_beats(rendered):
     down = ly.split("downMusic = ")[1]
     assert "\\partial 8" in ly and up.split("\\autoBeamOff")[1].split("|")[0].strip() == "s1*1/8"
     assert down.split("\\autoBeamOff")[1].split("|")[0].strip().endswith("\\tuplet 3/2 { snare16[ snare16 snare16] }")
-    # ...and the tempo mark keeps its distance from that "3" (it read as "= 76 3").
+    # ...and the tempo mark keeps its distance from that "3" (it read as "= 76 3"): it is
+    # moved over the number and, as a tuplet starts the bar, kept a clear gap above it.
     assert "MetronomeMark.outside-staff-horizontal-padding" in ly
+    glob = ly.split("globalMusic = ")[1].split("upMusic = ")[0]
+    assert "\\once \\override Score.MetronomeMark.outside-staff-padding = #1.5 \\tempo 4 = 76" in glob
     root = _xml(report)
     mods = {(tm.findtext("actual-notes"), tm.findtext("normal-notes")) for tm in root.iter("time-modification")}
     assert ("3", "2") in mods and ("6", "4") in mods

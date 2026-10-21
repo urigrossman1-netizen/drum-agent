@@ -6,7 +6,7 @@ Two different questions, two different answers:
   the score it was made from: LilyPond's own MIDI, the MusicXML (notes,
   articulations, meters, schema) and our MIDI (notes, tempo map, barlines).
   For hand-written charts, the chart library and MIDI or game-chart input
-  this makes the PDF/MusicXML/MIDI trustworthy, and 841 automated tests
+  this makes the PDF/MusicXML/MIDI trustworthy, and 844 automated tests
   (including random-score fuzzing and all 113 library charts) back it up.
 - **Are the notes right?** For audio this can only be measured where the
   answer is known: synthesized recordings of original charts (exact answers)

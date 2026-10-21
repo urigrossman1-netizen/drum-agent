@@ -171,13 +171,13 @@ chosen for readability. No floating-point grid is used in notation.
 
 | Technique | IR field | Notation | MusicXML | MIDI |
 |---|---|---|---|---|
-| Accent | `accent` | `>` on the stem side | `<accent/>` | velocity ≥ 115 |
+| Accent | `accent` | `>` on the stem side (under the stems-down voice, clear of a sloping beam and of the next rest) | `<accent/>` | velocity ≥ 115 |
 | Ghost note | `ghost` | parenthesized notehead | `<notehead parentheses="yes">` | velocity ≤ 40 |
 | Open hi-hat | instrument `hihat_open` | **o** above | `<technical><open/>` | note 46 |
 | Closed after open | (derived) | **+** above the first closed stroke after an open one | `<technical><stopped/>` | note 42 |
 | Half-open hi-hat | instrument `hihat_half` | ⊘ above | `<technical><half-muted/>` | note 46, lower velocity |
-| Flam | `flam` | one slashed 8th grace note on the same instrument, with a slur | `<grace slash="yes"/>` | extra soft hit 30 ms earlier |
-| Drag (ruff) | `drag` | two 16th grace notes | two `<grace/>` notes | two soft hits earlier |
+| Flam | `flam` | one slashed 8th grace note on the same instrument, stem up; with a slur in a one-voice part (rudiments), without one under a cymbal voice, where the slur would cross the stems and beams | `<grace slash="yes"/>` | extra soft hit 30 ms earlier |
+| Drag (ruff) | `drag` | two 16th grace notes, stems up (slurred only in a one-voice part, as a flam) | two `<grace/>` notes | two soft hits earlier |
 | Roll | `roll` (duration) | three tremolo strokes in total (quarter `:32` = 3 slashes; 8th = 2 + beam; 16th = 1 + beams); ties if the roll crosses a beat | `<tremolo type="single">` | repeated 32nds |
 | Choke | `choke` | small italic "choke" | `<words>choke</words>` | note-off after a 16th |
 
@@ -200,8 +200,8 @@ and keeps the page uncluttered.
   holding one short bar stretched across the page: a short section (under
   40% of a line) is followed on its line by the next section when that whole
   section fits there; otherwise it joins the end of the previous line (up to
-  a quarter more than a full line, never after a repeat), after a double
-  barline.
+  a quarter more than a full line and one bar more at most, never after a
+  repeat), after a double barline.
 * **Bar numbers** appear at the start of every system.
 * **Repeats.** These are used only when the repeated music is *exactly*
   identical after quantization:
@@ -218,7 +218,9 @@ and keeps the page uncluttered.
     everything out.
 * **Line breaks.** 4 bars per system by default. Dense bars (32nds,
   tuplets, many chords) reduce this to 3 or 2, and LilyPond spaces each
-  system proportionally.
+  system proportionally. Light bars (2/4, 3/4, sparse 6/8) never raise it: a
+  system holds at most 4 bars (a pickup doesn't count, a multi-bar rest
+  counts as one), apart from the joined short section above.
 
 ## 7. Page and header
 

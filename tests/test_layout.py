@@ -94,3 +94,32 @@ def test_dense_bars_with_ghosts_and_sticking_take_more_room():
            "sticking": "RLRL|L-RL|RLRL|L-RL"}
     plan = plan_layout(compile_spec({"sections": [{"bars": [bar] * 4}]}), repeats="none")
     assert [b.index for b in plan.bars if b.line_break] != [0]  # not all four on one line
+
+
+def _bars_per_line(s, plan):
+    lines = []
+    for b in plan.bars:
+        if b.line_break or not lines:
+            lines.append(0)
+        if not b.in_rest and not s.measures[b.index].is_pickup:
+            lines[-1] += 1
+    return lines
+
+
+def test_light_bars_never_put_more_than_four_bars_on_a_line():
+    # 2/4, 3/4 and sparse 6/8 bars weigh less than a 4/4 groove bar, which let G33 put
+    # seven 2/4 bars on one line and G35 six 6/8 bars (its 2-bar "Out" joined the line).
+    march = {"sn": "x-x-x-x-", "bd": "x---x---"}
+    s = compile_spec({"time": "2/4", "sections": [{"label": "A", "bars": [march] * 7}]})
+    assert _bars_per_line(s, plan_layout(s, repeats="none")) == [4, 3]
+    ballad = {"hh": "xxxxxx", "sn": "---x--", "bd": "x-----"}
+    s = compile_spec({"time": "6/8", "sections": [{"label": "Ballad", "bars": [ballad] * 4},
+                                                  {"label": "Out", "bars": [ballad, {"bd": "x-----"}]}]})
+    assert _bars_per_line(s, plan_layout(s, repeats="none")) == [4, 2]
+
+
+def test_a_one_bar_ending_still_joins_a_full_line():
+    # The one exception (NOTATION_SPEC §6): a short last section joins the previous line
+    # rather than sit alone on a system, with at most one bar more than a full line.
+    s = score([{"label": "A", "bars": ["a", "b", "a", "f"]}, {"label": "End", "bars": [{"bd": "x-------"}]}])
+    assert _bars_per_line(s, plan_layout(s, repeats="none")) == [5]

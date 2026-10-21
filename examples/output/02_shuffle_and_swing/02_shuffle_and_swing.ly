@@ -138,7 +138,7 @@ drumPitchNames.hihatclosed = #'hihatclosed
 
 globalMusic = {
   \autoLineBreaksOff
-  \repeat percent 2 { \time 4/4 \tempo 4 = 76 \sectionLabel "Half-time shuffle" s1 | }
+  \repeat percent 2 { \time 4/4 \once \override Score.MetronomeMark.outside-staff-padding = #1.5 \tempo 4 = 76 \sectionLabel "Half-time shuffle" s1 | }
   \break s1 |
   s1 |
   \repeat volta 3 {
@@ -164,6 +164,7 @@ upMusic = \drummode {
 
 downMusic = \drummode {
   \autoBeamOff
+  \override Script.padding = #0.7
   \repeat percent 2 { \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 \parenthesize snare4 } | }
   \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ kick8] } \tuplet 3/2 { snare8->[ \parenthesize snare8 kick8] } \tuplet 3/2 { r8 <kick \parenthesize snare>4 } |
   \tuplet 3/2 { kick8 \parenthesize snare4 } \tuplet 3/2 { r8 \parenthesize snare8[ snare8->] } \tweak direction #UP \tuplet 3/2 { <kick snare>8[ snare8 snare8] } \tweak direction #UP \tuplet 3/2 { snare8->[ tomone8 tomone8] } |
