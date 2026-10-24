@@ -400,6 +400,11 @@ class _Writer:
                     # its letters; with no cymbal over the tuplet it goes above the notes.
                     s += "\\tweak direction #UP "
                 s += f"\\tuplet {a}/{n} {{ "
+            if (voice == 2 and not self.one_voice and t.kind == "note" and t.value <= Fraction(1, 8)
+                    and not t.beams and min(self.kit[h.inst].position for h in t.hits) < -4):
+                # LilyPond shortens a stem forced down; the flag of an unbeamed 8th then
+                # curled into the note below the staff (a hi-hat foot). Full length there.
+                s += "\\once \\override Stem.details.stem-shorten = #'(0) "
             s += self.token(t, voice)
             if t.beams.get(1) == "begin":
                 s += "["
@@ -717,11 +722,14 @@ def _sticking_music(stick: str, syllables: list[str]) -> str:
             "stickText = \\lyricmode { " + " ".join(ly_string(t) for t in syllables) + " }")
 
 
-def _lower_accents(score: Score, kit: Kit) -> str:
-    """Accents under the stems-down voice sit this far below the stem end: closer, a beam
-    sloping down from the stem or the slanted stem of the next 16th rest ran into them.
-    (Placed against the skyline instead, they made LilyPond overfill dense pages.)"""
-    return "" if 1 in silent_voices(score.measures, kit) else "\\override Script.padding = #0.7\n  "
+def _lower_voice(score: Score, kit: Kit) -> str:
+    """Settings for the stems-down voice under a cymbal voice: accents sit this far below
+    the stem end. Closer, a beam sloping down from the stem or the slanted stem of the next
+    16th rest ran into them. (Placed against the skyline instead, they made LilyPond
+    overfill dense pages.)"""
+    if 1 in silent_voices(score.measures, kit):
+        return ""
+    return "\\override Script.padding = #0.7\n  "
 
 
 def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = None,
@@ -739,7 +747,7 @@ def to_lilypond(score: Score, kit: Kit = DEFAULT_KIT, plan: LayoutPlan | None = 
         layout_block(),
         f"globalMusic = {{\n  \\autoLineBreaksOff\n  {glob}\n}}",
         f"upMusic = \\drummode {{\n  \\autoBeamOff\n  {up}\n}}",
-        f"downMusic = \\drummode {{\n  \\autoBeamOff\n  {_lower_accents(score, kit)}{down}\n}}",
+        f"downMusic = \\drummode {{\n  \\autoBeamOff\n  {_lower_voice(score, kit)}{down}\n}}",
         _sticking_music(stick, syllables),
         "drumMusic = \\new DrumStaff = \"drums\" <<\n"
         "  \\new DrumVoice = \"global\" \\globalMusic\n"

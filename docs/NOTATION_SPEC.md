@@ -42,7 +42,9 @@ further lines; it never runs off the page.
   * **Voice 1, stems up: cymbals.** Hi-hat played with sticks, ride, crash,
     china, splash, cowbell.
   * **Voice 2, stems down: drums and feet.** Snare, cross-stick, rimshot,
-    toms, bass drum(s), hi-hat pedal.
+    toms, bass drum(s), hi-hat pedal. An unbeamed 8th or 16th with a note
+    below the staff keeps its full stem length (its flag would otherwise curl
+    into the hi-hat-foot note).
 
   The alternative, `--voicing hands-up` (Weinberg / Percussive Arts Society
   drum-book layout), puts everything the hands play in voice 1 (cymbals,

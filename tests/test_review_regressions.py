@@ -587,8 +587,10 @@ def test_a_section_starts_a_new_system_unless_it_is_short():
 @needs_lilypond
 def test_lower_voice_accents_and_graces_clear_the_stems_and_beams(tmp_path):
     # Under a cymbal voice: accents sat on the stem end, where a beam sloping down from it
-    # (G12 "snare8->[ kick8]") or the next 16th rest (G16) ran through them, and the flams'
-    # grace notes took the stems-down direction, their slurs crossing stems and beams (G67).
+    # (G12 "snare8->[ kick8]") or the next 16th rest (G16) ran through them, the flams'
+    # grace notes took the stems-down direction, their slurs crossing stems and beams (G67),
+    # and LilyPond shortened the forced-down stems, so an unbeamed 8th's flag curled into
+    # the hi-hat-foot note below the staff (G43).
     from conftest import ROOT
     from drum_agent.charts import load_any
     ly = to_lilypond(load_any(ROOT / "library/grooves/g67_flam_tom_fill.yaml"))
@@ -599,6 +601,11 @@ def test_lower_voice_accents_and_graces_clear_the_stems_and_beams(tmp_path):
     # A one-voice part (a rudiment sheet: stems up, accents above) keeps the slurred grace
     # notes and the usual accent distance.
     rud = to_lilypond(load_any(ROOT / "library/rudiments/r20_flam.yaml"))
-    assert "\\acciaccatura { snare8 }" in rud and "Script.padding" not in rud
+    assert "\\acciaccatura { snare8 }" in rud and "Script.padding" not in rud and "stem-shorten" not in rud
     report = export_all(load_any(ROOT / "library/grooves/g67_flam_tom_fill.yaml"), tmp_path, "s")
     assert report.rendering_ok and not report.warnings
+    # G43's unbeamed 8th with the hi-hat foot below the staff keeps its full stem; beamed
+    # notes and notes inside the staff keep LilyPond's lengths (longer stems overfilled pages).
+    jazz = to_lilypond(load_any(ROOT / "library/grooves/g43_jazz_12_8_shuffle.yaml"))
+    full = "\\once \\override Stem.details.stem-shorten = #'(0) "
+    assert jazz.count(full) >= 2 and all(part.startswith("<hihatpedal") for part in jazz.split(full)[1:])
