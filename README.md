@@ -86,6 +86,22 @@ Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
 with a known chart), `verify` (re-check exported files; pass the same `--kit` if
 they were rendered with one), `doctor`.
 
+## Web app
+
+```bash
+pip install -e '.[web]'
+python -m drum_agent serve --seed-examples   # http://127.0.0.1:8000
+```
+
+Search a song, pick the recording, upload audio you have the right to transcribe, and
+follow the job stage by stage to a full-song chart. The chart can be read on screen
+(sections, bar jump, zoom, flagged-bar review, playback follow), printed, or downloaded
+as PDF, MusicXML or MIDI. Corrections make new chart versions. Search covers
+MusicBrainz, iTunes and Deezer, plus Spotify and YouTube when their keys are set
+(metadata only). Claude can suggest section names when an API key and model are
+configured. Setup, storage, statuses and endpoints are in
+[docs/WEB_APP.md](docs/WEB_APP.md); configuration is in `.env.example`.
+
 ## With Claude Code
 
 The skill in `.claude/skills/drum-chart/` teaches Claude the whole workflow:
@@ -121,6 +137,7 @@ python scripts/eval_real.py --split train  # real recordings (MDB Drums, cached 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it works
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md): measured accuracy and limits
 - [docs/MODELS.md](docs/MODELS.md): the onset classifier, its data and licences
+- [docs/WEB_APP.md](docs/WEB_APP.md): the web app (search, sources, jobs, chart view)
 - [docs/SONG_LOOKUP.md](docs/SONG_LOOKUP.md): from a song's name to a chart
 - [docs/GAMECHARTS.md](docs/GAMECHARTS.md): Rock Band / Clone Hero import
 - [docs/AUDIT.md](docs/AUDIT.md): the starting point and the plan

@@ -22,6 +22,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=7", "verovio>=4", "pdfplumber>=0.10"]
+web = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9", "httpx>=0.27", "anthropic>=2.3"]
 
 [project.scripts]
 drum-agent = "drum_agent.cli:main"
@@ -30,7 +31,7 @@ drum-agent = "drum_agent.cli:main"
 include = ["drum_agent*"]
 
 [tool.setuptools.package-data]
-drum_agent = ["schemas/musicxml-4.0/*", "data/*"]
+drum_agent = ["schemas/musicxml-4.0/*", "data/*", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

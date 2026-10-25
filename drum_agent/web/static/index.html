@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drum Agent</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="top no-print">
+  <a class="brand" href="#/">Drum Agent</a>
+  <span id="health" class="health" aria-live="polite">Checking the server…</span>
+</header>
+
+<main id="main">
+  <section id="search-view" class="view no-print">
+    <form id="search-form" class="search" role="search">
+      <label for="q" class="visually-hidden">Song</label>
+      <input id="q" name="q" type="search" autocomplete="off" required maxlength="300"
+             placeholder="Song title - Artist   (e.g. American Idiot - Green Day)">
+      <button type="submit">Search</button>
+    </form>
+    <div id="search-state" class="state" aria-live="polite"></div>
+    <div id="results"></div>
+  </section>
+
+  <section id="song-view" class="view no-print" hidden></section>
+
+  <section id="chart-view" class="view" hidden>
+    <div id="chart-bar" class="chart-bar no-print"></div>
+    <div class="chart-layout">
+      <aside id="chart-side" class="chart-side no-print"></aside>
+      <div id="pages" class="pages"></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

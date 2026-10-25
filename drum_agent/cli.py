@@ -365,6 +365,43 @@ def cmd_doctor(args) -> int:
     return run_doctor()
 
 
+def cmd_serve(args) -> int:
+    try:
+        import fastapi  # noqa: F401
+        import uvicorn  # noqa: F401
+    except ImportError:
+        print("error: the web app needs its extra dependencies: pip install -e '.[web]'", file=sys.stderr)
+        return 1
+    from .web.app import serve
+    if args.seed_examples:
+        _catalog_seed(args.data)
+    serve(args.host, args.port, args.data)
+    return 0
+
+
+def _catalog_seed(data: str | None) -> list:
+    from .web.catalog import seed_examples
+    from .web.jobs import JobRunner
+    from .web.store import Store, default_data_dir
+    store = Store(data or default_data_dir())
+    return seed_examples(store, JobRunner(store, start=False))
+
+
+def cmd_catalog(args) -> int:
+    from .web.store import Store, default_data_dir
+    if args.action == "seed-examples":
+        made = _catalog_seed(args.data)
+        print(f"{len(made)} example chart(s) added" if made else "the example charts are already in the catalog")
+        return 0
+    if not args.file:
+        print("error: catalog import needs a CSV file with title and artist columns", file=sys.stderr)
+        return 2
+    from .web.catalog import import_csv
+    n = import_csv(Store(args.data or default_data_dir()), args.file)
+    print(f"{n} song(s) in the catalog from {args.file}; each needs an authorized recording (NEEDS_SOURCE)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="drum-agent", description="Drum transcription and drum-chart engraving.")
     ap.add_argument("--version", action="version", version=f"drum-agent {__version__}")
@@ -524,6 +561,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("doctor", help="check dependencies")
     p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("serve", help="run the web app (search, upload, transcribe, view, print)")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--data", help="data directory (default: $DRUM_AGENT_DATA_DIR or ~/.drum_agent/web)")
+    p.add_argument("--seed-examples", action="store_true", help="add the example song chart to the catalog first")
+    p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("catalog", help="web app catalog: seed the example chart or import a song list (CSV)")
+    p.add_argument("action", choices=["seed-examples", "import"])
+    p.add_argument("file", nargs="?", help="CSV with title and artist columns (for import)")
+    p.add_argument("--data", help="data directory (default: $DRUM_AGENT_DATA_DIR or ~/.drum_agent/web)")
+    p.set_defaults(func=cmd_catalog)
     return ap
 
 

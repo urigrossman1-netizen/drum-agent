@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .export.lilypond import MARGIN_MM, PAPER_WIDTH_MM
 from .kit import DEFAULT_KIT, Kit
-from .layout import plan_layout
+from .layout import LayoutPlan, plan_layout
 from .model import CHART_TYPES, STATUSES, Score
 from .verify import Comparison, validate_musicxml, verify_exports
 
@@ -47,6 +47,7 @@ class ExportReport:
     lilypond_version: str = ""
     notes: list[str] = field(default_factory=list)  # layout decisions worth knowing, not problems
     playability: list[str] = field(default_factory=list)  # strokes one drummer can't play together
+    plan: LayoutPlan | None = None  # the layout the PDF was engraved with (after any re-planning)
 
     @property
     def rendering_ok(self) -> bool:
@@ -87,6 +88,7 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
         if "pdf" in opts.formats:
             res = render(ly, out, stem, png=True)
             plan, res = _fix_overflow(score, kit, plan, opts, res, out, stem, report)
+            report.plan = plan
             fitted = _fit_fewer_pages(score, kit, plan, opts, res, out, stem)
             if fitted is not None:
                 res = fitted

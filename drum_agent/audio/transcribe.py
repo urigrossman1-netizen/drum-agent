@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -69,15 +70,21 @@ def _ffmpeg_decode(path: Path, start: float | None, duration: float | None, caus
     return np.frombuffer(proc.stdout, dtype=np.float32).copy()
 
 
-def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untitled") -> Score:
+def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untitled",
+                     progress: Callable[[str], None] | None = None) -> Score:
+    """`progress(stage)` is called as each stage starts: "detect" (drum strokes), "beats"
+    (beat, tempo and meter tracking), "measures" (quantizing into bars), "sections"."""
+    step = progress or (lambda stage: None)
     if opts.time_signature and opts.time_signature not in AUDIO_SIMPLE_METERS:
         raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
                          f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
                          f"transcribe from MIDI or write a chart spec.")
+    step("detect")
     det = detect(y, DetectOptions(drums_only=opts.drums_only, sensitivity=opts.sensitivity, method=opts.detector))
     if not det.hits:
         raise ValueError("no drum strokes detected; is there a drum part? Try --sensitivity 1.5")
     pre_feel = opts.feel if opts.feel != "auto" else None
+    step("beats")
     grid = estimate_grid(det.hits, det.onset_env, det.duration, opts.bpm, opts.time_signature, opts.downbeat, pre_feel)
     ts = TimeSig.parse(grid.time_sig)
     beats = grid.beat_times
@@ -107,6 +114,7 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
     onsets = [Onset(h.time, h.inst, h.velocity, h.confidence, accent=h.accent, ghost=h.ghost, flam=h.flam)
               for h in det.hits]
     qopts = QuantizeOptions(feel=opts.feel, allow_32nds=opts.allow_32nds, fixed_tempo=None)
+    step("measures")
     res = quantize(onsets, beat_slice, bars, qopts)
     meter_notes: list[str] = []
     if not opts.time_signature:
@@ -130,6 +138,7 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         while len(measures) > 1 and not measures[0].hits:
             measures.pop(0)
     density_note = _check_kick_density(measures)
+    step("sections")
     roadmap = label_sections(measures)
     counts = Counter(h.inst for m in measures for h in m.hits)
     low = sum(1 for m in measures for h in m.hits if h.confidence < 0.5)
@@ -494,9 +503,10 @@ def _refine_section_meters(hits, beats: list[float], bars: list[BarDef], measure
     return new_beats, new_bars, notes
 
 
-def transcribe_file(path: str | Path, opts: TranscribeOptions) -> Score:
+def transcribe_file(path: str | Path, opts: TranscribeOptions,
+                    progress: Callable[[str], None] | None = None) -> Score:
     y = load_audio(path, opts.start, opts.end)
-    score = transcribe_audio(y, opts, title=Path(path).stem.replace("_", " "))
+    score = transcribe_audio(y, opts, title=Path(path).stem.replace("_", " "), progress=progress)
     score.source = f"audio file {Path(path).name}" + (f" from {opts.start:g}s" if opts.start else "")
     return score
 
