@@ -4,6 +4,7 @@ Providers and Claude are exercised through their real client code with a mocked 
 transport (isolated tests only); nothing here reaches the network.
 """
 
+import io
 import json
 import shutil
 import subprocess
@@ -413,3 +414,113 @@ def test_jobs_cancel_retry_and_recover(tmp_path):
     st.update_job(again["id"], status="running", attempts=1)
     JobRunner(st, start=False).recover()
     assert st.get_job(again["id"])["status"] == "queued"
+
+
+# ---- studio: original beats, previews, drafts, versions, library ------------------------
+
+@needs_lilypond
+def test_studio_beat_lifecycle(client):
+    r = client.post("/api/beats", json={"prompt": "A pop-punk beat at 165 BPM, 8 bars, with a tom fill at the end",
+                                        "request_id": "req-1"}).json()
+    assert r["created"] and r["project"]["kind"] == "beat"
+    again = client.post("/api/beats", json={"prompt": "x", "request_id": "req-1"}).json()
+    assert again["job"]["id"] == r["job"]["id"] and not again["created"]  # a double click is one beat
+    job = client.app_state.runner.wait(r["job"]["id"], timeout=180)
+    assert job["status"] == "succeeded", job
+    assert [s["name"] for s in job["stages"]] == ["interpret", "arrange", "validate", "render", "view", "save"]
+    pid = r["project"]["id"]
+    project = client.get(f"/api/projects/{pid}").json()
+    assert (project["title"], project["status"], project["versions"]) == ("Pop-Punk Beat", "COMPLETE", 1)
+    chart = client.get(f"/api/charts/{job['chart_id']}").json()
+    assert chart["validation"]["ok"] and chart["summary"]["generator"]["spec"]["bpm"] == 165
+    score = client.get(f"/api/charts/{job['chart_id']}/files/chart.json").json()
+    assert len(score["measures"]) == 8 and score["chart_type"] == "original_beat"
+
+    # A working copy: preview, transform, command.
+    pv = client.post("/api/preview", json={"score": score}).json()
+    assert pv["view"]["pages"] and pv["validation"]["ok"]
+    page = client.get(f"/api/previews/{pv['key']}/page-1.svg")
+    assert page.status_code == 200 and page.headers["content-type"].startswith("image/svg")
+    assert client.get(f"/api/previews/{pv['key']}/../../drum_agent.sqlite3").status_code == 404
+    busier = client.post("/api/beats/transform", json={"score": score, "action": "more_complex"}).json()
+    assert busier["score"]["measures"] != score["measures"]
+    cmd = client.post("/api/beats/command", json={"score": score, "command": "replace the final bar with a tom fill"}).json()
+    assert cmd["applied"] and cmd["interpreter"]["interpreter"] == "rules"
+    bad = client.post("/api/beats/command", json={"score": score, "command": "make it sound expensive"})
+    assert bad.status_code == 422 and bad.json()["examples"]
+
+    # Drafts survive a reload; a version clears the draft.
+    assert client.put(f"/api/projects/{pid}/draft", json={"score": cmd["score"], "base_chart_id": job["chart_id"]}).status_code == 200
+    assert client.get(f"/api/projects/{pid}").json()["draft"]["score"]["measures"] == cmd["score"]["measures"]
+    v2 = client.post(f"/api/projects/{pid}/versions", json={"score": cmd["score"], "note": "Tom fill ending",
+                                                             "base_chart_id": job["chart_id"]}).json()
+    assert (v2["version"], v2["note"], v2["origin"]) == (2, "Tom fill ending", "edit")
+    assert client.get(f"/api/projects/{pid}").json()["draft"] is None
+    v3 = client.post(f"/api/charts/{job['chart_id']}/restore").json()
+    assert v3["version"] == 3
+
+    # Library: rename, duplicate, search, delete.
+    assert client.patch(f"/api/projects/{pid}", json={"title": "Skate Park"}).json()["title"] == "Skate Park"
+    dup = client.post(f"/api/projects/{pid}/duplicate").json()
+    assert dup["title"] == "Skate Park (copy)" and dup["versions"] == 1
+    found = client.get("/api/projects", params={"q": "skate"}).json()["projects"]
+    assert {p["id"] for p in found} == {pid, dup["id"]}
+    assert client.get("/api/projects", params={"kind": "song"}).json()["projects"] == []
+    chart_dir = client.app_state.store.chart_dir(dup["chart"]["id"])
+    assert chart_dir.is_dir()
+    assert client.delete(f"/api/projects/{dup['id']}").json()["deleted"] == dup["id"]
+    assert client.get(f"/api/projects/{dup['id']}").status_code == 404 and not chart_dir.exists()
+
+
+def test_studio_rejects_malformed_scores(client):
+    for bad in ({"measures": []}, {"measures": [{"time": "4/4", "hits": [{"pos": "5/4", "inst": "snare"}]}]},
+                {"measures": [{"time": "4/4", "hits": [{"pos": "0", "inst": "theremin"}]}]}, {"nope": 1}):
+        r = client.post("/api/preview", json={"score": bad})
+        assert r.status_code == 422 and "not valid" in r.json()["detail"]
+    assert client.post("/api/beats", json={"prompt": "  "}).status_code == 400
+
+
+def test_kit_endpoint_lists_the_kit_in_staff_order(client):
+    kit = client.get("/api/kit").json()
+    ids = [i["id"] for i in kit["instruments"]]
+    assert ids.index("crash") < ids.index("hihat") < ids.index("snare") < ids.index("kick")
+    assert client.get("/api/kit/samples/theremin.wav").status_code == 404
+    assert client.get("/api/kit/samples/../../x.wav").status_code == 404
+
+
+@needs_fluidsynth
+def test_kit_samples_are_rendered_from_the_soundfont(client):
+    r = client.get("/api/kit/samples/snare.wav")
+    assert r.status_code == 200 and r.content[:4] == b"RIFF"
+    info = sf.info(io.BytesIO(r.content))
+    assert info.samplerate == 44100 and 0.5 < info.duration < 3
+
+
+def test_store_migrates_a_v1_database(tmp_path):
+    import sqlite3
+    db = sqlite3.connect(str(tmp_path / "drum_agent.sqlite3"))
+    db.executescript("""
+    CREATE TABLE songs (id TEXT PRIMARY KEY, title TEXT NOT NULL, artist TEXT NOT NULL, album TEXT, year INTEGER,
+      duration_s REAL, isrc TEXT, version TEXT, provider TEXT, provider_ids TEXT NOT NULL DEFAULT '{}',
+      urls TEXT NOT NULL DEFAULT '{}', created_at REAL NOT NULL);
+    CREATE TABLE sources (id TEXT PRIMARY KEY, song_id TEXT NOT NULL, kind TEXT NOT NULL, rights TEXT NOT NULL,
+      sha256 TEXT NOT NULL, original_name TEXT, path TEXT NOT NULL, info TEXT NOT NULL DEFAULT '{}', created_at REAL NOT NULL);
+    CREATE TABLE jobs (id TEXT PRIMARY KEY, song_id TEXT NOT NULL, source_id TEXT NOT NULL, engine TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL, status TEXT NOT NULL, stage TEXT, stages TEXT NOT NULL DEFAULT '[]', error TEXT,
+      error_code TEXT, attempts INTEGER NOT NULL DEFAULT 0, cancel_requested INTEGER NOT NULL DEFAULT 0, chart_id TEXT,
+      created_at REAL NOT NULL, updated_at REAL NOT NULL);
+    CREATE TABLE charts (id TEXT PRIMARY KEY, song_id TEXT NOT NULL, version INTEGER NOT NULL, parent_id TEXT,
+      job_id TEXT, source_id TEXT, status TEXT NOT NULL, origin TEXT NOT NULL, bars INTEGER NOT NULL,
+      validation TEXT NOT NULL DEFAULT '{}', summary TEXT NOT NULL DEFAULT '{}', dir TEXT NOT NULL, created_at REAL NOT NULL,
+      UNIQUE(song_id, version));
+    INSERT INTO songs VALUES ('s_0000000000000001', 'Old', 'Band', NULL, NULL, NULL, NULL, NULL, NULL, '{}', '{}', 1);
+    INSERT INTO jobs VALUES ('job_0000000000000001', 's_0000000000000001', 'src_x', 'e', 'k', 'failed', NULL, '[]',
+      NULL, NULL, 1, 0, NULL, 1, 1);
+    """)
+    db.commit()
+    db.close()
+    st = Store(tmp_path)
+    assert st.get_job("job_0000000000000001")["kind"] == "transcribe"
+    assert st.list_projects()[0]["kind"] == "song"
+    j = st.create_job(song_id="s_0000000000000001", source_id=None, engine="g", key="k2", kind="generate")
+    assert j["source_id"] is None and j["kind"] == "generate"

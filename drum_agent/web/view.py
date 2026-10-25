@@ -19,7 +19,11 @@ from ..layout import LayoutPlan
 from ..model import Score
 
 TAG = ("    \\override BarLine.output-attributes = #(lambda (grob) (let ((loc (grob::rhythmic-location grob))) "
-       "(list (cons 'class \"bar\") (cons 'data-bar (if (pair? loc) (number->string (car loc)) \"?\")))))\n")
+       "(list (cons 'class \"bar\") (cons 'data-bar (if (pair? loc) (number->string (car loc)) \"?\")))))\n"
+       "    \\override NoteHead.output-attributes = #(lambda (grob) (let* ((loc (grob::rhythmic-location grob)) "
+       "(m (if (pair? loc) (cdr loc) #f))) (if m (list (cons 'class \"nh\") (cons 'data-bar (number->string (car loc))) "
+       "(cons 'data-pos (string-append (number->string (ly:moment-main-numerator m)) \"/\" "
+       "(number->string (ly:moment-main-denominator m))))) '())))\n")
 _TRANSLATE = re.compile(r'translate\(([\d.\-]+),\s*([\d.\-]+)\)')
 _VIEWBOX = re.compile(r'viewBox="([\d.\-]+) ([\d.\-]+) ([\d.]+) ([\d.]+)"')
 _LINE = re.compile(r'<g transform="translate\(([\d.\-]+),\s*([\d.\-]+)\)">\s*<line [^>]*x1="([\d.\-]+)"[^>]*x2="([\d.\-]+)"')
@@ -73,11 +77,22 @@ def _systems(svg: str) -> tuple[tuple[float, float], list[dict]]:
     return (width, height), sorted(systems.values(), key=lambda s: s["y"])
 
 
+_NOTE = re.compile(r'<g class="nh" data-bar="(\d+)" data-pos="(-?\d+)/(\d+)">\s*<g transform="translate\(([\d.\-]+),\s*([\d.\-]+)\)')
+
+
 def page_map(pages: list[Path]) -> tuple[list[dict], dict[int, dict]]:
-    """Page sizes, and for each engraved bar (LilyPond's internal bar number) its box."""
+    """Page sizes, and for each engraved bar (LilyPond's internal bar number) its box and
+    the x position of each stroke position in it."""
     sizes, boxes = [], {}  # a bar split by a line break (a start-repeat) keeps its wider part
     for page_no, p in enumerate(pages):
-        (w, h), systems = _systems(p.read_text())
+        text = p.read_text()
+        (w, h), systems = _systems(text)
+        notes: dict[int, dict[str, list[float]]] = {}
+        for m in _NOTE.finditer(text):
+            bar, num, den, x, y = int(m.group(1)), int(m.group(2)), int(m.group(3)), float(m.group(4)), float(m.group(5))
+            if num < 0 or not any(abs(y - s["y"]) <= STAFF_HALF + 4 for s in systems):
+                continue  # grace notes before the bar, and the Drum Key
+            notes.setdefault(bar, {}).setdefault(f"{num}/{den}", []).append(x)
         sizes.append({"file": p.name, "width": w, "height": h})
         for sys in systems:
             marks = sys["bars"]
@@ -96,8 +111,25 @@ def page_map(pages: list[Path]) -> tuple[list[dict], dict[int, dict]]:
                        "y0": (sys["y"] - STAFF_HALF - 2.5) / h, "y1": (sys["y"] + STAFF_HALF + 2.5) / h}
                 old = boxes.get(n)
                 if old is None or box["x1"] - box["x0"] > old["x1"] - old["x0"]:
+                    xs = notes.get(n, {})
+                    box["notes"] = sorted(({"pos": pos, "x": round(sum(v) / len(v) / w, 5)} for pos, v in xs.items()
+                                           if x - 1 <= sum(v) / len(v) <= end + 1), key=lambda d: d["x"])
                     boxes[n] = box
     return sizes, boxes
+
+
+def render_preview(score: Score, out_dir: Path, kit=None) -> dict:
+    """The on-screen pages for a working score (no PDF): engraved by LilyPond from the
+    same IR, through the same layout plan the export uses."""
+    from ..export.lilypond import to_lilypond
+    from ..kit import DEFAULT_KIT
+    from ..layout import plan_layout
+    kit = kit or DEFAULT_KIT
+    out_dir.mkdir(parents=True, exist_ok=True)
+    plan = plan_layout(score)
+    ly = out_dir / "chart.ly"
+    ly.write_text(to_lilypond(score, kit, plan))
+    return build_view(score, plan, ly, out_dir)
 
 
 def build_view(score: Score, plan: LayoutPlan, ly_path: Path, out_dir: Path) -> dict:

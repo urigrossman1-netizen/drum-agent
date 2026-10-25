@@ -94,6 +94,18 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
     revise_lock = threading.Lock()
     app = FastAPI(title="Drum Agent", version=__version__, docs_url=None, redoc_url=None)
     app.state.store, app.state.runner, app.state.providers = store, runner, providers
+    app.state.revise_lock, app.state.public_job = revise_lock, _public_job
+    from . import samples
+    from .studio import router as studio_router
+    app.include_router(studio_router)
+    if start_worker and samples.available():  # render the drum sounds before the first play
+        def warm():
+            for inst in samples.instruments():
+                try:
+                    samples.sample_path(store.root / "samples", inst["id"])
+                except Exception:  # noqa: BLE001 - a missing sound falls back to the synthesized kit
+                    log.warning("could not render the %s sample", inst["id"])
+        threading.Thread(target=warm, name="drum-agent-samples", daemon=True).start()
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
@@ -101,7 +113,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; "
+            "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; "
             "object-src 'none'; frame-ancestors 'none'")
         return response
 
@@ -355,8 +367,8 @@ def _chart(store: Store, chart_id: str) -> dict:
 
 
 def _public_song(s: dict) -> dict:
-    return {k: s[k] for k in ("id", "title", "artist", "album", "year", "duration_s", "isrc", "version", "provider",
-                              "urls")}
+    return {k: s.get(k) for k in ("id", "title", "artist", "album", "year", "duration_s", "isrc", "version", "provider",
+                                  "urls", "kind", "prompt", "updated_at")}
 
 
 def _public_source(s: dict) -> dict:
@@ -368,13 +380,16 @@ def _public_source(s: dict) -> dict:
 
 
 def _public_job(j: dict) -> dict:
-    return {k: j[k] for k in ("id", "song_id", "source_id", "status", "stage", "stages", "error", "error_code",
-                              "attempts", "chart_id", "engine", "created_at", "updated_at")}
+    from .jobs import STAGES_BY_KIND
+    out = {k: j.get(k) for k in ("id", "song_id", "source_id", "kind", "status", "stage", "stages", "error",
+                                 "error_code", "attempts", "chart_id", "engine", "created_at", "updated_at")}
+    out["plan"] = [{"name": n, "label": label} for n, label in STAGES_BY_KIND.get(j.get("kind") or "transcribe", [])]
+    return out
 
 
 def _public_chart(c: dict) -> dict:
-    return {k: c[k] for k in ("id", "song_id", "version", "parent_id", "status", "origin", "bars", "validation",
-                              "summary", "created_at")}
+    return {k: c.get(k) for k in ("id", "song_id", "version", "parent_id", "status", "origin", "bars", "validation",
+                                  "summary", "created_at", "note", "source_id")}
 
 
 def _song_card(store: Store, s: dict) -> dict:

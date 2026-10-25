@@ -113,6 +113,12 @@ def validate_score(score: Score, kit: Kit = DEFAULT_KIT, audio_duration: float |
 
     _coverage(score, v, audio_duration)
 
+    from .playability import check as playability_check
+    issues = playability_check(score, kit)
+    add("playability", not issues, "one drummer can play every bar (two hands, two feet)" if not issues
+        else f"{len(issues)} spot(s) need more limbs than a drummer has: " + "; ".join(
+            f"bar {x.bar + 1}: {x.message}" for x in issues[:4]), severity="review")
+
     flagged = [i + 1 for i, m in enumerate(ms) if m.uncertain]
     add("review flags", not flagged, "no bar is flagged as uncertain" if not flagged
         else f"{len(flagged)} of {len(ms)} bars hold a stroke the detector was unsure of (marked (?)); "

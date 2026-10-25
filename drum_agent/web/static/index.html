@@ -1,39 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Drum Agent</title>
-<link rel="stylesheet" href="/static/app.css">
-<script src="/static/app.js" defer></script>
+<meta name="color-scheme" content="dark light">
+<title>Drum Agent Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2322e6a4'/%3E%3Cellipse cx='16' cy='12' rx='9' ry='3.5' fill='none' stroke='%23071224' stroke-width='2.5'/%3E%3Cpath d='M7 12v8c0 2 4 3.5 9 3.5s9-1.5 9-3.5v-8' fill='none' stroke='%23071224' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/css/app.css">
+<script type="module" src="/static/js/main.js"></script>
 </head>
 <body>
-<header class="top no-print">
-  <a class="brand" href="#/">Drum Agent</a>
-  <span id="health" class="health" aria-live="polite">Checking the server…</span>
+<a class="visually-hidden" href="#main">Skip to content</a>
+<header class="top">
+  <a class="brand" href="#/" aria-label="Drum Agent home"><span class="logo" id="logo"></span><span class="word">Drum Agent</span></a>
+  <nav class="nav" aria-label="Main">
+    <a href="#/" data-nav="create">Create</a>
+    <a href="#/library" data-nav="library">My Charts</a>
+    <a href="#/settings" data-nav="settings">Settings</a>
+  </nav>
+  <div class="health" id="health" role="status"><span class="dot"></span><span class="label">Connecting…</span></div>
 </header>
-
-<main id="main">
-  <section id="search-view" class="view no-print">
-    <form id="search-form" class="search" role="search">
-      <label for="q" class="visually-hidden">Song</label>
-      <input id="q" name="q" type="search" autocomplete="off" required maxlength="300"
-             placeholder="Song title - Artist   (e.g. American Idiot - Green Day)">
-      <button type="submit">Search</button>
-    </form>
-    <div id="search-state" class="state" aria-live="polite"></div>
-    <div id="results"></div>
-  </section>
-
-  <section id="song-view" class="view no-print" hidden></section>
-
-  <section id="chart-view" class="view" hidden>
-    <div id="chart-bar" class="chart-bar no-print"></div>
-    <div class="chart-layout">
-      <aside id="chart-side" class="chart-side no-print"></aside>
-      <div id="pages" class="pages"></div>
-    </div>
-  </section>
-</main>
+<main id="main" tabindex="-1"><div class="empty">Loading the studio…</div><noscript>Drum Agent needs JavaScript.</noscript></main>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 </body>
 </html>

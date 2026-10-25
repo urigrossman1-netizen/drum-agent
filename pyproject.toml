@@ -31,7 +31,7 @@ drum-agent = "drum_agent.cli:main"
 include = ["drum_agent*"]
 
 [tool.setuptools.package-data]
-drum_agent = ["schemas/musicxml-4.0/*", "data/*", "web/static/*"]
+drum_agent = ["schemas/musicxml-4.0/*", "data/*", "web/static/*", "web/static/css/*", "web/static/js/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

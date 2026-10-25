@@ -134,8 +134,8 @@ def validate_suggestion(data: dict, sections: list[dict]) -> list[dict]:
     return out
 
 
-def suggest_section_names(score: Score, client=None) -> dict:
-    """{"sections": [...], "confidence", "comment", "model", "usage"}; raises ClaudeUnavailable."""
+def _ask(prompt: str, schema: dict, client=None, max_tokens: int = MAX_TOKENS) -> tuple[dict, object]:
+    """One structured request: (parsed JSON answer, response). Raises ClaudeUnavailable."""
     cfg = config()
     if not cfg["configured"]:
         raise ClaudeUnavailable("not_configured", "Claude is not configured on this server: set "
@@ -145,12 +145,11 @@ def suggest_section_names(score: Score, client=None) -> dict:
         client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"],
                                      base_url=os.environ.get("DRUM_AGENT_ANTHROPIC_BASE_URL") or DEFAULT_BASE_URL,
                                      timeout=TIMEOUT_S, max_retries=1)
-    sections = describe_sections(score)
     try:
         response = client.messages.create(
-            model=cfg["model"], max_tokens=MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt_for(score, sections)}],
-            output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
+            model=cfg["model"], max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+            output_config={"format": {"type": "json_schema", "schema": schema}},
         )
     except anthropic.AuthenticationError:
         raise ClaudeUnavailable("auth", "the Anthropic API rejected the server's API key") from None
@@ -175,14 +174,117 @@ def suggest_section_names(score: Score, client=None) -> dict:
     text = next((b.text for b in response.content if getattr(b, "type", None) == "text"), "")
     try:
         data = json.loads(text)
+    except ValueError:
+        raise ClaudeUnavailable("invalid_answer", "Claude's answer was not valid JSON") from None
+    if not isinstance(data, dict):
+        raise ClaudeUnavailable("invalid_answer", "Claude's answer had the wrong shape")
+    return data, response
+
+
+def _usage(response) -> dict:
+    usage = getattr(response, "usage", None)
+    return {"input_tokens": getattr(usage, "input_tokens", None), "output_tokens": getattr(usage, "output_tokens", None)}
+
+
+def suggest_section_names(score: Score, client=None) -> dict:
+    """{"sections": [...], "confidence", "comment", "model", "usage"}; raises ClaudeUnavailable."""
+    sections = describe_sections(score)
+    data, response = _ask(prompt_for(score, sections), SCHEMA, client)
+    try:
         suggestion = validate_suggestion(data, sections)
     except (ValueError, TypeError) as exc:
         raise ClaudeUnavailable("invalid_answer", f"Claude's answer did not fit the chart: {exc}") from None
-    usage = getattr(response, "usage", None)
     return {"sections": suggestion, "confidence": data.get("confidence"), "comment": str(data.get("comment", ""))[:400],
-            "model": getattr(response, "model", cfg["model"]),
-            "usage": {"input_tokens": getattr(usage, "input_tokens", None),
-                      "output_tokens": getattr(usage, "output_tokens", None)}}
+            "model": getattr(response, "model", config()["model"]), "usage": _usage(response)}
+
+
+# ---- beats: reading a description, and turning an edit request into commands ---------------
+
+def beat_schema() -> dict:
+    from ..generate.spec import (
+        CYMBALS,
+        DIFFICULTIES,
+        ENDINGS,
+        ENERGIES,
+        FEELS,
+        FILL_VOICES,
+        HAT_RATES,
+        SECTIONS,
+        TIME_SIGNATURES,
+    )
+    from ..generate.styles import STYLES
+    nullable = lambda t: {"anyOf": [t, {"type": "null"}]}
+    enum = lambda vals: nullable({"type": "string", "enum": list(vals)})
+    props = {
+        "style": {"type": "string", "enum": list(STYLES)},
+        "bpm": nullable({"type": "integer"}),
+        "time_signature": enum(TIME_SIGNATURES),
+        "bars": nullable({"type": "integer"}),
+        "difficulty": enum(DIFFICULTIES),
+        "complexity": nullable({"type": "number"}),
+        "feel": enum(FEELS),
+        "cymbal": enum(CYMBALS),
+        "hat_rate": enum(HAT_RATES),
+        "open_hats": nullable({"type": "boolean"}),
+        "ghost_notes": nullable({"type": "boolean"}),
+        "syncopation": nullable({"type": "number"}),
+        "double_bass": nullable({"type": "boolean"}),
+        "cross_stick": nullable({"type": "boolean"}),
+        "fill_every": nullable({"type": "integer"}),
+        "fill_beats": nullable({"type": "integer"}),
+        "fill_voice": enum(FILL_VOICES),
+        "crashes": enum(("none", "sections", "phrases")),
+        "ending": enum(ENDINGS),
+        "energy": enum(ENERGIES),
+        "sections": nullable({"type": "array", "items": {"type": "string", "enum": list(SECTIONS)}}),
+        "title": nullable({"type": "string"}),
+        "summary": {"type": "string"},
+    }
+    return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
+
+
+def interpret_beat(prompt: str, client=None) -> dict:
+    """Claude's reading of a beat description as generator settings (validated by the caller)."""
+    from ..generate.styles import STYLES
+    styles = "; ".join(f"{k} ({s.label}, {s.bpm} BPM, {s.time_signature})" for k, s in STYLES.items())
+    text = (
+        "Translate this request for an original drum beat into settings for a rule-based drum-beat generator. "
+        "Use null for anything the request doesn't imply, so the generator's style default applies. "
+        "complexity and syncopation are 0..1. fill_every is bars between fills (0 = no fills); fill_beats is the "
+        "fill length in beats (8 = a two-bar fill in 4/4). bars is the total length (1..64). "
+        "Do not copy any existing song; this is an original groove.\n\nStyles: " + styles +
+        "\n\nRequest: " + prompt[:2000] + "\n\nsummary: one sentence describing the beat you configured.")
+    data, response = _ask(text, beat_schema(), client, max_tokens=1500)
+    summary = str(data.pop("summary", ""))[:300]
+    return {"spec": data, "summary": summary, "model": getattr(response, "model", config()["model"]),
+            "usage": _usage(response)}
+
+
+EDIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "commands": {"type": "array", "items": {"type": "string"}},
+        "unsupported": {"type": "boolean"},
+        "explanation": {"type": "string"},
+    },
+    "required": ["commands", "unsupported", "explanation"],
+    "additionalProperties": False,
+}
+
+
+def edit_to_commands(command: str, summary: dict, examples: list[str], client=None) -> dict:
+    """Claude rewrites a free-form edit request as commands in the editor's own phrasing;
+    each is then applied (and checked) by the rule-based editor, never trusted directly."""
+    text = (
+        "A drum-chart editor understands short commands like these:\n- " + "\n- ".join(examples) +
+        "\n\nThe chart: " + json.dumps(summary)[:3000] +
+        "\n\nRewrite the user's request as one or more such commands (same phrasing style, bar numbers from 1). "
+        "If the request asks for something the editor cannot do, set unsupported to true and explain briefly what "
+        "is possible instead.\n\nRequest: " + command[:1000])
+    data, response = _ask(text, EDIT_SCHEMA, client, max_tokens=800)
+    cmds = [str(c)[:200] for c in data.get("commands", []) if isinstance(c, str)][:6]
+    return {"commands": cmds, "unsupported": bool(data.get("unsupported")),
+            "explanation": str(data.get("explanation", ""))[:400], "usage": _usage(response)}
 
 
 def _api_message(exc) -> str:

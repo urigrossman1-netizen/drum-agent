@@ -43,6 +43,8 @@ from .view import build_view
 log = logging.getLogger("drum_agent.web")
 
 ENGINE = f"drum-agent {__version__} onset-classifier"
+GENERATOR = f"drum-agent {__version__} beat generator"
+PROVISIONAL_TITLE = "New beat"
 STAGES = [
     ("prepare", "Reading the audio"),
     ("detect", "Detecting drum strokes"),
@@ -54,7 +56,16 @@ STAGES = [
     ("view", "Drawing the on-screen chart"),
     ("save", "Saving the chart"),
 ]
-STAGE_LABELS = dict(STAGES)
+GENERATE_STAGES = [
+    ("interpret", "Reading your description"),
+    ("arrange", "Writing the groove, fills and ending"),
+    ("validate", "Validating every bar"),
+    ("render", "Engraving the notation"),
+    ("view", "Drawing the on-screen chart"),
+    ("save", "Saving the chart"),
+]
+STAGES_BY_KIND = {"transcribe": STAGES, "generate": GENERATE_STAGES}
+STAGE_LABELS = dict(STAGES) | dict(GENERATE_STAGES)
 MAX_ATTEMPTS = 2  # a job interrupted by a crash or restart is resumed once more, then failed
 
 
@@ -104,8 +115,23 @@ class JobRunner:
             raise KeyError(job_id)
         if job["status"] not in ("failed", "cancelled"):
             raise ValueError(f"only a failed or cancelled job can be retried (this one is {job['status']})")
+        if job["kind"] == "generate":
+            new, _ = self.submit_generate(job["song_id"], {**job["params"], "request_id": None})
+            return new
         new, _ = self.submit(job["song_id"], job["source_id"])
         return new
+
+    def submit_generate(self, song_id: str, params: dict) -> tuple[dict, bool]:
+        """A beat-generation job; one per request id (a double click doesn't make two beats)."""
+        rid = params.get("request_id")
+        key = f"generate|{rid}" if rid else f"generate|{new_id('r')}"
+        existing = self.store.job_by_key(key) if rid else None
+        if existing is not None:
+            return existing, False
+        job = self.store.create_job(song_id=song_id, source_id=None, engine=GENERATOR, key=key, kind="generate",
+                                    params={k: v for k, v in params.items() if k != "request_id"})
+        self.queue.put(job["id"])
+        return job, True
 
     def recover(self) -> None:
         for job in self.store.jobs_with_status("running"):
@@ -155,7 +181,7 @@ class JobRunner:
             self.store.update_job(job_id, stage=name, stages=stages)
 
         try:
-            chart = self._transcribe(job, step)
+            chart = self._generate(job, step) if job["kind"] == "generate" else self._transcribe(job, step)
         except Cancelled:
             return self.store.update_job(job_id, status="cancelled", stage=None, stages=_close(stages, "cancelled"))
         except Exception as exc:  # noqa: BLE001 - every failure is recorded on the job
@@ -185,14 +211,33 @@ class JobRunner:
         return self._save_chart(song, score, step, job=job, source=source,
                                 audio_duration=source["info"].get("duration_s"))
 
+    def _generate(self, job: dict, step) -> dict:
+        from ..generate import generate
+        from .beats import interpret_request
+        params = job["params"]
+        song = self.store.get_song(job["song_id"])
+        step("interpret")
+        spec, notes, info = interpret_request(params.get("prompt", ""), params.get("settings") or {},
+                                              seed=params.get("seed"))
+        step("arrange")
+        score = generate(spec)
+        if params.get("title"):
+            score.title = params["title"]
+        elif song["title"] == PROVISIONAL_TITLE:
+            song = self.store.rename(song["id"], score.title)
+        score.title = song["title"]
+        gen = score.analysis["generator"]
+        gen["notes"], gen["interpreter"], gen["prompt"] = notes, info, params.get("prompt", "")
+        return self._save_chart(song, score, step, origin="generated", job=job, note="Generated from the description")
+
     def _save_chart(self, song: dict, score: Score, step, *, origin: str = "transcription", job: dict | None = None,
                     source: dict | None = None, audio_duration: float | None = None,
-                    parent_id: str | None = None) -> dict:
+                    parent_id: str | None = None, note: str | None = None) -> dict:
         step("validate")
         validation = validate_score(score, DEFAULT_KIT, audio_duration)
         if not validation.ok:
             failed = "; ".join(c.detail for c in validation.checks if not c.ok and c.severity == "error")
-            raise ChartInvalid(f"the transcription did not produce a valid chart: {failed}")
+            raise ChartInvalid(f"the chart is not valid: {failed}")
         chart_id = new_id("ch")
         out = self.store.chart_dir(chart_id)
         try:
@@ -208,7 +253,7 @@ class JobRunner:
             return self.store.add_chart(chart_id=chart_id, song_id=song["id"], status=status, origin=origin,
                                         bars=len(score.measures), validation=validation.to_dict(), summary=summary,
                                         job_id=job["id"] if job else None,
-                                        source_id=source["id"] if source else None, parent_id=parent_id)
+                                        source_id=source["id"] if source else None, parent_id=parent_id, note=note)
         except BaseException:
             shutil.rmtree(out, ignore_errors=True)  # no half-written chart versions
             raise
@@ -232,7 +277,10 @@ def chart_summary(score: Score, report, view: dict) -> dict:
         "score_status": score.status, "chart_type": score.chart_type, "rights": score.rights,
         "lilypond": report.lilypond_version, "rendering_ok": report.rendering_ok,
         "comparisons": [{"name": c.name, "ok": c.ok} for c in report.comparisons],
-        "playability": report.playability, "warnings": report.warnings, "engine": ENGINE,
+        "playability": report.playability, "warnings": report.warnings,
+        "engine": GENERATOR if score.chart_type == "original_beat" else ENGINE,
+        "generator": {k: a["generator"].get(k) for k in ("spec", "notes", "interpreter", "prompt", "sections", "fills")}
+        if a.get("generator") else None,
     }
 
 

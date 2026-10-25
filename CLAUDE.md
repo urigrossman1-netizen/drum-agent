@@ -5,8 +5,9 @@ or fix a drum chart, use the `drum-chart` skill (`.claude/skills/drum-chart/`).
 
 ## Commands
 - Run: `python -m drum_agent <render|midi|gamechart|song|transcribe|analyze|edit|synth|evaluate|verify|doctor>`
-- Web app: `python -m drum_agent serve --seed-examples` (needs `pip install -e '.[web]'`; docs/WEB_APP.md);
-  browser end-to-end test: `python -m pytest -q tests/test_web_e2e.py` (slow, Playwright via node)
+- Studio (web app): `python -m drum_agent serve --seed-examples` (needs `pip install -e '.[web]'`; docs/WEB_APP.md).
+  Beat generator: `drum_agent/generate/` (tests/test_generate.py). Browser end-to-end tests of both journeys:
+  `python -m pytest -q tests/test_web_e2e.py` (slow; Playwright via node, needs pdftotext)
 - Chart library: `library/rudiments` (40 PAS rudiments) and `library/grooves` (73 grooves and fills);
   `tests/test_library.py` holds them to the house rules
 - Fast tests: `python -m pytest -q -m "not slow"` (about 1 min); all: `python -m pytest -q`

@@ -1,8 +1,21 @@
-# The web app
+# The studio (web app)
 
-Type a song, pick the recording, give the app audio you have the right to transcribe,
-and get a complete, playable drum chart you can read on screen, print, or download as
-PDF, MusicXML or MIDI.
+A drum-chart studio with two ways in:
+
+- **Create a Beat**: describe a groove in your own words. You get an original, playable,
+  editable chart, generated and checked on the server. It needs no recordings and no AI
+  service.
+- **Song to Chart**: find a recording. Open its stored chart, or transcribe audio you
+  have the right to use.
+
+Either way you end in the same **chart workspace**:
+
+- engraved notation;
+- a beat grid on the same data;
+- playback;
+- undo and redo;
+- versions;
+- PDF, MusicXML and MIDI export, and printing.
 
 ```bash
 pip install -e '.[web]'                       # FastAPI, uvicorn, httpx, the Anthropic SDK
@@ -13,12 +26,130 @@ python -m drum_agent serve --seed-examples    # http://127.0.0.1:8000
 `--seed-examples` stores the Northbound example song (an original composition) as an
 existing chart, so the catalog isn't empty. A song list (for instance the 100-song
 workbook exported as CSV with `title` and `artist` columns) is added with
-`python -m drum_agent catalog import songs.csv`: each song is stored as `NEEDS_SOURCE`.
-No chart is generated and nothing is analysed until an authorized recording is supplied.
+`python -m drum_agent catalog import songs.csv`. Each song is stored as
+`NEEDS_SOURCE`: no chart is generated and nothing is analysed until an authorized
+recording is supplied.
 
 Configuration is in `.env.example`. Every key stays on the server.
 
-## The flow
+## Create a Beat
+
+1. **Describe it.** "Create a powerful pop-punk beat at 165 BPM in 4/4 with
+   eighth-note hi-hats, a driving kick and a two-bar tom fill every eight bars."
+   - While you type, the page shows what was understood (style, tempo, meter, length,
+     parts, fills, ending) and which values are defaults.
+   - Quick settings override the description.
+   - The example chips fill in a description.
+2. **Generate.** A job runs these stages: read the description, write the groove,
+   fills and ending, validate every bar, engrave, draw the on-screen chart, save. The
+   page shows the stages as the server reports them.
+3. **The workspace opens** on version 1 of a new project in My Charts.
+
+The generator is in `drum_agent/generate/`:
+
+- **`parse.py`** reads the description by rules. With Claude configured, Claude reads it
+  too and fills in the musical judgement the rules left at defaults. Numbers the rules
+  read exactly (tempo, meter, length) and the quick settings always win.
+- **`spec.py`** holds the `BeatSpec`. It validates and clamps anything from outside.
+- **`styles.py`** holds 20 styles as drumming conventions, not fixed patterns: where the
+  backbeat falls, what the kick leans on, the cymbal hand, idiomatic syncopations, fill
+  phrasing, and what a chorus or breakdown changes.
+- **`engine.py`** writes the strokes:
+  - it plans the sections (intro, verse, chorus, bridge, outro, from the length or as
+    asked);
+  - it writes each section's groove on a metric grid;
+  - it varies the last bar of each phrase;
+  - it places fills where asked (a two-bar fill becomes a build plus a tom fill),
+    crashes after fills and at section starts, and the ending;
+  - it removes anything one drummer can't play (never three hands at once).
+- **Seeds.** Randomness is seeded per layer (kick, snare and ghosts, hats, fills,
+  variation), and each optional stroke has a fixed draw compared with its probability.
+  So:
+  - the same spec gives the same beat;
+  - "new kick part" changes only the kick;
+  - "more complex" adds strokes to the same groove instead of writing another one.
+- **`edits.py`** applies changes to a working score:
+  - **Settings changes** regenerate with the same seeds: simpler, more complex, length,
+    feel, style.
+  - **Part swaps** replace only that part and keep your other hand edits: hi-hat or
+    ride, kick, ghost notes, or a rewrite of the selected bars.
+  - **Direct edits** write into the score: add a fill, an ending, a crash, a tempo,
+    copy or clear bars.
+  - **Plain-language commands** use the same operations: "Replace the final bar with a
+    tom fill", "Add an eighth-note kick variation to the last two bars", "Make the
+    hi-hat busier but keep the kick and snare".
+
+  A command the rules can't read is rewritten by Claude (when configured) into the
+  editor's own commands, which are then applied and checked. Otherwise it is reported
+  as unsupported, with examples. It is never silently ignored.
+- **Generated beats only.** Operations that regenerate parts are refused for
+  transcriptions and written charts: for those, edit the notes in the grid.
+
+An original beat is checked for structure and playability: bar lengths, grid,
+duplicates, kit, tempo, sections, limbs. It is never compared with a recording, and it
+prints as "Original Beat, generated by Drum Agent".
+
+## The chart workspace
+
+- **Notation** is LilyPond's engraving, the same as the PDF. Edits are re-engraved for
+  the screen as you go (`POST /api/preview`: SVG pages, no PDF, cached by content). The
+  bar map marks the bars, the playing bar and the exact note being played, and lets you
+  select and jump.
+- **The beat grid** edits the same working score:
+  - one lane per instrument, with mute and solo;
+  - a step resolution that always shows every stroke (16ths, triplets, 32nds);
+  - tools for hit, accent, ghost, flam and erase;
+  - keyboard navigation (arrow keys, Enter or Space);
+  - copy a bar to the next one, or clear a bar.
+
+  Editing the grid changes the score, and the notation is re-engraved from it: the two
+  can't disagree.
+- **Playback** uses Web Audio, scheduled on the audio clock (a look-ahead scheduler), so
+  timing doesn't drift.
+  - **Sounds:** the acoustic kit is sampled drums rendered once on the server from the
+    FluidR3 GM soundfont (MIT licence), with the kit's own MIDI notes; no audio is
+    committed or downloaded. The electronic kit is synthesized in the browser, and covers
+    any instrument without a sample.
+  - **Controls:** play, pause and stop; loop the chart or play only the selection;
+    count-in; metronome; tempo (a chart edit); practice speed (playback only); volume;
+    mute and solo per instrument; follow.
+  - **Highlighting:** the current bar and note are highlighted in the notation and the
+    grid.
+  - **Transcriptions** play their drum part; the original recording is never implied to
+    be playing.
+- **Editing history:** undo and redo (Ctrl+Z, Ctrl+Shift+Z) work on the score itself.
+- **Drafts.** Every unsaved change is kept as a draft, on the server
+  (`PUT /api/projects/{id}/draft`) and in this browser. Reloading restores it, with a
+  way to discard it. Leaving with an unsaved draft asks first.
+- **Versions.** *Save version* writes the next immutable version: full export, every
+  format cross-checked, validation, on-screen pages. Earlier versions can be opened or
+  restored as the newest. Export and print save first if there are unsaved changes, so
+  a file always matches a version.
+- **Side panels:**
+  - **Shape the beat** (beats): new beat, variation, simpler, more complex, add fill,
+    new hi-hat, kick or ghost-note part, rewrite the selection, ending, feel, length,
+    style.
+  - **Review flagged bars** (transcriptions).
+  - **Edit with words.**
+  - **Sections:** rename them, and Claude suggestions for transcriptions.
+  - **Checks.**
+  - **Versions.**
+  - **Details:** the description and what was understood, or the recording and the
+    engine.
+
+## My Charts and Settings
+
+- **My Charts** lists every project, original beats and song charts, newest first. You
+  can search, filter, open, rename, duplicate and delete (with a confirmation that says
+  what goes). Each card shows the kind, the status, versions, tempo and the last
+  update. Nothing is invented to fill the page: an empty library says so.
+- **Settings** cover:
+  - in this browser: theme (dark, light, system), motion (system, reduce, full), drum
+    sounds, count-in, metronome, follow;
+  - from `/api/health`, what the server has: LilyPond, ffmpeg, the model, Claude, the
+    search providers, the licensed-audio status. Secrets are never sent.
+
+## Song to Chart: the flow
 
 1. **Search** (`GET /api/search?q=Title - Artist`). The chart catalog is searched
    first. Then MusicBrainz, iTunes and Deezer are searched (no keys needed), plus
@@ -95,6 +226,18 @@ Configuration is in `.env.example`. Every key stays on the server.
 
 ## Claude
 
+Claude is optional: every feature works without it. When `ANTHROPIC_API_KEY` and
+`DRUM_AGENT_ANTHROPIC_MODEL` are set, it helps in three places. Each time it gets a
+structured request, and its answer is validated before anything uses it:
+
+- **Reading a beat description.** The answer is generator settings in a JSON schema
+  (enums and numbers), clamped by `BeatSpec.from_dict` and merged under the rules'
+  exact readings. Claude never writes strokes: the generator does.
+- **Edit requests the rules can't read.** Claude rewrites the request as the editor's
+  own commands, which the rule-based editor then applies and checks; or it says the
+  request is unsupported and why.
+- **Section names for a transcription.** Described below.
+
 `POST /api/charts/{id}/suggest-sections` asks Claude to name the chart's sections
 (Intro, Verse, Chorus ...). The transcriber only letters them A, B, C.
 
@@ -120,7 +263,9 @@ Configuration is in `.env.example`. Every key stays on the server.
 
 ## Endpoints
 
-See the docstring of `drum_agent/web/app.py`. `GET /api/health` reports:
+See the docstrings of `drum_agent/web/app.py` (songs, jobs, charts) and
+`drum_agent/web/studio.py` (kit and samples, beats, previews, drafts, versions,
+library). `GET /api/health` reports:
 
 - LilyPond, ffmpeg, ffprobe, the classifier weights and the database;
 - each provider's state, and whether Claude is configured (never the key).
@@ -136,12 +281,18 @@ is named by its SHA-256.
 
 `DRUM_AGENT_DATA_DIR` (default `~/.drum_agent/web`) holds:
 
-- `drum_agent.sqlite3`, with the tables `songs`, `sources`, `jobs` and `charts`.
-  Their columns are in `drum_agent/web/store.py`. Chart versions are immutable.
+- `drum_agent.sqlite3`, with the tables `songs`, `sources`, `jobs` and `charts`. A
+  project is a `songs` row of kind `song` or `beat`, with an optional draft. A job is of
+  kind `transcribe` or `generate`. A chart version can carry a note. The columns are in
+  `drum_agent/web/store.py`. A database from an earlier version is migrated in place
+  when the server starts. Chart versions are immutable.
 - `sources/<sha256>.wav`, the normalized audio, served back only to the chart's
   playback.
 - `charts/<id>/`, which holds `chart.json` (the score), the PDF, MusicXML, MIDI,
   LilyPond source, reports, `validation.json`, `view.json` and the SVG pages.
+- `previews/<hash>/`, the on-screen pages of working copies. Only the newest 150 are
+  kept.
+- `samples/<instrument>.wav`, the rendered drum sounds.
 
 The app has no user accounts: run it for yourself or behind your own authentication.
 It doesn't redistribute uploaded audio or charts. Each file is served only to whoever

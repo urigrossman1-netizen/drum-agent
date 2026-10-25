@@ -89,6 +89,8 @@ def song_status(store: Store, song: dict) -> str:
     """NOT_STARTED, ANALYZING, TRANSCRIBING, VERIFYING, NEEDS_SOURCE, NEEDS_CORRECTION or COMPLETE."""
     jobs = store.jobs_for(song["id"])
     active = next((j for j in jobs if j["status"] in ("queued", "running")), None)
+    if active is not None and active["kind"] == "generate":
+        return "GENERATING"
     if active is not None:
         stage = active["stage"]
         if stage in (None, "prepare"):
@@ -99,6 +101,10 @@ def song_status(store: Store, song: dict) -> str:
     chart = store.latest_chart(song["id"])
     if chart is not None:
         return chart["status"]
+    if jobs and jobs[0]["status"] == "failed":
+        return "FAILED"
+    if song.get("kind") == "beat":
+        return "NOT_STARTED"
     if store.sources_for(song["id"]) or find_asset(song) is not None:
         return "NOT_STARTED"
     return "NEEDS_SOURCE"

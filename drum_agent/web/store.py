@@ -38,7 +38,11 @@ CREATE TABLE IF NOT EXISTS songs (
   provider TEXT,
   provider_ids TEXT NOT NULL DEFAULT '{}',
   urls TEXT NOT NULL DEFAULT '{}',
-  created_at REAL NOT NULL
+  created_at REAL NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'song',   -- song (a recording) | beat (an original beat)
+  prompt TEXT,                          -- the description an original beat was generated from
+  draft TEXT,                           -- unsaved working score {score, base_chart_id, saved_at}
+  updated_at REAL
 );
 CREATE TABLE IF NOT EXISTS sources (
   id TEXT PRIMARY KEY,
@@ -55,7 +59,9 @@ CREATE INDEX IF NOT EXISTS sources_song ON sources(song_id);
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   song_id TEXT NOT NULL REFERENCES songs(id),
-  source_id TEXT NOT NULL REFERENCES sources(id),
+  source_id TEXT REFERENCES sources(id),  -- the recording (transcribe jobs only)
+  kind TEXT NOT NULL DEFAULT 'transcribe', -- transcribe | generate
+  params TEXT NOT NULL DEFAULT '{}',
   engine TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
   status TEXT NOT NULL,            -- queued | running | succeeded | failed | cancelled
@@ -84,11 +90,15 @@ CREATE TABLE IF NOT EXISTS charts (
   summary TEXT NOT NULL DEFAULT '{}',
   dir TEXT NOT NULL,
   created_at REAL NOT NULL,
+  note TEXT,                       -- what made this version ("Generated", "Grid edits", ...)
   UNIQUE(song_id, version)
 );
 """
 
-JSON_COLUMNS = {"provider_ids", "urls", "info", "stages", "validation", "summary"}
+JOB_COLUMNS = ("id, song_id, source_id, kind, params, engine, idempotency_key, status, stage, stages, error, "
+               "error_code, attempts, cancel_requested, chart_id, created_at, updated_at")
+
+JSON_COLUMNS = {"provider_ids", "urls", "info", "stages", "validation", "summary", "params", "draft"}
 
 
 def song_id_for(title: str, artist: str, provider: str | None = None, provider_id: str | None = None) -> str:
@@ -105,7 +115,7 @@ def new_id(prefix: str) -> str:
 class Store:
     def __init__(self, data_dir: str | Path):
         self.root = Path(data_dir).resolve()
-        for sub in ("sources", "charts", "uploads"):
+        for sub in ("sources", "charts", "uploads", "previews", "samples"):
             (self.root / sub).mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._db = sqlite3.connect(str(self.root / "drum_agent.sqlite3"), check_same_thread=False)
@@ -113,7 +123,30 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(SCHEMA)
+        self._migrate()
         self._db.commit()
+
+    def _migrate(self) -> None:
+        """Bring a database made by an earlier version up to the current tables."""
+        cols = lambda t: {r[1]: r for r in self._db.execute(f"PRAGMA table_info({t})")}
+        songs = cols("songs")
+        for name, decl in (("kind", "TEXT NOT NULL DEFAULT 'song'"), ("prompt", "TEXT"), ("draft", "TEXT"),
+                           ("updated_at", "REAL")):
+            if name not in songs:
+                self._db.execute(f"ALTER TABLE songs ADD COLUMN {name} {decl}")
+        if "note" not in cols("charts"):
+            self._db.execute("ALTER TABLE charts ADD COLUMN note TEXT")
+        jobs = cols("jobs")
+        if "kind" not in jobs:  # source_id becomes optional: rebuild the table (rows are copied as they are)
+            self._db.commit()
+            self._db.execute("PRAGMA foreign_keys=OFF")
+            old = ", ".join(c for c in JOB_COLUMNS.split(", ") if c not in ("kind", "params"))
+            self._db.executescript(
+                "ALTER TABLE jobs RENAME TO jobs_v1;" + SCHEMA[SCHEMA.index("CREATE TABLE IF NOT EXISTS jobs"):
+                                                               SCHEMA.index("CREATE TABLE IF NOT EXISTS charts")]
+                + f"INSERT INTO jobs ({old}, kind, params) SELECT {old}, 'transcribe', '{{}}' FROM jobs_v1;"
+                "DROP TABLE jobs_v1;")
+            self._db.execute("PRAGMA foreign_keys=ON")
 
     # ---- helpers ---------------------------------------------------------
     def _row(self, row: sqlite3.Row | None) -> dict | None:
@@ -121,7 +154,7 @@ class Store:
             return None
         d = dict(row)
         for k in JSON_COLUMNS & d.keys():
-            d[k] = json.loads(d[k]) if d[k] else ({} if k != "stages" else [])
+            d[k] = json.loads(d[k]) if d[k] else (None if k == "draft" else [] if k == "stages" else {})
         return d
 
     def _q(self, sql: str, args: tuple = ()) -> list[dict]:
@@ -140,7 +173,8 @@ class Store:
     def upsert_song(self, *, title: str, artist: str, album: str | None = None, year: int | None = None,
                     duration_s: float | None = None, isrc: str | None = None, version: str | None = None,
                     provider: str | None = None, provider_id: str | None = None,
-                    urls: dict | None = None, song_id: str | None = None) -> dict:
+                    urls: dict | None = None, song_id: str | None = None, kind: str = "song",
+                    prompt: str | None = None) -> dict:
         sid = song_id or song_id_for(title, artist, provider, provider_id)
         existing = self.get_song(sid)
         ids = dict(existing["provider_ids"]) if existing else {}
@@ -155,11 +189,12 @@ class Store:
                     "provider_ids=?, urls=? WHERE id=?",
                     (album, year, duration_s, isrc, version, json.dumps(ids), json.dumps(merged_urls), sid))
             else:
+                now = time.time()
                 self._db.execute(
                     "INSERT INTO songs (id, title, artist, album, year, duration_s, isrc, version, provider, "
-                    "provider_ids, urls, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "provider_ids, urls, created_at, kind, prompt, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (sid, title, artist, album, year, duration_s, isrc, version, provider, json.dumps(ids),
-                     json.dumps(merged_urls), time.time()))
+                     json.dumps(merged_urls), now, kind, prompt, now))
             self._db.commit()
         return self.get_song(sid)
 
@@ -182,6 +217,42 @@ class Store:
     def list_songs(self, limit: int = 200) -> list[dict]:
         return self._q("SELECT * FROM songs ORDER BY title COLLATE NOCASE LIMIT ?", (limit,))
 
+    def list_projects(self, text: str = "", kind: str | None = None, limit: int = 500) -> list[dict]:
+        rows = self._q("SELECT * FROM songs ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (limit,))
+        if kind:
+            rows = [r for r in rows if r["kind"] == kind]
+        if text.strip():
+            from ..song.lookup import text_key
+            words = text_key(text).split()
+            rows = [r for r in rows if all(w in text_key(f"{r['title']} {r['artist']} {r['prompt'] or ''}")
+                                           for w in words)]
+        return rows
+
+    def touch(self, song_id: str) -> None:
+        self._x("UPDATE songs SET updated_at=? WHERE id=?", (time.time(), song_id))
+
+    def rename(self, song_id: str, title: str) -> dict:
+        self._x("UPDATE songs SET title=?, updated_at=? WHERE id=?", (title, time.time(), song_id))
+        return self.get_song(song_id)
+
+    def set_draft(self, song_id: str, draft: dict | None) -> None:
+        self._x("UPDATE songs SET draft=?, updated_at=? WHERE id=?",
+                (json.dumps(draft) if draft is not None else None, time.time(), song_id))
+
+    def delete_project(self, song_id: str) -> list[str]:
+        """Delete a project with its jobs, sources and chart versions; returns the files to remove."""
+        paths = [c["dir"] for c in self.charts_for(song_id)]
+        for src in self.sources_for(song_id):
+            others = self._q("SELECT id FROM sources WHERE sha256=? AND song_id!=?", (src["sha256"], song_id))
+            if not others:
+                paths.append(src["path"])
+        with self._lock:
+            for table in ("charts", "jobs", "sources"):
+                self._db.execute(f"DELETE FROM {table} WHERE song_id=?", (song_id,))
+            self._db.execute("DELETE FROM songs WHERE id=?", (song_id,))
+            self._db.commit()
+        return paths
+
     # ---- sources ---------------------------------------------------------
     def add_source(self, *, song_id: str, kind: str, rights: str, sha256: str, path: str,
                    original_name: str | None, info: dict) -> dict:
@@ -202,10 +273,12 @@ class Store:
         return self._q("SELECT * FROM sources WHERE song_id=? ORDER BY created_at DESC", (song_id,))
 
     # ---- jobs ------------------------------------------------------------
-    def create_job(self, *, song_id: str, source_id: str, engine: str, key: str) -> dict:
+    def create_job(self, *, song_id: str, source_id: str | None, engine: str, key: str, kind: str = "transcribe",
+                   params: dict | None = None) -> dict:
         jid, now = new_id("job"), time.time()
-        self._x("INSERT INTO jobs (id, song_id, source_id, engine, idempotency_key, status, stages, created_at, "
-                "updated_at) VALUES (?,?,?,?,?, 'queued', '[]', ?, ?)", (jid, song_id, source_id, engine, key, now, now))
+        self._x("INSERT INTO jobs (id, song_id, source_id, kind, params, engine, idempotency_key, status, stages, "
+                "created_at, updated_at) VALUES (?,?,?,?,?,?,?, 'queued', '[]', ?, ?)",
+                (jid, song_id, source_id, kind, json.dumps(params or {}), engine, key, now, now))
         return self.get_job(jid)
 
     def get_job(self, job_id: str) -> dict | None:
@@ -236,15 +309,16 @@ class Store:
     # ---- charts ----------------------------------------------------------
     def add_chart(self, *, chart_id: str, song_id: str, status: str, origin: str, bars: int, validation: dict,
                   summary: dict, job_id: str | None = None, source_id: str | None = None,
-                  parent_id: str | None = None) -> dict:
+                  parent_id: str | None = None, note: str | None = None) -> dict:
         with self._lock:
             row = self._db.execute("SELECT COALESCE(MAX(version), 0) FROM charts WHERE song_id=?", (song_id,)).fetchone()
             version = row[0] + 1
             self._db.execute(
                 "INSERT INTO charts (id, song_id, version, parent_id, job_id, source_id, status, origin, bars, "
-                "validation, summary, dir, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "validation, summary, dir, created_at, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (chart_id, song_id, version, parent_id, job_id, source_id, status, origin, bars,
-                 json.dumps(validation), json.dumps(summary), str(self.chart_dir(chart_id)), time.time()))
+                 json.dumps(validation), json.dumps(summary), str(self.chart_dir(chart_id)), time.time(), note))
+            self._db.execute("UPDATE songs SET updated_at=? WHERE id=?", (time.time(), song_id))
             self._db.commit()
         return self.get_chart(chart_id)
 

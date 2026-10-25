@@ -86,21 +86,31 @@ Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
 with a known chart), `verify` (re-check exported files; pass the same `--kit` if
 they were rendered with one), `doctor`.
 
-## Web app
+## The studio (web app)
 
 ```bash
 pip install -e '.[web]'
 python -m drum_agent serve --seed-examples   # http://127.0.0.1:8000
 ```
 
-Search a song, pick the recording, upload audio you have the right to transcribe, and
-follow the job stage by stage to a full-song chart. The chart can be read on screen
-(sections, bar jump, zoom, flagged-bar review, playback follow), printed, or downloaded
-as PDF, MusicXML or MIDI. Corrections make new chart versions. Search covers
-MusicBrainz, iTunes and Deezer, plus Spotify and YouTube when their keys are set
-(metadata only). Claude can suggest section names when an API key and model are
-configured. Setup, storage, statuses and endpoints are in
-[docs/WEB_APP.md](docs/WEB_APP.md); configuration is in `.env.example`.
+- **Create a Beat:** describe a groove ("a powerful pop-punk beat at 165 BPM with a
+  two-bar tom fill every eight bars"). You get an original chart, generated and
+  validated on the server, that you can hear, edit in a beat grid or with words, save
+  as versions, print or export. It works without any AI service; Claude, when
+  configured, also reads the description.
+- **Song to Chart:** search your catalog and MusicBrainz, iTunes and Deezer (plus
+  Spotify and YouTube when keys are set; metadata only). Then open a stored chart, or
+  upload a recording you have the right to transcribe and follow the job to a
+  full-song chart.
+
+Both land in the chart workspace:
+
+- LilyPond notation kept in step with a beat grid;
+- Web Audio playback with sampled or synthesized drums, loop, count-in and metronome;
+- undo and redo, drafts and versions;
+- PDF, MusicXML and MIDI.
+
+Details: [docs/WEB_APP.md](docs/WEB_APP.md). Configuration: `.env.example`.
 
 ## With Claude Code
 
@@ -137,7 +147,7 @@ python scripts/eval_real.py --split train  # real recordings (MDB Drums, cached 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how it works
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md): measured accuracy and limits
 - [docs/MODELS.md](docs/MODELS.md): the onset classifier, its data and licences
-- [docs/WEB_APP.md](docs/WEB_APP.md): the web app (search, sources, jobs, chart view)
+- [docs/WEB_APP.md](docs/WEB_APP.md): the studio (beat generator, song to chart, workspace, storage)
 - [docs/SONG_LOOKUP.md](docs/SONG_LOOKUP.md): from a song's name to a chart
 - [docs/GAMECHARTS.md](docs/GAMECHARTS.md): Rock Band / Clone Hero import
 - [docs/AUDIT.md](docs/AUDIT.md): the starting point and the plan
