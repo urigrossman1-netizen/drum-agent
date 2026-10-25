@@ -88,6 +88,12 @@ they were rendered with one), `doctor`.
 
 ## The studio (web app)
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/urigrossman1-netizen/drum-agent?quickstart=1&ref=claude/peaceful-noether-qz2xmc)
+
+The button opens the studio in a GitHub Codespace. The first start installs everything
+in about five minutes; then the studio opens in a new tab, private to your GitHub
+account. Or run it on your own machine:
+
 ```bash
 pip install -e '.[web]'
 python -m drum_agent serve --seed-examples   # http://127.0.0.1:8000
