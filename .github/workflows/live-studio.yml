@@ -22,6 +22,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write  # the link is posted to an issue, readable (and notified) while the run is going
 
 jobs:
   studio:
@@ -112,7 +113,30 @@ jobs:
             echo "**$url**"
             echo
             echo "Online until about $until_utc. Anyone with the link can use it while it is up."
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY" > link.md
+          printf '\nTo start it again later: Actions -> "Live studio" -> Run workflow.\n' >> link.md
+          { echo "STUDIO_URL=$url"; echo "STUDIO_UNTIL=$until_utc"; } >> "$GITHUB_ENV"
+
+      # One issue holds the current link: readable while the run is going (the run's log and
+      # summary are not), and GitHub notifies the repository's owner. Each run updates it,
+      # reopens it and comments. A failure here leaves the studio running.
+      - name: Post the link to an issue
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Drum Agent Studio: live link"
+          num=$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 200 --json number,title \
+                  --jq "map(select(.title == \"$title\"))[0].number // empty")
+          if [ -z "$num" ]; then
+            num=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file link.md | grep -o '[0-9]*$')
+          else
+            gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --body-file link.md
+            gh issue reopen "$num" --repo "$GITHUB_REPOSITORY" || true
+            gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body "Online again: $STUDIO_URL (until about $STUDIO_UNTIL)"
+          fi
+          echo "STUDIO_ISSUE=$num" >> "$GITHUB_ENV"
 
       - name: Keep it online
         run: |
@@ -127,9 +151,16 @@ jobs:
 
       - name: Stop the studio
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           pkill -f "drum_agent serve" || true
           echo "apt install log:"; tail -20 apt.log || true
+          if [ -n "${STUDIO_ISSUE:-}" ]; then
+            printf '## Drum Agent Studio is offline\n\nThe last link has stopped working. To start it again: Actions -> "Live studio" -> Run workflow.\n' > link.md
+            gh issue edit "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file link.md || true
+            gh issue close "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --comment "Offline now." || true
+          fi
 
       - name: Save the charts for the next run
         if: always()
