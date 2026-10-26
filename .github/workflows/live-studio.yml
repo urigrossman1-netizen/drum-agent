@@ -40,13 +40,15 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install ffmpeg and fluidsynth
-        timeout-minutes: 10
+      # Optional extras, installed in the background because apt can stall for many minutes on
+      # a hosted runner: the studio plays its synthesized kit until fluidsynth and the
+      # soundfont arrive, then serves sampled drums; ffmpeg only widens the upload formats.
+      - name: Install ffmpeg and fluidsynth (in the background)
         run: |
           sudo rm -f /var/lib/man-db/auto-update  # skip the slow manual-page index rebuild
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-            ffmpeg fluidsynth fluid-soundfont-gm
+          opts="-o Acquire::http::Timeout=30 -o Acquire::Retries=2 -o DPkg::Lock::Timeout=120"
+          nohup bash -c "timeout 1200 sudo apt-get $opts update && timeout 1200 sudo DEBIAN_FRONTEND=noninteractive \
+            apt-get $opts install -y --no-install-recommends ffmpeg fluidsynth fluid-soundfont-gm" > apt.log 2>&1 &
 
       - name: Restore LilyPond
         id: lilypond
@@ -125,7 +127,9 @@ jobs:
 
       - name: Stop the studio
         if: always()
-        run: pkill -f "drum_agent serve" || true
+        run: |
+          pkill -f "drum_agent serve" || true
+          echo "apt install log:"; tail -20 apt.log || true
 
       - name: Save the charts for the next run
         if: always()
