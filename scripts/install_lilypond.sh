@@ -24,7 +24,8 @@ fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 echo "Downloading ${URL}"
-curl -fsSL --retry 3 -o "${tmp}/${ASSET}" "${URL}"
+# A stalled transfer (under 10 kB/s for a minute) counts as a failure, so it is retried.
+curl -fsSL --retry 3 --connect-timeout 30 --speed-limit 10240 --speed-time 60 -o "${tmp}/${ASSET}" "${URL}"
 mkdir -p "${PREFIX}"
 # Unpack beside the final place and move it there in one step: an interrupted install never
 # leaves a lilypond executable without the rest of LilyPond (the check above would trust it).
