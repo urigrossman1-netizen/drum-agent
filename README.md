@@ -92,7 +92,15 @@ they were rendered with one), `doctor`.
 
 The button opens the studio in a GitHub Codespace. The first start installs everything
 in about five minutes; then the studio opens in a new tab, private to your GitHub
-account. Or run it on your own machine:
+account.
+
+For a public link instead, run the **Live studio** workflow (Actions → Live studio →
+Run workflow, or push a change to `.github/live-studio`). It starts the studio on a
+GitHub-hosted runner for about five hours, checks the link from the internet, and posts it
+to the issue "Drum Agent Studio: live link". Anyone with the link can use the studio
+while it is up; charts are kept for the next run.
+
+Or run it on your own machine:
 
 ```bash
 pip install -e '.[web]'
