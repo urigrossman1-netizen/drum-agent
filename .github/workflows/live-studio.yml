@@ -105,14 +105,29 @@ jobs:
             sleep 1
           done
           if [ -z "$url" ]; then cat tunnel.log; exit 1; fi
-          until_utc=$(date -u -d "+${HOURS%.*} hours" '+%H:%M UTC')
           echo "STUDIO URL: $url"
+          # Check the link the way a visitor reaches it: through Cloudflare and back down the
+          # tunnel (DNS over HTTPS, so a lookup made before the name existed isn't cached).
+          sleep 5
+          code=000
+          for _ in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -m 10 --doh-url https://cloudflare-dns.com/dns-query \
+                     -w '%{http_code}' "$url/api/health") || true
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          if [ "$code" != "200" ]; then echo "The public link does not answer (HTTP $code):"; cat tunnel.log; exit 1; fi
+          checked="Checked from the internet at $(date -u '+%H:%M UTC'): the link answers."
+          echo "$checked"
+          until_utc=$(date -u -d "+${HOURS%.*} hours" '+%H:%M UTC')
           {
             echo "## Drum Agent Studio is online"
             echo
             echo "**$url**"
             echo
             echo "Online until about $until_utc. Anyone with the link can use it while it is up."
+            echo
+            echo "$checked"
           } | tee -a "$GITHUB_STEP_SUMMARY" > link.md
           printf '\nTo start it again later: Actions -> "Live studio" -> Run workflow.\n' >> link.md
           { echo "STUDIO_URL=$url"; echo "STUDIO_UNTIL=$until_utc"; } >> "$GITHUB_ENV"
