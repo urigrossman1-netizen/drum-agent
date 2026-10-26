@@ -1,0 +1,109 @@
+# Puts the studio online on a public link for a few hours, on a GitHub-hosted runner:
+# installs LilyPond, ffmpeg and fluidsynth, starts `python -m drum_agent serve`, opens a
+# Cloudflare quick tunnel (a random https://*.trycloudflare.com address) and prints the
+# link in the run's summary. Charts made in one run are cached for the next.
+#
+# Start it: Actions -> "Live studio" -> Run workflow (or push a change to .github/live-studio).
+name: Live studio
+
+on:
+  push:
+    branches: [claude/peaceful-noether-qz2xmc]
+    paths: [".github/workflows/live-studio.yml", ".github/live-studio"]
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Hours to keep the studio online (at most 5.5)"
+        default: "5"
+
+concurrency:
+  group: live-studio
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  studio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      HOURS: ${{ inputs.hours || '5' }}
+      DRUM_AGENT_DATA_DIR: ${{ github.workspace }}/.studio-data
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install LilyPond, ffmpeg and fluidsynth
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ffmpeg fluidsynth fluid-soundfont-gm
+          sudo scripts/install_lilypond.sh
+
+      - name: Install the studio
+        run: pip install -q -e ".[web]"
+
+      - name: Restore the charts saved by the last run
+        uses: actions/cache/restore@v4
+        with:
+          path: .studio-data
+          key: studio-data-${{ github.run_id }}
+          restore-keys: studio-data-
+
+      - name: Start the studio
+        run: |
+          nohup python -m drum_agent serve --host 127.0.0.1 --port 8000 --seed-examples > studio.log 2>&1 &
+          for _ in $(seq 1 180); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health)" = "200" ] && break
+            sleep 1
+          done
+          curl -s http://127.0.0.1:8000/api/health; echo
+
+      - name: Open the public link
+        run: |
+          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          nohup ./cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8000 > tunnel.log 2>&1 &
+          url=""
+          for _ in $(seq 1 90); do
+            url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunnel.log | head -1)
+            [ -n "$url" ] && break
+            sleep 1
+          done
+          if [ -z "$url" ]; then cat tunnel.log; exit 1; fi
+          until_utc=$(date -u -d "+${HOURS%.*} hours" '+%H:%M UTC')
+          echo "STUDIO URL: $url"
+          {
+            echo "## Drum Agent Studio is online"
+            echo
+            echo "**$url**"
+            echo
+            echo "Online until about $until_utc. Anyone with the link can use it while it is up."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep it online
+        run: |
+          seconds=$(python -c "print(int(min(float('${HOURS}'), 5.5) * 3600))")
+          end=$(( $(date +%s) + seconds ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            sleep 60
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health)" = "200" ] || {
+              echo "The studio stopped:"; tail -50 studio.log; exit 1; }
+            pgrep -f "cloudflared tunnel" > /dev/null || { echo "The tunnel stopped:"; tail -50 tunnel.log; exit 1; }
+          done
+
+      - name: Stop the studio
+        if: always()
+        run: pkill -f "drum_agent serve" || true
+
+      - name: Save the charts for the next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .studio-data
+          key: studio-data-${{ github.run_id }}
