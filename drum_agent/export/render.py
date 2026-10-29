@@ -101,7 +101,8 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     for old in _pages(out_dir, stem) + [out_dir / f"{stem}.pdf", out_dir / f"{stem}.midi"]:
         if old.exists():
             old.unlink()
-    cmd = [exe, "-dno-point-and-click", "--pdf", "-o", str(out_dir / stem)]
+    # -dmidi-extension=midi: LilyPond's own default is ".mid" on Windows, which is our exporter's file.
+    cmd = [exe, "-dno-point-and-click", "-dmidi-extension=midi", "--pdf", "-o", str(out_dir / stem)]
     if png:
         cmd[2:2] = ["--png", f"-dresolution={resolution}"]
     cmd.append(str(ly_path))

@@ -229,6 +229,7 @@ def cmd_transcribe(args) -> int:
         bpm=args.bpm, time_signature=args.time_signature, downbeat=args.downbeat,
         feel=args.feel, drums_only=args.drums_only, sensitivity=args.sensitivity,
         allow_32nds=not args.no_32nds, start=args.start, end=args.end, detector=args.detector,
+        separate=args.separate,
     )
     score = transcribe_file(args.input, topts)
     score.title = args.title or score.title
@@ -480,6 +481,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--downbeat", type=float, help="time in seconds of a downbeat (beat 1)")
     p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
     p.add_argument("--drums-only", action="store_true", help="input is an isolated drum track/stem")
+    p.add_argument("--separate", default="auto", choices=["auto", "on", "off"],
+                   help="pull the drums out of a band mix with HTDemucs first (auto: when demucs is installed "
+                        "and the input isn't --drums-only)")
     p.add_argument("--sensitivity", type=float, default=1.0, help=">1 finds more (softer) strokes, <1 fewer")
     p.add_argument("--no-32nds", action="store_true")
     p.add_argument("--start", type=float, help="start time in seconds")
@@ -521,6 +525,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--downbeat", type=float, help="time in seconds of a downbeat (beat 1)")
     p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
     p.add_argument("--drums-only", action="store_true", help="input is an isolated drum track/stem")
+    p.add_argument("--separate", default="auto", choices=["auto", "on", "off"],
+                   help="pull the drums out of a band mix with HTDemucs first (auto: when demucs is installed "
+                        "and the input isn't --drums-only)")
     p.add_argument("--sensitivity", type=float, default=1.0, help=">1 finds more (softer) strokes, <1 fewer")
     p.add_argument("--no-32nds", action="store_true")
     p.add_argument("--start", type=float, help="start time in seconds")

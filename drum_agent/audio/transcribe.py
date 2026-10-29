@@ -31,6 +31,9 @@ class TranscribeOptions:
     start: float | None = None
     end: float | None = None
     detector: str = "auto"  # "classifier", "nmf" or "auto" (the classifier when its weights are installed)
+    # Pull the drums out of a band mix with HTDemucs before detection (audio/separate.py):
+    # "auto" when demucs is installed and the input isn't an isolated drum track, "on", or "off".
+    separate: str = "auto"
 
 
 def load_audio(path: str | Path, start: float | None = None, end: float | None = None) -> np.ndarray:
@@ -72,15 +75,22 @@ def _ffmpeg_decode(path: Path, start: float | None, duration: float | None, caus
 
 def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untitled",
                      progress: Callable[[str], None] | None = None) -> Score:
-    """`progress(stage)` is called as each stage starts: "detect" (drum strokes), "beats"
-    (beat, tempo and meter tracking), "measures" (quantizing into bars), "sections"."""
+    """`progress(stage)` is called as each stage starts: "separate" (drums out of the band, when
+    used), "detect" (drum strokes), "beats" (beat, tempo and meter tracking), "measures"
+    (quantizing into bars), "sections"."""
     step = progress or (lambda stage: None)
     if opts.time_signature and opts.time_signature not in AUDIO_SIMPLE_METERS:
         raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
                          f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
                          f"transcribe from MIDI or write a chart spec.")
+    drums_only, separated = opts.drums_only, None
+    if use_separation(opts):
+        from .separate import MODEL, separate_drums
+        step("separate")
+        y = separate_drums(y, SR)
+        drums_only, separated = True, MODEL
     step("detect")
-    det = detect(y, DetectOptions(drums_only=opts.drums_only, sensitivity=opts.sensitivity, method=opts.detector))
+    det = detect(y, DetectOptions(drums_only=drums_only, sensitivity=opts.sensitivity, method=opts.detector))
     if not det.hits:
         raise ValueError("no drum strokes detected; is there a drum part? Try --sensitivity 1.5")
     pre_feel = opts.feel if opts.feel != "auto" else None
@@ -163,7 +173,9 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "grid_counts": res.grid_counts,
         "sections": [f"{r['label']}: bar {r['first_bar']}, {r['bars']} bars, {r['main_cymbal'] or 'no cymbal'}"
                      + (f", {r['fills']} fill bar(s)" if r["fills"] else "") for r in roadmap],
-        "notes": grid.notes + meter_notes + ([density_note] if density_note else []) + (
+        "separation": separated,
+        "notes": ([f"The drums were separated from the band ({separated}) before the strokes were detected."]
+                  if separated else []) + grid.notes + meter_notes + ([density_note] if density_note else []) + (
             [f"{unplayable} bar(s) contain strokes one drummer can't play together (flagged); a stroke there was "
              f"probably detected on the wrong instrument."] if unplayable else []) + [
             "Section letters are pattern-based; rename them with --sections once you know the song form.",
@@ -173,6 +185,16 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "detector": det.stats.get("detector", "nmf"),
     }
     return score
+
+
+def use_separation(opts: TranscribeOptions) -> bool:
+    """Separate the drums first? (measured on MDB Drums band mixes: docs/MODELS.md)"""
+    if opts.separate == "off" or (opts.separate == "auto" and opts.drums_only):
+        return False
+    from .separate import available
+    if opts.separate == "on" and not available():
+        raise ValueError("separating the drums needs the demucs package: pip install demucs")
+    return available()
 
 
 # A bar holding a stroke the classifier almost heard (a class at half its threshold or

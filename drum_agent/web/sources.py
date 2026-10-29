@@ -114,7 +114,7 @@ def song_status(store: Store, song: dict) -> str:
             return "FINDING"
         if stage in (None, "prepare"):
             return "ANALYZING"
-        if stage in ("detect", "beats", "measures", "sections"):
+        if stage in ("separate", "detect", "beats", "measures", "sections"):
             return "TRANSCRIBING"
         return "VERIFYING"
     chart = store.latest_chart(song["id"])

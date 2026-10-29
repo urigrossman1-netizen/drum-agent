@@ -656,3 +656,38 @@ def test_serve_personal_listens_only_on_this_computer(capsys):
     from drum_agent.cli import main
     assert main(["serve", "--personal", "--host", "0.0.0.0"]) == 2
     assert "own computer" in capsys.readouterr().err
+
+
+def test_band_mix_is_separated_first_when_demucs_is_there(monkeypatch):
+    """The separation step and its note, with a stand-in for HTDemucs (the real model is measured on
+    MDB Drums: docs/MODELS.md). A drum-only recording is never separated; "on" without demucs fails."""
+    from drum_agent.audio import separate
+    from drum_agent.audio.transcribe import TranscribeOptions, transcribe_audio, use_separation
+    from drum_agent.synth import synthesize
+
+    calls = []
+    monkeypatch.setattr(separate, "available", lambda: True)
+    monkeypatch.setattr(separate, "separate_drums", lambda y, sr: calls.append(len(y)) or y)
+    assert use_separation(TranscribeOptions()) and not use_separation(TranscribeOptions(drums_only=True))
+    assert not use_separation(TranscribeOptions(separate="off"))
+    import tempfile
+    from pathlib import Path
+
+    import soundfile
+    with tempfile.TemporaryDirectory() as d:
+        wav = synthesize(song_spec(bars=4), Path(d) / "take.wav", method="numpy")
+        y, sr = soundfile.read(str(wav), dtype="float32")
+    y = y.mean(axis=1) if y.ndim > 1 else y
+    import librosa
+    y = librosa.resample(y, orig_sr=sr, target_sr=44100) if sr != 44100 else y
+    stages = []
+    score = transcribe_audio(y, TranscribeOptions(), progress=stages.append)
+    assert stages[:2] == ["separate", "detect"] and calls == [len(y)]
+    assert score.analysis["separation"] == separate.MODEL
+    assert score.analysis["notes"][0].startswith("The drums were separated from the band")
+    stages.clear()
+    score = transcribe_audio(y, TranscribeOptions(drums_only=True), progress=stages.append)
+    assert stages[0] == "detect" and score.analysis["separation"] is None and calls == [len(y)]
+    monkeypatch.setattr(separate, "available", lambda: False)
+    with pytest.raises(ValueError, match="demucs"):
+        use_separation(TranscribeOptions(separate="on"))

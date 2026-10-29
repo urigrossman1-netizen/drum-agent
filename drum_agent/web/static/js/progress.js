@@ -12,11 +12,13 @@ export function progressCard(job, { title = "Working…", onCancel, onRetry } = 
   const pct = state === "done" ? 100 : Math.round((done / Math.max(1, plan.length)) * 100);
   const items = plan.map((p) => {
     const s = byName.get(p.name);
-    const status = s ? s.status : "pending";
+    // A stage a finished job never reached wasn't needed (e.g. no band to separate the drums from).
+    const status = s ? s.status : state === "done" ? "skipped" : "pending";
     return h("li", { class: status, "data-stage": p.name },
       h("span", { class: "mark" }, status === "running" ? h("span", { class: "spinner" }) : null),
       p.label,
-      s && s.ended_at ? h("span", { class: "time" }, `${(s.ended_at - s.started_at).toFixed(1)} s`) : null);
+      status === "skipped" ? h("span", { class: "time" }, "not needed")
+        : s && s.ended_at ? h("span", { class: "time" }, `${(s.ended_at - s.started_at).toFixed(1)} s`) : null);
   });
   const heading = state === "failed" ? (job.status === "cancelled" ? "Cancelled" : "Something went wrong")
     : state === "done" ? "Done" : job.status === "queued" ? "Waiting for the worker…" : title;

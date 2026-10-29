@@ -267,7 +267,7 @@ _CARRIED = (
     ("--downbeat", "downbeat", None), ("--feel", "feel", "auto"), ("--drums-only", "drums_only", False),
     ("--sensitivity", "sensitivity", 1.0), ("--no-32nds", "no_32nds", False), ("--start", "start", None),
     ("--end", "end", None), ("--sections", "sections", None), ("--chart-type", "chart_type", None),
-    ("--detector", "detector", "auto"),
+    ("--detector", "detector", "auto"), ("--separate", "separate", "auto"),
     # export options
     ("--stem", "stem", None), ("--formats", "formats", "pdf,musicxml,midi,json"), ("--paper", "paper", "letter"),
     ("--staff-size", "staff_size", 20), ("--repeats", "repeats", "auto"), ("--bars-per-line", "bars_per_line", 4.0),
@@ -331,6 +331,7 @@ def transcribe(audio: AudioSource, ident: SongCandidate | None, args, query: str
         bpm=bpm, time_signature=args.time_signature, downbeat=args.downbeat, feel=args.feel,
         drums_only=args.drums_only, sensitivity=args.sensitivity, allow_32nds=not args.no_32nds,
         start=args.start, end=args.end, detector=getattr(args, "detector", "auto"),
+        separate=getattr(args, "separate", "auto"),
     )
     score = transcribe_file(audio.path, topts)
     score.title = title

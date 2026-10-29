@@ -69,7 +69,8 @@ def run_one(chart: str, cond: str, opts: dict) -> dict:
         wav = Path(td) / "x.wav"
         synthesize(ref, wav, method=method, kit_program=kit, accompaniment=acc, humanize_ms=hum, seed=3)
         try:
-            est = transcribe_file(wav, TranscribeOptions(drums_only=drums_only, bpm=opts.get("bpm")))
+            est = transcribe_file(wav, TranscribeOptions(drums_only=drums_only, bpm=opts.get("bpm"),
+                                                         separate=opts.get("separate", "auto")))
         except Exception as exc:  # report, don't hide
             return {"chart": path.stem, "condition": cond, "error": f"{type(exc).__name__}: {exc}"}
     na = notation_accuracy(ref, est)
@@ -102,13 +103,15 @@ def main() -> None:
     ap.add_argument("--bpm", type=float, default=None, help="tempo hint passed to every transcription")
     ap.add_argument("--json", default=None)
     ap.add_argument("--library", action="store_true", help="evaluate every chart in library/ (overrides --charts)")
+    ap.add_argument("--separate", default="auto", choices=["auto", "on", "off"],
+                    help="drum separation (HTDemucs) for the band conditions: auto = when demucs is installed")
     a = ap.parse_args()
     charts = library_charts() if a.library else a.charts.split(",")
     jobs = [(c, k) for c in charts for k in a.conditions.split(",")]
     for _, k in jobs:
         if k not in CONDITIONS:
             raise SystemExit(f"unknown condition {k}; choose from {', '.join(CONDITIONS)}")
-    opts = {"bpm": a.bpm}
+    opts = {"bpm": a.bpm, "separate": a.separate}
     if a.jobs > 1:
         with ProcessPoolExecutor(a.jobs) as ex:
             results = list(ex.map(run_one, [c for c, _ in jobs], [k for _, k in jobs], [opts] * len(jobs)))

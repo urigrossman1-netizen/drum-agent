@@ -4,6 +4,7 @@ A job turns one authorized source (a normalized WAV with a stated rights basis) 
 chart version:
 
   prepare   read the normalized audio
+  separate  pull the drums out of the band mix (HTDemucs), when it is installed
   detect    onset detection and instrument classification (the trained classifier)
   beats     tempo, meter and downbeat tracking
   measures  quantization into bars (exact positions)
@@ -52,6 +53,7 @@ GENERATOR = f"drum-agent {__version__} beat generator"
 PROVISIONAL_TITLE = "New beat"
 STAGES = [
     ("prepare", "Reading the audio"),
+    ("separate", "Separating the drums from the band"),  # when demucs is installed (audio/separate.py)
     ("detect", "Detecting drum strokes"),
     ("beats", "Tracking tempo, meter and downbeats"),
     ("measures", "Building measures"),
