@@ -14,6 +14,8 @@
   a music folder holding the song (a synthesized take, named as a download would be) and a
   live take of it: type the song, confirm it's for your own practice, watch it being found
   among the files and charted, and check the chart is marked as a personal-practice chart.
+- On a phone (tests/e2e/phone.e2e.js): every page on a 390 px touch screen fits its width
+  and shows its main control.
 
 Metadata providers and Claude are switched off so the runs don't depend on the network;
 their failure states are unit-tested in test_web.py.
@@ -130,3 +132,8 @@ def test_song_to_chart_end_to_end(server, tmp_path, artifacts):
 @needs_browser
 def test_song_from_its_name_end_to_end(personal_server, artifacts):
     _run("library.e2e.js", personal_server, artifacts / "web_e2e")
+
+
+@needs_browser
+def test_every_page_fits_a_phone_screen(server, artifacts):
+    _run("phone.e2e.js", server, artifacts / "web_e2e")

@@ -19,3 +19,7 @@ examples/output/**/*.midi
 *.[oO][pP][uU][sS]
 *.[aA][iI][fF]
 *.[aA][iI][fF][fF]
+# a filled-in copy of .env.example holds credentials: never committed
+.env
+.env.*
+!.env.example

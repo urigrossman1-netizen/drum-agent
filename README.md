@@ -143,7 +143,8 @@ Both land in the chart workspace:
 - undo and redo, drafts and versions;
 - PDF, MusicXML and MIDI.
 
-Details: [docs/WEB_APP.md](docs/WEB_APP.md). Configuration: `.env.example`.
+Details: [docs/WEB_APP.md](docs/WEB_APP.md). Configuration: `.env.example`. As a website (the Docker
+image, what a host needs, every setting, a permanent address): [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## With Claude Code
 
@@ -181,6 +182,7 @@ python scripts/eval_real.py --split train  # real recordings (MDB Drums, cached 
 - [docs/LIMITATIONS.md](docs/LIMITATIONS.md): measured accuracy and limits
 - [docs/MODELS.md](docs/MODELS.md): the onset classifier, its data and licences
 - [docs/WEB_APP.md](docs/WEB_APP.md): the studio (beat generator, song to chart, workspace, storage)
+- [docs/DEPLOY.md](docs/DEPLOY.md): running the studio as a website (image, host, settings)
 - [docs/SONG_LOOKUP.md](docs/SONG_LOOKUP.md): from a song's name to a chart
 - [docs/GAMECHARTS.md](docs/GAMECHARTS.md): Rock Band / Clone Hero import
 - [docs/AUDIT.md](docs/AUDIT.md): the starting point and the plan

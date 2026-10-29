@@ -467,7 +467,7 @@ dialog.modal .actions { display: flex; justify-content: flex-end; gap: 8px; marg
 .setting-row .help { color: var(--text-3); font-size: 13px; }
 .int-list { display: grid; gap: 8px; }
 .int { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-2); background: var(--bg-2); border: 1px solid var(--line); font-size: 14px; }
-.int .d { color: var(--text-3); font-size: 12.5px; }
+.int .d { color: var(--text-3); font-size: 12.5px; overflow-wrap: anywhere; }
 
 /* ---- responsive ------------------------------------------------------- */
 @media (max-width: 1100px) {

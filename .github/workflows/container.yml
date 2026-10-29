@@ -1,17 +1,24 @@
 # Builds the server image (Dockerfile), runs it as a shared server and tests it the way a
-# visitor uses it: every tool ready, a real catalog search (MusicBrainz, iTunes, Deezer), and
-# the whole workflow on a real, annotated recording (scripts/acceptance_run.py: pick the song,
-# upload it, the job with the drum separation, the chart, an edit saved as a version, both
-# versions reopened, the exports, and the chart scored against the human annotations). Only
-# then is the image pushed to this repository's container registry:
+# visitor uses it: every tool ready, a real catalog search (MusicBrainz, iTunes, Deezer; Spotify
+# and YouTube too when their keys are repository secrets), and the whole workflow on a real,
+# annotated recording (scripts/acceptance_run.py: pick the song, upload it, the job with the
+# drum separation, the chart, an edit saved as a version, both versions reopened, the exports,
+# and the chart scored against the human annotations). Only then is the image pushed to this
+# repository's container registry:
 #   ghcr.io/<owner>/<repo>:latest   (docker run -p 8000:8000 -v drum-agent-data:/data ...)
+#
+# Then the same commit is deployed to a permanent public address, a Hugging Face Space built
+# from the Dockerfile (scripts/deploy_space.py), and the live address is tested the same way.
+# That needs the repository secret HF_TOKEN (a Hugging Face access token with write
+# permission); without it the deploy job says so and deploys nothing.
 name: Server image
 
 on:
   push:
     branches: [claude/peaceful-noether-qz2xmc]
     paths: ["drum_agent/**", "Dockerfile", ".dockerignore", "pyproject.toml", "scripts/acceptance_run.py",
-            "scripts/eval_real.py", "scripts/install_lilypond.sh", ".github/workflows/container.yml"]
+            "scripts/eval_real.py", "scripts/install_lilypond.sh", "scripts/deploy_space.py",
+            ".github/workflows/container.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +28,11 @@ concurrency:
 permissions:
   contents: read
   packages: write  # pushing the tested image
+
+env:
+  YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+  SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+  SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
 
 jobs:
   image:
@@ -35,7 +47,7 @@ jobs:
 
       - name: Run it, as a shared server
         run: |
-          docker run -d --name studio -p 8000:8000 drum-agent:test
+          docker run -d --name studio -p 8000:8000 -e YOUTUBE_API_KEY -e SPOTIFY_CLIENT_ID -e SPOTIFY_CLIENT_SECRET drum-agent:test
           for _ in $(seq 1 120); do curl -fsS http://127.0.0.1:8000/api/health > /dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:8000/api/health | python3 -c "import json, sys; h = json.load(sys.stdin); print(json.dumps({k: h[k] for k in ('ok', 'mode', 'checks', 'providers', 'separation')}, indent=1))"
           docker image ls drum-agent:test --format "image size: {{.Size}}"
@@ -51,7 +63,7 @@ jobs:
 
       - name: A visitor's whole workflow on a real recording
         timeout-minutes: 20
-        run: python scripts/acceptance_run.py http://127.0.0.1:8000 --track Britpop --search "Back in Black - AC/DC"
+        run: python scripts/acceptance_run.py http://127.0.0.1:8000 --track Britpop --search "Back in Black - AC/DC" --expect-separation
 
       - name: The server's log
         if: always()
@@ -64,3 +76,46 @@ jobs:
           docker tag drum-agent:test "$image"
           docker push -q "$image"
           echo "Image: $image" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      DRUM_AGENT_ANTHROPIC_MODEL: ${{ vars.DRUM_AGENT_ANTHROPIC_MODEL }}
+    steps:
+      - name: A hosting account
+        id: account
+        run: |
+          if [ -n "$HF_TOKEN" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "Not deployed: no HF_TOKEN secret. Add a Hugging Face access token with write permission as the repository secret HF_TOKEN (Settings -> Secrets and variables -> Actions), then re-run this workflow." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v4
+        if: steps.account.outputs.ready == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.account.outputs.ready == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Deploy to the Hugging Face Space and wait until the new build runs
+        id: deploy
+        if: steps.account.outputs.ready == 'true'
+        timeout-minutes: 80
+        run: |
+          python -m pip install -q "huggingface_hub>=2.4,<3"
+          python scripts/deploy_space.py --space drum-agent
+
+      - name: The live address, tested as a visitor
+        if: steps.account.outputs.ready == 'true'
+        timeout-minutes: 30
+        run: |
+          python -m pip install -q numpy soundfile mir_eval
+          python scripts/eval_real.py --download
+          python scripts/acceptance_run.py "${{ steps.deploy.outputs.url }}" --track Britpop --search "Back in Black - AC/DC" --expect-separation
+          echo "Live and tested: ${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

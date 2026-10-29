@@ -30,7 +30,8 @@ workbook exported as CSV with `title` and `artist` columns) is added with
 `NEEDS_SOURCE`: no chart is generated and nothing is analysed until an authorized
 recording is supplied.
 
-Configuration is in `.env.example`. Every key stays on the server.
+Configuration is in `.env.example`. Every key stays on the server. Running it as a
+website (the Docker image, hosting, every setting): [DEPLOY.md](DEPLOY.md).
 
 ## Create a Beat
 
