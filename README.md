@@ -86,6 +86,21 @@ Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
 with a known chart), `verify` (re-check exported files; pass the same `--kit` if
 they were rendered with one), `doctor`.
 
+## The Drum Agent app (Windows)
+
+**[Download Drum Agent for Windows](https://github.com/urigrossman1-netizen/drum-agent/releases/latest/download/DrumAgent-Setup.exe)**
+(Windows 10 or 11, 64-bit; no administrator rights needed).
+
+Type a song and get its drum chart: the app finds the song on YouTube, listens to the
+drums and writes them out, on your own computer. Or describe a beat and get an original
+chart. Charts of songs from YouTube are for your own practice: they are marked
+"Transcribed for personal practice. Not for distribution.", and the app never shares them
+(posting them publicly needs the music publisher's permission). Beats and charts of your
+own songs are yours to share. How it is built and tested: [docs/DESKTOP.md](docs/DESKTOP.md).
+
+The same app from a checkout: `pip install -e '.[desktop]'` then `python -m drum_agent app`
+(it needs LilyPond and ffmpeg on the computer; the Windows installer ships them).
+
 ## The studio (web app)
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/urigrossman1-netizen/drum-agent?quickstart=1&ref=claude/peaceful-noether-qz2xmc)
@@ -115,7 +130,9 @@ python -m drum_agent serve --seed-examples   # http://127.0.0.1:8000
 - **Song to Chart:** search your catalog and MusicBrainz, iTunes and Deezer (plus
   Spotify and YouTube when keys are set; metadata only). Then open a stored chart, or
   upload a recording you have the right to transcribe and follow the job to a
-  full-song chart.
+  full-song chart. In the app on your own computer (`serve --personal`, or the Windows
+  app above) you only pick the song: it is found on YouTube and charted for your own
+  practice. A shared server like the live studio never downloads songs.
 
 Both land in the chart workspace:
 
