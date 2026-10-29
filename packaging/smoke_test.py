@@ -1,16 +1,18 @@
 """Check a running Drum Agent app end to end through its API (the packaged app, in CI).
 
-    python packaging/smoke_test.py http://127.0.0.1:8765 --take take.wav [--expect-download]
+    python packaging/smoke_test.py http://127.0.0.1:8765 --take take.wav [--expect-separation] [--search]
+
+The app must run with DRUM_AGENT_MUSIC_DIRS naming a folder that holds the take as
+"Drum Agent - Smoke Test Song.wav".
 
 1. health: every tool ready (LilyPond, ffmpeg, ffprobe, the classifier, the database), the
-   personal mode, and songs findable online (yt-dlp found);
+   personal mode, and the music folder found;
 2. a beat from a description, engraved (a PDF comes back);
 3. a recording uploaded with a rights basis, transcribed (the drums separated from the band
    first, with --expect-separation) and engraved;
-4. a YouTube search for a song (titles and lengths only);
-5. finding and charting that song. On a home connection it is charted. GitHub's servers are
-   refused by YouTube ("Sign in to confirm you're not a bot"): that must come back as a
-   clear download_failed, not a crash. --expect-download makes the chart required.
+4. a song typed by name, found in the music folder and charted for personal practice;
+5. with --search, a real catalog search (MusicBrainz, iTunes, Deezer) for a song: the
+   results and every provider's state.
 
 Standard library only. Prints each result; exits 1 at the first failure.
 """
@@ -22,6 +24,7 @@ import json
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -78,12 +81,12 @@ def multipart(fields: dict[str, str], name: str, filename: str, content: bytes) 
     return b"".join(parts), {"Content-Type": f"multipart/form-data; boundary={b}"}
 
 
-def run(app: App, take: Path, expect_download: bool, expect_separation: bool = False) -> None:
+def run(app: App, take: Path, expect_separation: bool = False, search: bool = False) -> None:
     h = app.call("GET", "/api/health")
     for name, c in h["checks"].items():
         check(c["ok"], f"{name} ready {c.get('version') or ''}".strip())
     check(h["mode"] == "personal", "the app runs in personal mode")
-    check(h["online"]["available"], f"songs can be found online ({h['online']['detail']})")
+    check(h["library"]["available"], f"songs can be found in the music folders ({h['library']['detail']})")
     if expect_separation:
         check(h["separation"]["available"], f"the drum separation is installed ({h['separation']['model']})")
 
@@ -107,34 +110,36 @@ def run(app: App, take: Path, expect_download: bool, expect_separation: bool = F
     check(chart["bars"] >= 4 and app.pdf(chart["id"])[:4] == b"%PDF",
           f"its chart is engraved: {chart['bars']} bars, status {chart['status']}")
 
-    song = app.call("POST", "/api/songs", json_body={"title": "Back in Black", "artist": "AC/DC",
-                                                    "duration_s": 255})["song"]
-    found = app.call("GET", f"/api/songs/{song['id']}/videos")
-    for v in found["videos"][:3]:
-        print(f"   {v['title']} | {v['channel']} | {v['duration_s']} s | {v['url']}")
-    check(len(found["videos"]) >= 1, "YouTube is searched from the app (yt-dlp and its JavaScript runtime work)")
+    song = app.call("POST", "/api/songs", json_body={"title": "Smoke Test Song", "artist": "Drum Agent"})["song"]
+    found = app.call("GET", f"/api/songs/{song['id']}/library")
+    check([f["name"] for f in found["files"]][:1] == ["Drum Agent - Smoke Test Song.wav"],
+          f"the song is found in the music folder ({', '.join(found['folders'])})")
+    r = app.call("POST", f"/api/songs/{song['id']}/library", json_body={"personal": True})
+    job = app.wait(r["job"])
+    check(job["status"] == "succeeded", f"it is charted from the file ({job.get('error') or 'ok'})")
+    chart = app.call("GET", f"/api/charts/{job['chart_id']}")
+    check(chart["shareable"] is False and app.pdf(chart["id"])[:4] == b"%PDF",
+          "its chart is engraved and marked for personal practice")
 
-    r = app.call("POST", f"/api/songs/{song['id']}/find", json_body={"personal": True})
-    job = app.wait(r["job"], timeout=1500)
-    if job["status"] == "succeeded":
-        check(app.pdf(job["chart_id"])[:4] == b"%PDF", "the song was found, downloaded and charted from its name")
-    elif expect_download:
-        raise Failed(f"the song could not be charted from its name: {job['error_code']}: {job['error']}")
-    else:
-        check(job["error_code"] == "download_failed" and bool(job["error"]),
-              "the download was refused (expected on GitHub's servers) and reported clearly")
-        print(f"   reported: {job['error'][:300]}")
+    if search:
+        r = app.call("GET", "/api/search?q=" + urllib.parse.quote("Back in Black - AC/DC"))
+        for st in r["providers"]:
+            print(f"   {st['provider']}: {st['state']} {st.get('detail') or ''}".rstrip())
+        for x in r["results"][:3]:
+            print(f"   {x['title']} | {x['artist']} | {x.get('album') or '-'} | {x.get('duration_s')} s | {x.get('url')}")
+        check(any(st["state"] == "ok" for st in r["providers"]) and len(r["results"]) >= 1,
+              "a real catalog search answers (MusicBrainz, iTunes, Deezer)")
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description="check a running Drum Agent app")
     p.add_argument("base", help="e.g. http://127.0.0.1:8765")
     p.add_argument("--take", type=Path, required=True, help="a WAV recording of drums to upload")
-    p.add_argument("--expect-download", action="store_true", help="the YouTube download must work here")
+    p.add_argument("--search", action="store_true", help="also a real catalog search (needs the internet)")
     p.add_argument("--expect-separation", action="store_true", help="the drum separation must be installed and run")
     args = p.parse_args()
     try:
-        run(App(args.base), args.take, args.expect_download, args.expect_separation)
+        run(App(args.base), args.take, args.expect_separation, args.search)
     except Failed as exc:
         print(f"FAILED - {exc}", flush=True)
         return 1

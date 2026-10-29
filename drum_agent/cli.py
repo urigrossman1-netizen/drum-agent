@@ -375,8 +375,7 @@ def cmd_app(args) -> int:
         print("error: the app needs the web dependencies: pip install -e '.[desktop]'", file=sys.stderr)
         return 1
     from .desktop import main as app_main
-    return app_main([*(["--headless"] if args.headless else []), *(["--port", str(args.port)] if args.port else []),
-                     *(["--no-update"] if args.no_update else [])])
+    return app_main([*(["--headless"] if args.headless else []), *(["--port", str(args.port)] if args.port else [])])
 
 
 def cmd_serve(args) -> int:
@@ -508,7 +507,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--artist", help="helps the lookup; printed on the chart")
     src = p.add_mutually_exclusive_group()
     src.add_argument("--audio", metavar="FILE", help="your own audio file (used in place, never modified)")
-    src.add_argument("--url", help="direct link to an audio file, or a video page (needs your own yt-dlp)")
+    src.add_argument("--url", help="direct link to an audio file (pages on video sites are refused)")
     p.add_argument("--library", action="append", metavar="DIR",
                    help="folder of your audio to search (repeatable; default ~/Music and DRUM_AGENT_MUSIC_DIRS)")
     p.add_argument("--no-online", action="store_true", help="no network at all: your library or --audio only")
@@ -590,10 +589,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("app", help="Drum Agent on your own computer: the studio in its own window; a song typed by "
-                                   "name is found on YouTube and charted for your own practice")
+                                   "name is found among your own audio files and charted for your own practice")
     p.add_argument("--headless", action="store_true", help="no window: serve on 127.0.0.1 until stopped (for tests)")
     p.add_argument("--port", type=int, default=0, help="port (default: a free one)")
-    p.add_argument("--no-update", action="store_true", help="don't update yt-dlp at start")
     p.set_defaults(func=cmd_app)
 
     p = sub.add_parser("serve", help="run the web app (search, upload, transcribe, view, print)")
@@ -602,8 +600,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data", help="data directory (default: $DRUM_AGENT_DATA_DIR or ~/.drum_agent/web)")
     p.add_argument("--seed-examples", action="store_true", help="add the example song chart to the catalog first")
     p.add_argument("--personal", action="store_true",
-                   help="personal app on your own computer: a typed song is found on YouTube (with yt-dlp) and "
-                        "charted for your own practice; only on 127.0.0.1")
+                   help="personal app on your own computer: a typed song is found among your own audio files "
+                        "(your music folders) and charted for your own practice; only on 127.0.0.1")
     p.set_defaults(func=cmd_serve)
 
     p = sub.add_parser("catalog", help="web app catalog: seed the example chart or import a song list (CSV)")

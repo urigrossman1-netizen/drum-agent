@@ -1,5 +1,5 @@
 """The app on a person's own computer (`drum_agent/desktop.py`): where its data and tools
-are, yt-dlp kept where it can update itself, and the studio it serves (headless here)."""
+are, the window, and the studio it serves (headless here)."""
 
 import json
 import os
@@ -21,9 +21,6 @@ def _tools(tmp_path):
     (t / "lilypond" / "bin").mkdir(parents=True)
     (t / "lilypond" / "bin" / f"lilypond{desktop.EXE}").write_text("")
     (t / "ffmpeg" / "bin").mkdir(parents=True)
-    (t / "deno").mkdir()
-    (t / "yt-dlp").mkdir()
-    (t / "yt-dlp" / f"yt-dlp{desktop.EXE}").write_text("shipped v1")
     return t
 
 
@@ -39,22 +36,8 @@ def test_configure_puts_the_shipped_tools_first_and_turns_on_personal_mode(tmp_p
     assert os.environ["DRUM_AGENT_DATA_DIR"] == str(tmp_path / "data" / "studio")
     assert os.environ["DRUM_AGENT_LILYPOND"] == str(tools / "lilypond" / "bin" / f"lilypond{desktop.EXE}")
     path = os.environ["PATH"].split(os.pathsep)
-    assert path[:3] == [str(tmp_path / "data" / "bin"), str(tools / "ffmpeg" / "bin"), str(tools / "deno")]
+    assert path[0] == str(tools / "ffmpeg" / "bin")
     assert path[-1] == "/usr/bin"
-
-
-def test_yt_dlp_is_copied_once_and_an_updated_copy_is_kept(tmp_path):
-    tools, data = _tools(tmp_path), tmp_path / "data"
-    exe = desktop.install_ytdlp(data, tools)
-    assert exe == data / "bin" / f"yt-dlp{desktop.EXE}" and exe.read_text() == "shipped v1"
-    exe.write_text("self-updated v2")  # `yt-dlp -U` replaced it: newer than the shipped one
-    os.utime(exe, (time.time() + 60, time.time() + 60))
-    assert desktop.install_ytdlp(data, tools).read_text() == "self-updated v2"
-    shipped = tools / "yt-dlp" / f"yt-dlp{desktop.EXE}"
-    shipped.write_text("shipped v3, a newer installer")  # an app update ships a newer one
-    os.utime(shipped, (time.time() + 120, time.time() + 120))
-    assert desktop.install_ytdlp(data, tools).read_text() == "shipped v3, a newer installer"
-    assert desktop.install_ytdlp(tmp_path / "other", None) is None  # nothing shipped, nothing copied
 
 
 def test_the_window_is_maximized_on_a_small_screen():
@@ -91,7 +74,7 @@ def test_headless_app_serves_the_personal_studio_once(tmp_path):
     port = desktop.free_port()
     env = {**os.environ, "DRUM_AGENT_DATA_DIR": str(data), "DRUM_AGENT_PUBLIC_METADATA": "0"}
     env.pop("DRUM_AGENT_MODE", None)
-    proc = subprocess.Popen([sys.executable, "-m", "drum_agent", "app", "--headless", "--no-update", "--port", str(port)],
+    proc = subprocess.Popen([sys.executable, "-m", "drum_agent", "app", "--headless", "--port", str(port)],
                             cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     url = f"http://127.0.0.1:{port}"
     try:

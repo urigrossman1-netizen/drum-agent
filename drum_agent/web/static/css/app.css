@@ -322,6 +322,8 @@ dialog.modal .actions { display: flex; justify-content: flex-end; gap: 8px; marg
 .check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
 .check input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--mint); flex: none; }
 .video-list { display: grid; gap: 6px; }
+.embed { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+.embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .video { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-2); border: 1px solid var(--line); background: var(--bg-2); }
 .video .what { flex: 1; min-width: 0; }
 .video .title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

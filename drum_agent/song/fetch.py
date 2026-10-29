@@ -1,16 +1,16 @@
 """Get the audio file a chart or an analysis will be made from.
 
-`fetch_audio(source)` accepts three kinds of source:
+`fetch_audio(source)` accepts two kinds of source:
 
 * a local file: used where it is, never copied, moved or modified;
 * a direct http(s) link to an audio file: checked by content type and
   extension, size-capped, streamed to a hidden temp file in the cache and
-  renamed into place only when complete;
-* a page on a video site: handed to yt-dlp, and only if the user installed
-  yt-dlp themselves (Drum Agent never depends on it).
+  renamed into place only when complete.
 
-Spotify, Apple Music, Tidal, Deezer and Amazon Music are refused outright:
-their streams are DRM-protected, so they are used for metadata only.
+Pages on video sites (YouTube, Vimeo, SoundCloud...) are refused: their official
+interfaces give metadata, links and embedded players, not audio for analysis, and Drum
+Agent doesn't extract it. Spotify, Apple Music, Tidal, Deezer and Amazon Music are
+refused too: their streams are DRM-protected, so they are used for metadata only.
 
 Downloads go to a cache folder (`~/.cache/drum-agent/audio`, or
 `DRUM_AGENT_AUDIO_CACHE`), never into the repository, under sanitised names
@@ -23,13 +23,8 @@ from __future__ import annotations
 
 import hashlib
 import http.client
-import importlib.util
-import json
 import os
 import re
-import shutil
-import subprocess
-import sys
 import tempfile
 import time
 import unicodedata
@@ -40,7 +35,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from .local import AUDIO_EXTENSIONS
-from .lookup import MetadataError, format_duration, open_url, similarity, text_key, version_penalty
+from .lookup import MetadataError, open_url, text_key
 
 CACHE_ENV = "DRUM_AGENT_AUDIO_CACHE"
 MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024
@@ -48,23 +43,11 @@ DOWNLOAD_TIMEOUT = 30.0  # seconds per network operation (connect, each read)
 CHUNK = 1 << 16
 MIN_RATE = 16 * 1024  # bytes/s: slower than this after the first 30 s, a download is given up
 SLOW_GRACE_S = 30.0
-YTDLP_SEARCH_TIMEOUT = 180.0
-YTDLP_DOWNLOAD_TIMEOUT = 1800.0
 DURATION_TOLERANCE = 0.10  # a recording within 10 % of the identified length counts as the same version
 
-# Words in a video title that mark another performance or a treated copy: never the recording
-# to transcribe unless the user asked for it.
-VIDEO_PENALTY_WORDS = ("live", "cover", "drum cover", "remix", "karaoke", "lesson", "tutorial", "reaction",
-                       "slowed", "sped up", "nightcore", "8d", "instrumental", "acoustic")
-# A copy without the drums (or without the song) is useless for a drum transcription.
-NO_DRUMS_WORDS = ("drumless", "no drums", "without drums", "minus drums", "drums removed", "backing track",
-                  "drum backing", "play along", "playalong")
-_OFFICIAL_TAG = re.compile(r"[(\[]?\s*official\s+(?:[\w-]+\s+){0,2}?(?:audio|video|music\s+video|lyric\s+video|"
-                           r"visualizer)\s*[)\]]?", re.IGNORECASE)  # "(Official Audio)", "(Official 4K Video)"
-_CHANNEL_SUFFIX = re.compile(r"\s*(?:-\s*topic|vevo|official)\s*$", re.IGNORECASE)
-
-YTDLP_MISSING = ("yt-dlp is not installed. Drum Agent does not include it; to use audio from a video site, "
-                 "install it yourself: pip install yt-dlp")
+VIDEO_REFUSED = ("{url} is a page on a video site. Its official interfaces give links and a player, "
+                 "not audio to analyse, and Drum Agent doesn't extract it: give a recording you have "
+                 "(a file, or a direct link to an audio file you have the right to transcribe).")
 
 # (host suffix, service): DRM-protected streams, metadata only.
 _STREAMING_HOSTS = (
@@ -101,7 +84,7 @@ class FetchError(RuntimeError):
 @dataclass
 class AudioSource:
     path: Path
-    origin: str  # "file" (the user's, used in place), "direct" (downloaded link), "video" (yt-dlp)
+    origin: str  # "file" (the user's, used in place) or "direct" (a downloaded link)
     url: str | None = None
     title: str | None = None
     uploader: str | None = None
@@ -113,50 +96,13 @@ class AudioSource:
         """Where the audio came from, precisely enough for a chart's source line."""
         if self.origin == "file":
             return f"audio file {self.path}"
-        how = "video page via yt-dlp" if self.origin == "video" else "direct download"
-        bits = [f"{how} {self.url}"]
+        bits = [f"direct download {self.url}"]
         if self.title:
             bits.append(f'title "{self.title}"')
         if self.uploader:
             bits.append(f"uploader {self.uploader}")
         bits.append(f"licence: {self.license or 'not stated'}")
         return ", ".join(bits) + f"; saved as {self.path}"
-
-
-@dataclass
-class VideoCandidate:
-    url: str
-    title: str
-    uploader: str | None = None
-    duration_s: float | None = None
-    license: str | None = None
-    id: str | None = None
-    channel: str | None = None
-    is_live: bool = False
-    score: float = 0.0
-
-    @classmethod
-    def from_info(cls, info: dict) -> "VideoCandidate | None":
-        """From one yt-dlp --dump-json object (full or --flat-playlist); None without a usable URL."""
-        if not isinstance(info, dict):
-            return None
-        url = info.get("webpage_url") or info.get("original_url") or info.get("url")
-        if not url and info.get("id") and str(info.get("ie_key", "")).lower() == "youtube":
-            url = f"https://www.youtube.com/watch?v={info['id']}"
-        if not url or urllib.parse.urlsplit(str(url)).scheme not in ("http", "https"):
-            return None
-        try:
-            duration = float(info["duration"]) if info.get("duration") else None
-        except (TypeError, ValueError):
-            duration = None
-        return cls(url=str(url), title=str(info.get("title") or url),
-                   uploader=info.get("uploader") or info.get("channel"), duration_s=duration,
-                   license=info.get("license") or None, id=info.get("id"), channel=info.get("channel"),
-                   is_live=bool(info.get("is_live")))
-
-    def describe(self) -> str:
-        return (f"video: {self.title} - {self.uploader or 'unknown uploader'}, {format_duration(self.duration_s)}, "
-                f"licence: {self.license or 'not stated'} <{self.url}>")
 
 
 # ---- what a source is -----------------------------------------------------------------
@@ -298,8 +244,8 @@ def _looks_like_html(chunk: bytes) -> bool:
 
 
 def download_url(url: str, cache_dir: str | Path | None = None, *, max_bytes: int = MAX_DOWNLOAD_BYTES,
-                 timeout: float = DOWNLOAD_TIMEOUT, ytdlp: list[str] | None = None) -> AudioSource:
-    """Download a direct link to an audio file into the cache (a web page goes to yt-dlp if installed)."""
+                 timeout: float = DOWNLOAD_TIMEOUT) -> AudioSource:
+    """Download a direct link to an audio file into the cache (a web page is refused)."""
     refuse_streaming(url)
     parts = urllib.parse.urlsplit(url)
     host = _host(parts)
@@ -322,14 +268,7 @@ def download_url(url: str, cache_dir: str | Path | None = None, *, max_bytes: in
         ctype = resp.headers.get_content_type() if raw_type else None
         url_ext = PurePosixPath(urllib.parse.urlsplit(final_url).path).suffix.lower()
         if ctype in _HTML_TYPES:
-            exe = ytdlp or find_ytdlp()
-            if exe is None:
-                raise FetchError(f"{url} is a web page, not an audio file. If it is a page on a video site, "
-                                 f"install yt-dlp yourself (pip install yt-dlp); otherwise give a direct link to "
-                                 f"the audio file.")
-            resp.close()
-            info = video_info(url, ytdlp=exe)  # one recording only; its title, uploader and licence
-            return download_with_ytdlp(url, cache, info=info, ytdlp=exe, max_bytes=max_bytes)
+            raise FetchError(f"{url} is a web page, not an audio file: give a direct link to the audio file")
         if ctype in _PLAYLIST_TYPES:
             raise FetchError(f"{url} is a playlist or a live stream ({ctype}), not an audio file")
         if not _is_audio_type(ctype, url_ext):
@@ -390,174 +329,11 @@ def _stream_to(resp, final: Path, max_bytes: int, url: str) -> None:
         tmp.unlink(missing_ok=True)
 
 
-# ---- video sites (yt-dlp, only if the user has it) -------------------------------------
-
-def find_ytdlp() -> list[str] | None:
-    """The user's yt-dlp: the `yt-dlp` executable on PATH, else `python -m yt_dlp`, else None."""
-    exe = shutil.which("yt-dlp")
-    if exe:
-        return [exe]
-    # In the packaged app sys.executable is the app itself, not Python: only a yt-dlp program will do.
-    if not getattr(sys, "frozen", False) and importlib.util.find_spec("yt_dlp") is not None:
-        return [sys.executable, "-m", "yt_dlp"]
-    return None
-
-
-def require_ytdlp() -> list[str]:
-    exe = find_ytdlp()
-    if exe is None:
-        raise FetchError(YTDLP_MISSING)
-    return exe
-
-
-def _run_ytdlp(exe: list[str], args: list[str], timeout: float) -> subprocess.CompletedProcess:
-    try:
-        return subprocess.run([*exe, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                              timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise FetchError(f"yt-dlp took longer than {timeout:g} s") from None
-    except OSError as exc:
-        raise FetchError(f"can't run yt-dlp ({exc})") from None
-
-
-def _tail(text: str, n: int = 400) -> str:
-    return " ".join(text.split())[-n:] or "no message"
-
-
-def _parse_infos(stdout: str) -> list[VideoCandidate]:
-    out = []
-    for line in stdout.splitlines():
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            v = VideoCandidate.from_info(json.loads(line))
-        except ValueError:
-            continue
-        if v is not None and not v.is_live:
-            out.append(v)
-    return out
-
-
-def _compact(text: str | None) -> str:
-    return text_key(text).replace(" ", "")
-
-
-def rank_videos(videos: list[VideoCandidate], query: str, expected_duration: float | None = None,
-                asked: str | None = None, artist: str | None = None) -> list[VideoCandidate]:
-    """Best first: title (with the channel's name, which often is the artist) against the query,
-    a length within 10 % of the identified recording, and no "live", "cover", "remix"... in the
-    title unless the user's own words (`asked`) contain it. Then the trusted copies: the
-    platform's own copy of the album track (a "- Topic" channel), the artist's own channel,
-    an "official" audio or video."""
-    asked = asked if asked is not None else query
-    for v in videos:
-        title = _OFFICIAL_TAG.sub(" ", v.title)
-        channel = str(v.channel or v.uploader or "")
-        name = _CHANNEL_SUFFIX.sub("", channel).strip()
-        s = max(similarity(query, title), similarity(query, f"{name} {title}") if name else 0.0)
-        if expected_duration and v.duration_s:
-            off = abs(v.duration_s - expected_duration) / expected_duration
-            s += 0.3 if off <= DURATION_TOLERANCE else -min(0.3, off)
-        s -= version_penalty(v.title, asked, VIDEO_PENALTY_WORDS, per_word=0.3)
-        s -= version_penalty(v.title, asked, NO_DRUMS_WORDS, per_word=1.0)
-        # The version the user asked for ("live", "acoustic"...) comes before the album track.
-        t, q = f" {text_key(v.title)} ", f" {text_key(asked)} "
-        s += 0.5 * sum(1 for w in VIDEO_PENALTY_WORDS if f" {text_key(w)} " in t and f" {text_key(w)} " in q)
-        if re.search(r"-\s*topic\s*$", channel, re.IGNORECASE):
-            s += 0.2  # the platform's own copy of the album track
-        elif artist and name and _compact(name) == _compact(artist):
-            s += 0.1  # the artist's (or their label's VEVO) channel
-        key = text_key(v.title)
-        if re.search(r"\bofficial (?:\w+ ){0,2}audio\b", key):
-            s += 0.1
-        elif re.search(r"\bofficial (?:\w+ ){0,2}(?:video|music video|visualizer)\b", key):
-            s += 0.05
-        v.score = round(s, 3)
-    return sorted(videos, key=lambda v: -v.score)
-
-
-def search_videos(query: str, n: int = 5, expected_duration: float | None = None, *, asked: str | None = None,
-                  ytdlp: list[str] | None = None, flat: bool = False, artist: str | None = None,
-                  timeout: float = YTDLP_SEARCH_TIMEOUT) -> list[VideoCandidate]:
-    """Ranked video candidates from `yt-dlp --dump-json "ytsearchN:QUERY"` (metadata only, nothing downloaded).
-
-    Without `flat`, yt-dlp reads each video's page, which is slower but gives the
-    duration, channel and licence that the choice and the report need."""
-    exe = ytdlp or require_ytdlp()
-    args = ["--dump-json", "--no-warnings", "--ignore-errors", "--skip-download"]
-    if flat:
-        args.append("--flat-playlist")
-    proc = _run_ytdlp(exe, [*args, f"ytsearch{max(1, n)}:{query}"], timeout)
-    videos = _parse_infos(proc.stdout)
-    if not videos and proc.returncode != 0:
-        raise FetchError(f"yt-dlp search failed: {_tail(proc.stderr)}")
-    return rank_videos(videos, query, expected_duration, asked, artist)
-
-
-def video_info(url: str, *, ytdlp: list[str] | None = None, timeout: float = YTDLP_SEARCH_TIMEOUT) -> VideoCandidate:
-    """Title, uploader, duration and licence of one video page (metadata only)."""
-    refuse_streaming(url)
-    exe = ytdlp or require_ytdlp()
-    proc = _run_ytdlp(exe, ["--dump-json", "--no-warnings", "--no-playlist", "--skip-download", "--", url], timeout)
-    videos = _parse_infos(proc.stdout)
-    if not videos:
-        raise FetchError(f"yt-dlp found no video at {url}: {_tail(proc.stderr)}")
-    if len(videos) > 1:
-        raise FetchError(f"{url} holds {len(videos)} recordings (a playlist or an album page); give the link "
-                         f"of the one recording to use")
-    return videos[0]
-
-
-def download_with_ytdlp(url: str, cache_dir: str | Path | None = None, *, info: VideoCandidate | None = None,
-                        ytdlp: list[str] | None = None, max_bytes: int = MAX_DOWNLOAD_BYTES,
-                        timeout: float = YTDLP_DOWNLOAD_TIMEOUT) -> AudioSource:
-    """The audio of one video page, into the cache, through the user's yt-dlp."""
-    refuse_streaming(url)
-    exe = ytdlp or require_ytdlp()
-    cache = cache_root(cache_dir)
-    v = info or VideoCandidate(url=url, title=url)
-    cached = _cached_video(cache, v.id)
-    if cached is not None:
-        return AudioSource(cached, "video", url=v.url or url, title=v.title, uploader=v.uploader,
-                           duration_s=v.duration_s, license=v.license, note="already in the cache")
-    args = ["--no-playlist", "--playlist-items", "1", "--no-progress", "--no-warnings", "--restrict-filenames",
-            "--no-overwrites", "--max-filesize", str(max_bytes), "--match-filter", "!is_live", "-f", "bestaudio/best",
-            "-P", str(cache), "-o", "%(title).80B-%(id)s.%(ext)s",
-            "--print", "after_move:filepath", "--no-simulate", "--", url]
-    proc = _run_ytdlp(exe, args, timeout)
-    if proc.returncode != 0:
-        raise FetchError(f"yt-dlp could not download {url}: {_tail(proc.stderr)}")
-    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
-    path = Path(lines[-1]).resolve() if lines else None
-    if path is None or not path.is_file():
-        raise FetchError(f"yt-dlp saved nothing for {url} (a live stream, over {max_bytes / 1e6:.0f} MB, or no "
-                         f"audio on the page)")
-    if not path.is_relative_to(cache):
-        raise FetchError(f"yt-dlp saved {path}, outside the audio cache {cache}; check your yt-dlp configuration")
-    return AudioSource(path, "video", url=v.url or url, title=v.title if info else path.stem, uploader=v.uploader,
-                       duration_s=v.duration_s, license=v.license)
-
-
-_PARTIAL_SUFFIXES = (".part", ".ytdl", ".temp", ".tmp")
-
-
-def _cached_video(cache: Path, video_id: str | None) -> Path | None:
-    """A finished earlier download of this video (named "...-<id>.<ext>" by our template)."""
-    if not video_id or not re.fullmatch(r"[A-Za-z0-9_-]+", video_id):
-        return None
-    done = [p for p in cache.glob(f"*-{video_id}.*")
-            if p.is_file() and not p.name.startswith(".") and not p.name.endswith(_PARTIAL_SUFFIXES)
-            and ".part" not in p.suffixes]
-    return min(done, key=lambda p: p.name) if done else None
-
-
 # ---- one entry point ------------------------------------------------------------------
 
-def fetch_audio(source: str | Path, cache_dir: str | Path | None = None, *, info: VideoCandidate | None = None,
-                ytdlp: list[str] | None = None, max_bytes: int = MAX_DOWNLOAD_BYTES,
+def fetch_audio(source: str | Path, cache_dir: str | Path | None = None, *, max_bytes: int = MAX_DOWNLOAD_BYTES,
                 timeout: float = DOWNLOAD_TIMEOUT) -> AudioSource:
-    """A local path, a direct audio link, or a video page -> an AudioSource with a local file."""
+    """A local path or a direct audio link -> an AudioSource with a local file. Video pages are refused."""
     if isinstance(source, Path):
         return local_file(source)
     s = str(source).strip()
@@ -570,5 +346,5 @@ def fetch_audio(source: str | Path, cache_dir: str | Path | None = None, *, info
     if scheme not in ("http", "https"):
         raise FetchError(f"can't fetch {scheme}: links; give a file, or an http(s) link to an audio file")
     if is_video_page(s):
-        return download_with_ytdlp(s, cache_dir, info=info, ytdlp=ytdlp, max_bytes=max_bytes)
-    return download_url(s, cache_dir, max_bytes=max_bytes, timeout=timeout, ytdlp=ytdlp)
+        raise FetchError(VIDEO_REFUSED.format(url=s))
+    return download_url(s, cache_dir, max_bytes=max_bytes, timeout=timeout)

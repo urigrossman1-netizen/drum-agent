@@ -3,9 +3,9 @@
 * `lookup`: identify the song from public metadata (MusicBrainz, iTunes,
   Deezer). Metadata only; no audio is requested.
 * `local`: find it among the user's own audio files (tags or file names).
-* `fetch`: get the audio file: a local file in place, a direct link to an
-  audio file, or a video page through the user's own yt-dlp. DRM streaming
-  services are refused.
+* `fetch`: get the audio file: a local file in place, or a direct link to an
+  audio file. Pages on video sites and DRM streaming services are refused:
+  they give metadata and players, not audio to analyse.
 * `run`: the `song` command: identify, choose the audio, check its length,
   then the analysis, or with --rights (checked before any download for
   transcription) the transcription.

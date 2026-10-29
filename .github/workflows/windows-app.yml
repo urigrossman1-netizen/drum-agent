@@ -3,9 +3,8 @@
 #   https://github.com/<owner>/<repo>/releases/latest/download/DrumAgent-Setup.exe
 #
 # The test (packaging/smoke_test.py) runs the packaged app: every tool ready, a beat, an
-# uploaded recording transcribed, a YouTube search, and a song charted from its name. YouTube
-# refuses downloads from GitHub's servers, so here that last step must fail cleanly; on a home
-# connection it charts the song.
+# uploaded recording separated and transcribed, a song typed by name found in a music folder
+# and charted, and a real catalog search (MusicBrainz, iTunes, Deezer).
 name: Windows app
 
 on:
@@ -43,7 +42,6 @@ jobs:
           python -m pip install -q --upgrade pip
           python -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -q ".[desktop]" demucs pyinstaller pillow
-          python -m pip uninstall -y -q yt-dlp  # the app ships yt-dlp.exe, which can update itself
 
       - name: Draw the icon
         run: python packaging/make_icon.py
@@ -52,7 +50,7 @@ jobs:
         timeout-minutes: 45
         run: pyinstaller packaging/drum_agent.spec --noconfirm --clean --log-level WARN
 
-      - name: Add the tools (LilyPond, FFmpeg, yt-dlp, Deno, the HTDemucs model)
+      - name: Add the tools (LilyPond, FFmpeg, the HTDemucs model)
         timeout-minutes: 15
         run: python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools --separation
 
@@ -60,14 +58,16 @@ jobs:
         timeout-minutes: 30
         run: |
           python -c "from drum_agent.charts import load_any; from drum_agent.synth import synthesize; synthesize(load_any('examples/specs/01_basic_rock_beat.yaml'), 'take.wav', method='numpy')"
+          mkdir -p music && cp take.wav "music/Drum Agent - Smoke Test Song.wav"
           export DRUM_AGENT_DATA_DIR="$RUNNER_TEMP/drum-agent-data"
+          export DRUM_AGENT_MUSIC_DIRS="$(cygpath -w "$PWD/music")"
           ./dist/DrumAgent/DrumAgent.exe --headless --port 8765 &
           for _ in $(seq 1 180); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/health || true)
             [ "$code" = "200" ] || [ "$code" = "503" ] && break
             sleep 1
           done
-          python packaging/smoke_test.py http://127.0.0.1:8765 --take take.wav --expect-separation
+          python packaging/smoke_test.py http://127.0.0.1:8765 --take take.wav --expect-separation --search
 
       - name: The app's log
         if: always()

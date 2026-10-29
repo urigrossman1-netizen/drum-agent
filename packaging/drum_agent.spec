@@ -1,6 +1,6 @@
 # PyInstaller recipe for the Drum Agent app (one folder: dist/DrumAgent/).
 #   pyinstaller packaging/drum_agent.spec --noconfirm
-# The tools (LilyPond, ffmpeg, yt-dlp, Deno) are not part of this: packaging/fetch_tools.py
+# The tools (LilyPond, ffmpeg) are not part of this: packaging/fetch_tools.py
 # puts them in dist/DrumAgent/tools, where drum_agent.desktop finds them.
 import os
 

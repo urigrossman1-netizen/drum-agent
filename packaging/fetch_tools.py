@@ -1,16 +1,14 @@
 """Download the tools the Drum Agent app ships with, into DEST (run on the build machine).
 
   LilyPond 2.26.0   engraving                                  GPL-3.0+   https://lilypond.org
-  FFmpeg            decoding the downloaded audio              LGPL-2.1+  https://ffmpeg.org
+  FFmpeg            decoding audio files                       LGPL-2.1+  https://ffmpeg.org
                     (Windows build: https://github.com/BtbN/FFmpeg-Builds)
-  yt-dlp            finding and downloading songs on YouTube   Unlicense  https://github.com/yt-dlp/yt-dlp
-  Deno              the JavaScript runtime yt-dlp needs        MIT        https://deno.com
   HTDemucs model    separating the drums from the band         MIT        https://github.com/adefossez/demucs
                     (with --separation; its code, PyTorch and demucs, is in the app itself)
 
     python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools [--separation]
 
-DEST gets lilypond/, ffmpeg/bin/, yt-dlp/, deno/ and NOTICES.txt (what each tool is, its
+DEST gets lilypond/, ffmpeg/bin/ and NOTICES.txt (what each tool is, its
 licence and where its source is). Downloads are cached in build/downloads.
 """
 
@@ -36,15 +34,11 @@ TOOLS = {
                      f"lilypond-{LILYPOND}-mingw-x86_64.zip"],
         "ffmpeg": ["https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
                    "ffmpeg-master-latest-win64-lgpl-shared.zip"],
-        "yt-dlp": ["https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"],
-        "deno": ["https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip"],
     },
     "mac": {
         "lilypond": [f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
                      f"lilypond-{LILYPOND}-darwin-x86_64.tar.gz"],
         "ffmpeg": [],  # filled in by the Mac build (static builds are per architecture)
-        "yt-dlp": ["https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"],
-        "deno": ["https://github.com/denoland/deno/releases/latest/download/deno-aarch64-apple-darwin.zip"],
     },
 }
 
@@ -58,12 +52,8 @@ Drum Agent runs these programs, unmodified, as separate programs.
 
 LilyPond {LILYPOND} (lilypond/): music engraving. GNU GPL v3 or later.
   Source: https://lilypond.org/source.html  https://gitlab.com/lilypond/lilypond
-FFmpeg (ffmpeg/): decoding audio. GNU LGPL v2.1 or later (this build has no GPL parts).
+FFmpeg (ffmpeg/): decoding audio files. GNU LGPL v2.1 or later (this build has no GPL parts).
   Source: https://ffmpeg.org/download.html  Build: https://github.com/BtbN/FFmpeg-Builds
-yt-dlp (yt-dlp/): finding and downloading songs on YouTube. The Unlicense (public domain).
-  Source: https://github.com/yt-dlp/yt-dlp  (it updates itself; see Settings in the app)
-Deno (deno/): the JavaScript runtime yt-dlp needs for YouTube. MIT licence.
-  Source: https://github.com/denoland/deno
 HTDemucs (torch/, when present): the model that separates the drums from the band before
   transcription, run with PyTorch (BSD) and demucs (MIT). MIT licence.
   Source: https://github.com/adefossez/demucs
@@ -137,15 +127,6 @@ def fetch(platform: str, dest: Path) -> None:
             if (top / name).is_file():
                 shutil.copy2(top / name, dest / "ffmpeg" / name)
         assert (dest / "ffmpeg" / "bin" / f"ffmpeg{exe}").is_file(), "no ffmpeg in the FFmpeg download"
-
-    (dest / "yt-dlp").mkdir(exist_ok=True)
-    shutil.copy2(download(urls["yt-dlp"][0]), dest / "yt-dlp" / f"yt-dlp{exe}")
-    (dest / "yt-dlp" / f"yt-dlp{exe}").chmod(0o755)
-
-    top = unpack(download(urls["deno"][0]), work / "deno")
-    (dest / "deno").mkdir(exist_ok=True)
-    shutil.copy2(top / f"deno{exe}", dest / "deno" / f"deno{exe}")
-    (dest / "deno" / f"deno{exe}").chmod(0o755)
 
     (dest / "NOTICES.txt").write_text(NOTICES, encoding="utf-8")
     size = sum(p.stat().st_size for p in dest.rglob("*") if p.is_file())

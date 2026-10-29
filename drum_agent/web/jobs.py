@@ -14,9 +14,9 @@ chart version:
   view      the on-screen SVG pages and bar map
   save      the chart version is recorded
 
-In the personal app a song can also be charted from its name alone: a "find" job first
-searches YouTube for the recording (`search`) and downloads and decodes the best match
-(`download`, see `online.py`), then runs the stages above on it.
+In the personal app a song can also be charted from its name alone: a "library" job first
+looks for the recording among the user's own audio files (`search`, see `library.py`),
+decodes the best match into the song's source, then runs the stages above on it.
 
 The first five stages are reported by the transcriber itself as it reaches them, so
 the stage shown is the work being done. Jobs are idempotent per (source audio, engine):
@@ -71,13 +71,12 @@ GENERATE_STAGES = [
     ("view", "Drawing the on-screen chart"),
     ("save", "Saving the chart"),
 ]
-FIND_STAGES = [
-    ("search", "Finding the song on YouTube"),
-    ("download", "Downloading the audio"),
+LIBRARY_STAGES = [
+    ("search", "Looking in your music folders"),
     *STAGES,
 ]
-STAGES_BY_KIND = {"transcribe": STAGES, "generate": GENERATE_STAGES, "find": FIND_STAGES}
-STAGE_LABELS = dict(FIND_STAGES) | dict(GENERATE_STAGES)
+STAGES_BY_KIND = {"transcribe": STAGES, "generate": GENERATE_STAGES, "library": LIBRARY_STAGES}
+STAGE_LABELS = dict(LIBRARY_STAGES) | dict(GENERATE_STAGES)
 MAX_ATTEMPTS = 2  # a job interrupted by a crash or restart is resumed once more, then failed
 
 
@@ -130,8 +129,8 @@ class JobRunner:
         if job["kind"] == "generate":
             new, _ = self.submit_generate(job["song_id"], {**job["params"], "request_id": None})
             return new
-        if job["kind"] == "find":
-            new, _ = self.submit_find(job["song_id"], job["params"].get("video"))
+        if job["kind"] == "library":
+            new, _ = self.submit_library(job["song_id"], job["params"].get("file"))
             return new
         new, _ = self.submit(job["song_id"], job["source_id"])
         return new
@@ -148,15 +147,15 @@ class JobRunner:
         self.queue.put(job["id"])
         return job, True
 
-    def submit_find(self, song_id: str, video: dict | None = None) -> tuple[dict, bool]:
-        """Find the song's recording online (or use `video`, one the user picked) and chart it. One job per
-        (song, video, engine): asking again returns the job that ran or is running."""
-        key = f"find|{song_id}|{(video or {}).get('id') or (video or {}).get('url') or 'best'}|{ENGINE}"
+    def submit_library(self, song_id: str, file: str | None = None) -> tuple[dict, bool]:
+        """Find the song's recording in the user's music folders (or use `file`, one the user picked) and
+        chart it. One job per (song, file, engine): asking again returns the job that ran or is running."""
+        key = f"library|{song_id}|{file or 'best'}|{ENGINE}"
         existing = self.store.job_by_key(key)
         if existing is not None:
             return existing, False
-        job = self.store.create_job(song_id=song_id, source_id=None, engine=ENGINE, key=key, kind="find",
-                                    params={"video": video} if video else {})
+        job = self.store.create_job(song_id=song_id, source_id=None, engine=ENGINE, key=key, kind="library",
+                                    params={"file": file} if file else {})
         self.queue.put(job["id"])
         return job, True
 
@@ -208,7 +207,7 @@ class JobRunner:
             self.store.update_job(job_id, stage=name, stages=stages)
 
         try:
-            work = {"generate": self._generate, "find": self._find}.get(job["kind"], self._transcribe)
+            work = {"generate": self._generate, "library": self._library}.get(job["kind"], self._transcribe)
             chart = work(job, step)
         except Cancelled:
             return self.store.update_job(job_id, status="cancelled", stage=None, stages=_close(stages, "cancelled"))
@@ -221,24 +220,24 @@ class JobRunner:
         return self.store.update_job(job_id, status="succeeded", stage=None, chart_id=chart["id"],
                                      stages=_close(stages, "done"))
 
-    def _find(self, job: dict, step) -> dict:
-        from . import online
+    def _library(self, job: dict, step) -> dict:
+        from . import library
 
         song = self.store.get_song(job["song_id"])
         step("search")
-        if not online.status()["available"]:
-            raise FetchError(online.status()["detail"])
-        picked = (job["params"] or {}).get("video")
+        if not library.status()["available"]:
+            raise FetchError(library.status()["detail"])
+        picked = (job["params"] or {}).get("file")
         if picked:
-            video = online.chosen(picked)
+            match = library.chosen(picked)
         else:
-            found = online.candidates(song)
+            found, _ = library.candidates(song)
             if not found:
-                raise FetchError(f"YouTube found nothing for “{online.search_query(song)}”; pick a video "
-                                 f"yourself or upload a recording")
-            video = found[0]
-        step("download")
-        source = online.fetch_source(self.store, song, video)
+                raise FetchError(f"No recording of “{song['title']}” by {song['artist']} was found in your music "
+                                 f"folders ({', '.join(library.status()['folders'])}). Upload the recording, or "
+                                 f"pick the file yourself.")
+            match = found[0]
+        source = library.fetch_source(self.store, song, match)
         job = self.store.update_job(job["id"], source_id=source["id"])
         return self._transcribe(job, step, song=song, source=source)
 
@@ -255,8 +254,7 @@ class JobRunner:
         score = transcribe_audio(y, TranscribeOptions(), title=song["title"], progress=step)
         score.artist = song["artist"]
         score.rights = source["rights"]
-        video = source["info"].get("video") if source["kind"] == "video" else None
-        score.source = (f"YouTube: {video['title']} <{video['url']}>" if video
+        score.source = (f"your music folders: {source['original_name']}" if source["kind"] == "library"
                         else f"{source['kind']} {source['original_name'] or ''}".strip())
         score.transcriber = "Drum Agent (automatic transcription)"
         return self._save_chart(song, score, step, job=job, source=source,
@@ -348,7 +346,7 @@ def _describe(exc: BaseException) -> tuple[str, str]:
     if isinstance(exc, AudioError):
         return exc.code, str(exc)
     if isinstance(exc, FetchError):
-        return "not_found" if "found nothing" in str(exc) else "download_failed", str(exc)[:600]
+        return "not_found" if "was found" in str(exc) else "source_unavailable", str(exc)[:600]
     if isinstance(exc, ChartInvalid):
         return "invalid_chart", str(exc)
     if isinstance(exc, (RenderError, ExportError)):

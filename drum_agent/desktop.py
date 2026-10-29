@@ -2,8 +2,9 @@
 installed app's entry point).
 
 It runs the studio in personal mode (`DRUM_AGENT_MODE=personal`: a song typed by name is
-found on YouTube and charted for the user's own practice) on 127.0.0.1 at a free port,
-with the tools the installer put beside it (LilyPond, ffmpeg, yt-dlp, Deno), and shows it
+found among the user's own audio files and charted for their own practice) on 127.0.0.1
+at a free port, with the tools the installer put beside it (LilyPond, FFmpeg, the drum
+separation model), and shows it
 in its own window (the system web view: WebView2 on Windows, WebKit on a Mac). Without a
 web view it shows a small window with "Open Drum Agent" (the default browser) and "Quit".
 Closing the window stops the app. A second launch opens the running app instead of
@@ -12,8 +13,8 @@ starting another one.
 Data (charts, decoded recordings, the log) lives in the user's folder:
 %LOCALAPPDATA%\\Drum Agent on Windows, ~/Library/Application Support/Drum Agent on a Mac,
 ~/.local/share/drum-agent elsewhere. The app talks to the internet only to identify songs
-(MusicBrainz, iTunes, Deezer), to search and download from YouTube, and to keep yt-dlp
-up to date (YouTube changes often; an old yt-dlp stops working).
+(MusicBrainz, iTunes, Deezer; Spotify and the YouTube Data API when keys are configured):
+metadata only, never audio.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ import json
 import logging
 import logging.handlers
 import os
-import shutil
 import socket
 import subprocess
 import sys
@@ -36,7 +36,6 @@ from pathlib import Path
 
 log = logging.getLogger("drum_agent.desktop")
 TITLE = "Drum Agent"
-YTDLP_UPDATE_EVERY_S = 24 * 3600
 EXE = ".exe" if os.name == "nt" else ""
 
 
@@ -67,19 +66,19 @@ def configure(data: Path, tools: Path | None) -> None:
     os.environ["DRUM_AGENT_DATA_DIR"] = str(data / "studio")
     os.environ.setdefault("NUMBA_CACHE_DIR", str(data / "cache" / "numba"))
     os.environ.setdefault("DRUM_AGENT_AUDIO_CACHE", str(data / "cache" / "audio"))
-    paths = [str(data / "bin")]  # yt-dlp is copied here, where it can update itself
+    paths = []
     if tools is not None:
         lily = tools / "lilypond" / "bin" / f"lilypond{EXE}"
         if lily.is_file():
             os.environ["DRUM_AGENT_LILYPOND"] = str(lily)
-        paths += [str(p) for p in (tools / "ffmpeg" / "bin", tools / "deno") if p.is_dir()]
+        paths += [str(p) for p in (tools / "ffmpeg" / "bin",) if p.is_dir()]
         if (tools / "torch").is_dir():  # the drum separation model, shipped: no download on the first song
             os.environ.setdefault("TORCH_HOME", str(tools / "torch"))
     os.environ["PATH"] = os.pathsep.join([*paths, os.environ.get("PATH", "")])
 
 
 def hide_console_windows() -> None:
-    """Windows: the tools (LilyPond, FFmpeg, yt-dlp) are console programs, and a windowed app that
+    """Windows: the tools (LilyPond, FFmpeg) are console programs, and a windowed app that
     starts one gets a black console window popping up every time. Start them all without one."""
     if os.name != "nt" or getattr(subprocess.Popen, "no_window", False):
         return
@@ -92,49 +91,6 @@ def hide_console_windows() -> None:
             kwargs["creationflags"] = kwargs.get("creationflags", 0) | flag
             super().__init__(*args, **kwargs)
     subprocess.Popen = Popen  # subprocess.run and friends look it up here
-
-
-def install_ytdlp(data: Path, tools: Path | None) -> Path | None:
-    """The shipped yt-dlp, copied into the user's folder once (an installed copy can't update itself
-    there without administrator rights). Returns its path, or None when none is shipped."""
-    shipped = tools / "yt-dlp" / f"yt-dlp{EXE}" if tools is not None else None
-    target = data / "bin" / f"yt-dlp{EXE}"
-    if shipped is None or not shipped.is_file():
-        return target if target.is_file() else None
-    stamp = data / "bin" / "yt-dlp.shipped"
-    mark = f"{shipped.stat().st_size}:{int(shipped.stat().st_mtime)}"
-    updated = stamp.is_file() and stamp.read_text(encoding="utf-8") != mark and _older(target, shipped)
-    if not target.is_file() or updated:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(shipped, target)
-        if os.name != "nt":
-            target.chmod(0o755)
-        stamp.write_text(mark, encoding="utf-8")
-    elif not stamp.is_file():
-        stamp.write_text(mark, encoding="utf-8")
-    return target
-
-
-def _older(a: Path, b: Path) -> bool:
-    return a.stat().st_mtime < b.stat().st_mtime
-
-
-def update_ytdlp(exe: Path, data: Path) -> None:
-    """`yt-dlp -U`, at most once a day, in the background; failures only go to the log."""
-    stamp = data / "bin" / "yt-dlp.updated"
-    if stamp.is_file() and time.time() - stamp.stat().st_mtime < YTDLP_UPDATE_EVERY_S:
-        return
-
-    def run():
-        try:
-            out = subprocess.run([str(exe), "-U"], capture_output=True, text=True, encoding="utf-8",
-                                 errors="replace", timeout=300,
-                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            log.info("yt-dlp -U: %s", " ".join((out.stdout + out.stderr).split())[-300:])
-            stamp.write_text(str(time.time()), encoding="utf-8")
-        except (OSError, subprocess.SubprocessError) as exc:
-            log.warning("could not update yt-dlp: %s", exc)
-    threading.Thread(target=run, name="yt-dlp-update", daemon=True).start()
 
 
 def free_port() -> int:
@@ -292,7 +248,6 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="drum-agent app", description="Drum Agent on your own computer")
     p.add_argument("--headless", action="store_true", help="no window: serve until stopped (for tests)")
     p.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: a free one)")
-    p.add_argument("--no-update", action="store_true", help="don't update yt-dlp")
     args = p.parse_args(argv)
 
     hide_console_windows()
@@ -301,7 +256,6 @@ def main(argv: list[str] | None = None) -> int:
     _logging(data)
     tools = tools_dir()
     configure(data, tools)
-    ytdlp = install_ytdlp(data, tools)
     if not args.headless:
         url = running_instance(data)
         if url is not None:  # already running: show it, don't start a second one
@@ -309,8 +263,6 @@ def main(argv: list[str] | None = None) -> int:
             if not show_window(url, lambda: True):
                 webbrowser.open(url)
             return 0
-    if ytdlp is not None and not args.no_update:
-        update_ytdlp(ytdlp, data)
 
     port = args.port or free_port()
     url = f"http://127.0.0.1:{port}"

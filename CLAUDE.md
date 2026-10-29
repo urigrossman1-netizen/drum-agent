@@ -6,7 +6,7 @@ or fix a drum chart, use the `drum-chart` skill (`.claude/skills/drum-chart/`).
 ## Commands
 - Run: `python -m drum_agent <render|midi|gamechart|song|transcribe|analyze|edit|synth|evaluate|verify|doctor>`
 - Studio (web app): `python -m drum_agent serve --seed-examples` (needs `pip install -e '.[web]'`; docs/WEB_APP.md).
-  Personal app, where a typed song is found on YouTube and charted: `serve --personal`, or the
+  Personal app, where a typed song is found in the user's music folders and charted: `serve --personal`, or the
   desktop app `python -m drum_agent app` (`drum_agent/desktop.py`; Windows installer: `packaging/`).
   Beat generator: `drum_agent/generate/` (tests/test_generate.py). Browser end-to-end tests of both journeys:
   `python -m pytest -q tests/test_web_e2e.py` (slow; Playwright via node, needs pdftotext)
@@ -34,5 +34,7 @@ or fix a drum chart, use the `drum-chart` skill (`.claude/skills/drum-chart/`).
   the project owner on 2026-10-29), is accepted only where one person uses the tool on their
   own computer (the CLI, `serve --personal`, the desktop app), never on a shared server, and
   the app never shares or publishes a personal chart. Recordings come only from the user's
-  files, or from a video site through yt-dlp on the user's own computer; streaming services
-  (Spotify, Apple Music, Deezer...) stay metadata only (DRM).
+  own files (an upload, or their music folders on their own computer) or a direct link to an
+  audio file. Video sites and streaming services (YouTube, Spotify, Apple Music, Deezer...)
+  are used only through their official APIs, for metadata, links and embedded players: no
+  scraping, no undocumented endpoints, never their audio (project owner's rule, 2026-10-29).

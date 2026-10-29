@@ -7,9 +7,9 @@ Routes (all JSON unless noted):
   GET  /api/songs                          the catalog
   GET  /api/songs/{id}                     song, status, source resolution, jobs, chart versions
   POST /api/songs/{id}/upload              multipart file + rights: validated, normalized, queued
-  GET  /api/songs/{id}/videos              personal app: uploads of this song on YouTube, best first
-  POST /api/songs/{id}/find                personal app: find the recording (or use the picked video),
-                                           download it and chart it for personal practice
+  GET  /api/songs/{id}/library             personal app: the user's audio files that match the song
+  POST /api/songs/{id}/library             personal app: chart the best match (or the picked file) for
+                                           the user's own practice
   POST /api/songs/{id}/use-asset           transcribe the operator-provided asset for this song
   POST /api/songs/{id}/jobs                (re)queue the song's latest source (idempotent)
   GET  /api/jobs/{id}                      stages, status, error
@@ -42,7 +42,7 @@ from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
 from ..rights import RightsError, shareable
 from ..song.fetch import FetchError
-from . import claude, online, sources
+from . import claude, library, sources
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
 from .store import Store, default_data_dir
@@ -70,17 +70,9 @@ class SongIn(BaseModel):
     id: str | None = None
 
 
-class VideoIn(BaseModel):
-    url: str = Field(min_length=8, max_length=500)
-    id: str | None = Field(default=None, max_length=64)
-    title: str | None = Field(default=None, max_length=300)
-    channel: str | None = Field(default=None, max_length=300)
-    duration_s: float | None = None
-
-
-class FindIn(BaseModel):
+class LibraryIn(BaseModel):
     personal: bool = False  # the user confirmed: for their own practice, not shared
-    video: VideoIn | None = None
+    file: str | None = Field(default=None, max_length=1000)  # one of the files the library search listed
 
 
 class SectionName(BaseModel):
@@ -131,7 +123,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; "
-            "object-src 'none'; frame-ancestors 'none'")
+            "object-src 'none'; frame-ancestors 'none'; "
+            "frame-src https://www.youtube-nocookie.com")  # YouTube's own player, for songs found there
         return response
 
     @app.exception_handler(AudioError)
@@ -164,7 +157,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
                 "providers": providers.status(),
                 "claude": {"configured": cfg["configured"], "missing": cfg["missing"]},
                 "licensed_audio_providers": [], "rights_options": _rights_options(),
-                "mode": "personal" if sources.personal_mode() else "shared", "online": online.status(),
+                "mode": "personal" if sources.personal_mode() else "shared", "library": library.status(),
                 "separation": _separation(),
                 "asset_dir_configured": sources.asset_dir() is not None,
                 "limits": {"max_upload_mb": MAX_BYTES // 2**20}}
@@ -225,30 +218,27 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         job, created = runner.submit(row["id"], src["id"])
         return {"source": _public_source(src), "job": _public_job(job), "created": created}
 
-    @app.get("/api/songs/{song_id}/videos")
-    def videos(song_id: str):
+    @app.get("/api/songs/{song_id}/library")
+    def library_files(song_id: str):
         row = _song(store, song_id)
-        _require_online()
-        try:
-            found = online.candidates(row)
-        except FetchError as exc:
-            raise HTTPException(502, f"the YouTube search failed: {exc}") from None
-        return {"query": online.search_query(row), "expected_duration_s": row.get("duration_s"),
-                "videos": [online.public(v, row.get("duration_s")) for v in found]}
+        _require_library()
+        found, warnings = library.candidates(row)
+        return {"folders": library.status()["folders"], "expected_duration_s": row.get("duration_s"),
+                "files": [library.public(m, row.get("duration_s")) for m in found], "warnings": warnings}
 
-    @app.post("/api/songs/{song_id}/find")
-    def find(song_id: str, body: FindIn):
+    @app.post("/api/songs/{song_id}/library")
+    def library_chart(song_id: str, body: LibraryIn):
         row = _song(store, song_id)
-        _require_online()
+        _require_library()
         if not body.personal:
             raise HTTPException(403, "confirm that the chart is for your own practice (it is not shared)")
-        video = None
-        if body.video is not None:
+        file = None
+        if body.file:
             try:
-                video = online.public(online.chosen(body.video.model_dump()), row.get("duration_s"))
+                file = str(library.chosen(body.file).path)
             except FetchError as exc:
                 raise HTTPException(422, str(exc)) from None
-        job, created = runner.submit_find(row["id"], video)
+        job, created = runner.submit_library(row["id"], file)
         return {"job": _public_job(job), "created": created}
 
     @app.post("/api/songs/{song_id}/use-asset")
@@ -413,7 +403,7 @@ def _chart(store: Store, chart_id: str) -> dict:
 
 def _public_song(s: dict) -> dict:
     return {k: s.get(k) for k in ("id", "title", "artist", "album", "year", "duration_s", "isrc", "version", "provider",
-                                  "urls", "kind", "prompt", "updated_at")}
+                                  "provider_ids", "urls", "kind", "prompt", "updated_at")}
 
 
 def _separation() -> dict:
@@ -427,8 +417,8 @@ def _rights_options() -> dict:
     return {k: v for k, v in RIGHTS.items() if k != "personal" or sources.personal_mode()}
 
 
-def _require_online() -> None:
-    st = online.status()
+def _require_library() -> None:
+    st = library.status()
     if not st["available"]:
         raise HTTPException(403 if st["reason"] == "shared_server" else 503, st["detail"])
 
@@ -436,7 +426,7 @@ def _require_online() -> None:
 def _public_source(s: dict) -> dict:
     info = s.get("info") or {}
     return {"id": s["id"], "kind": s["kind"], "rights": s["rights"], "rights_text": RIGHTS.get(s["rights"]),
-            "shareable": shareable(s["rights"]), "video": info.get("video"),
+            "shareable": shareable(s["rights"]), "library": info.get("library"),
             "name": s["original_name"], "duration_s": info.get("duration_s"),
             "original": {k: info.get(f"original_{k}") for k in ("codec", "sample_rate", "channels", "format")},
             "levels": {"rms_dbfs": info.get("rms_dbfs"), "peak_dbfs": info.get("peak_dbfs")}}

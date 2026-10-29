@@ -14,10 +14,11 @@ chart carries "Transcribed for personal practice. Not for distribution." and is
 never shared or published by the app (`shareable`).
 
 The agent never circumvents DRM and never takes audio from streaming services
-(Spotify, Apple Music, Tidal, Deezer, Amazon Music: metadata only). Audio comes
-from the user's own files, a direct link, or a video page fetched with yt-dlp on
-the user's own computer (`song`, and the desktop app), and this gate runs before
-any audio is fetched or opened for transcription.
+(Spotify, Apple Music, Tidal, Deezer, Amazon Music: metadata only) or video sites
+(their official interfaces give links and players, not audio to analyse). Audio
+comes from the user's own files (an upload, or their music folders on their own
+computer) or a direct link to an audio file, and this gate runs before any audio
+is fetched or opened for transcription.
 """
 
 from __future__ import annotations

@@ -4,9 +4,10 @@ The steps, each printed as it happens:
 
 1. Identify the song from public metadata (MusicBrainz, iTunes, Deezer),
    unless --no-online.
-2. Choose the audio: --audio FILE, --url URL, else the user's own library,
-   else (online, with the user's yt-dlp) a video search. Where it comes from
-   and its stated licence are printed.
+2. Choose the audio: --audio FILE, --url URL (a direct link to an audio
+   file), else the user's own music folders. Where it comes from and its
+   stated licence are printed. Pages on video sites and streaming services are
+   refused: they give metadata and players, not audio to analyse.
 3. Compare its length with the identified recording's: more than 10 % off
    is probably another version.
 4. Without --rights: the existing high-level analysis only (tempo, meter,
@@ -31,7 +32,7 @@ from pathlib import Path
 from .. import rights as rights_gate
 from ..kit import DEFAULT_VOICING
 from . import fetch, local, lookup
-from .fetch import AudioSource, FetchError, VideoCandidate
+from .fetch import AudioSource, FetchError
 from .local import LocalMatch
 from .lookup import MetadataError, SongCandidate, format_duration
 
@@ -43,24 +44,19 @@ IDENTIFY_MIN_SCORE = 0.55  # below this the best metadata match is shown but not
 class AudioChoice:
     """The audio chosen in step 2, before anything is downloaded or opened."""
 
-    kind: str  # "file" (--audio), "library", "url" (a direct link) or "video"
+    kind: str  # "file" (--audio), "library" or "url" (a direct link)
     source: str  # a path or a URL
     local: LocalMatch | None = None
-    video: VideoCandidate | None = None
 
     def describe(self) -> str:
         if self.kind == "file":
             return f"audio file {self.source} (given with --audio; used in place, not modified)"
         if self.kind == "library" and self.local:
             return f"{self.local.describe()} (used in place, not modified)"
-        if self.kind == "video" and self.video:
-            return f"{self.video.describe()} (video page, through your yt-dlp)"
         return f"link {self.source} (downloaded to the audio cache)"
 
     def rights_source(self) -> str:
         """What the rights gate is told the recording is."""
-        if self.video:
-            return f"{self.video.url} ({self.video.title}, uploaded by {self.video.uploader or 'unknown'})"
         return self.source
 
 
@@ -125,12 +121,6 @@ def identify(query: str, args) -> SongCandidate | None:
 
 # ---- step 2 ---------------------------------------------------------------------------
 
-def _search_text(query: str, artist: str | None, ident: SongCandidate | None) -> str:
-    if ident:
-        return f"{ident.artist} {ident.title}"
-    return f"{artist} {query}" if artist else query
-
-
 def choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
     try:
         return _choose_audio(query, args, ident)
@@ -145,9 +135,8 @@ def _choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
         return choice
     if args.url:
         if fetch.is_video_page(args.url):
-            choice = AudioChoice("video", args.url, video=fetch.video_info(args.url, ytdlp=fetch.require_ytdlp()))
-        else:
-            choice = AudioChoice("url", args.url)
+            raise _fail(fetch.VIDEO_REFUSED.format(url=args.url))
+        choice = AudioChoice("url", args.url)
         print(f"2. Audio: {choice.describe()}")
         return choice
 
@@ -157,36 +146,14 @@ def _choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
     if found:
         print(f"2. Audio: found in your library ({where})")
         choices = [AudioChoice("library", str(m.path), local=m) for m in found[:args.candidates]]
-    elif args.no_online:
-        _print_warnings(found.warnings)
-        raise _fail(f"no audio for {query!r} in your library ({where}), and --no-online: give a file with "
-                    f"--audio FILE or a folder with --library DIR")
     else:
-        exe = fetch.find_ytdlp()
-        if exe is None:
-            _print_warnings(found.warnings)
-            raise _fail(f"no audio for {query!r} in your library ({where}). Give a file you own (--audio FILE), "
-                        f"a folder (--library DIR) or a direct link (--url URL); to search video sites, install "
-                        f"yt-dlp yourself: pip install yt-dlp")
-        search = _search_text(query, args.artist, ident)
-        print(f"2. Audio: nothing in your library ({where}); searching video sites with yt-dlp for {search!r}")
-        videos = fetch.search_videos(search, args.candidates, ident.duration_s if ident else None,
-                                     asked=f"{query} {args.artist or ''}", ytdlp=exe,
-                                     artist=args.artist or (ident.artist if ident else None))
-        if not videos:
-            raise _fail(f"the video search found nothing for {search!r}; give a file with --audio")
-        choices = [AudioChoice("video", v.url, video=v) for v in videos]
+        _print_warnings(found.warnings)
+        raise _fail(f"no audio for {query!r} in your music folders ({where}): give a file you own with --audio FILE, "
+                    f"a folder with --library DIR, or a direct link to an audio file with --url URL")
     _print_warnings(found.warnings)
     for i, c in enumerate(choices, 1):
         print(f"   {i}) {c.describe()}")
-    # A rights basis is a statement about one recording. A search result (a reupload, a cover,
-    # another band's live take can rank first, or be the only match) must be named by the user.
-    if args.rights and choices[0].kind == "video":
-        # The search runs again on the next run and can rank differently: name the video by its link.
-        links = "\n".join(f"     {i}) --url {shlex.quote(c.source)}" for i, c in enumerate(choices, 1))
-        raise _fail("--rights is a statement about one recording, and these were found by a video search, "
-                    "which can rank differently on the next run: check the list, then re-run with --url for "
-                    "the one your basis covers (instead of the search):\n" + links)
+    # A rights basis is a statement about one recording: a library match must be named by the user.
     if args.rights and args.pick is None:
         raise _fail("--rights is a statement about one recording, and this was found by a search of your "
                     "library: check the list, then re-run with --pick N for the one your basis covers "
@@ -209,10 +176,7 @@ def obtain(choice: AudioChoice) -> AudioSource:
     try:
         if choice.kind in ("file", "library"):
             return fetch.local_file(choice.source)
-        if choice.kind == "video":
-            audio = fetch.download_with_ytdlp(choice.source, info=choice.video)
-        else:
-            audio = fetch.fetch_audio(choice.source)
+        audio = fetch.fetch_audio(choice.source)
     except FetchError as exc:
         raise _fail(str(exc)) from None
     print(f"   saved as {audio.path}" + (f" ({audio.note})" if audio.note else ""))
@@ -283,7 +247,7 @@ def _rerun_command(args, audio: AudioSource) -> str:
     option the user gave. Values are joined to their flag and the song's name comes after
     "--", so that a value starting with "-" is still read as one."""
     cmd = ["python", "-m", "drum_agent", "song"]
-    cmd += ["--url", audio.url] if audio.url and audio.origin in ("video", "direct") else ["--audio", str(audio.path)]
+    cmd += ["--url", audio.url] if audio.url and audio.origin == "direct" else ["--audio", str(audio.path)]
     for flag, attr, default in _CARRIED:
         value = getattr(args, attr, default)
         if value is None or value == default:

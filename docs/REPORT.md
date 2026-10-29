@@ -15,7 +15,7 @@ trained on synthesized drumming.
 
 | You give it | It does | Command |
 |---|---|---|
-| A song's name | identifies the recording from public metadata, finds audio (your files, a link, or a video page through your own yt-dlp; streaming services are metadata only), checks the length, then analyses, or transcribes once you state your rights | `song` |
+| A song's name | identifies the recording from public metadata, finds audio (your files or a direct link to an audio file; video sites and streaming services are metadata only), checks the length, then analyses, or transcribes once you state your rights | `song` |
 | An audio file | transcribes it note by note (needs a rights basis), or gives tempo, meter and form only | `transcribe`, `analyze` |
 | A MIDI drum track | imports it with pickups, meters, tempi and markers | `midi` |
 | A Rock Band / Clone Hero chart | imports `notes.mid` or `notes.chart` exactly, tick by tick | `gamechart` |

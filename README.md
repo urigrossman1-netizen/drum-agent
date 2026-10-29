@@ -16,7 +16,7 @@ grooves and fills.
   accents, open/closed hi-hat, meter and tempo changes, pickups. The spec is
   in [docs/NOTATION_SPEC.md](docs/NOTATION_SPEC.md).
 - **Inputs**: a song's name (identified from public metadata; audio from your
-  own files, a link, or a video page through your own yt-dlp; streaming
+  own files or a direct link to an audio file; video sites and streaming
   services are metadata only), audio you're allowed to transcribe, GM MIDI
   drum tracks, Rock Band / Clone Hero charts, or YAML chart specs.
 - **Listening**: candidate onsets from the spectrogram, then a neural onset
@@ -60,12 +60,12 @@ python -m drum_agent transcribe song.wav --rights own --title "Song" --artist "B
 # Without transcription rights: tempo, meter and form only, no notes
 python -m drum_agent analyze song.wav
 
-# A song by name: identify it, find audio (your library, --audio, --url, or your own yt-dlp),
-# check its length, then analyse; with --rights transcribe the recording you name: a library
-# match by its number (--pick N), a video the search found by its link (--url)
+# A song by name: identify it, find audio (your music folders, --audio, or --url for a direct
+# link to an audio file), check its length, then analyse; with --rights transcribe the
+# recording you name: a library match by its number (--pick N), or the file you give
 python -m drum_agent song "Song Title" --artist "Band"
 python -m drum_agent song "Song Title" --artist "Band" --pick 1 --rights own -o out/song
-python -m drum_agent song "Song Title" --artist "Band" --url "https://www.youtube.com/watch?v=VIDEO_ID" --rights own -o out/song
+python -m drum_agent song "Song Title" --artist "Band" --audio "~/Music/Band - Song Title.flac" --rights own -o out/song
 
 # A Rock Band / Clone Hero chart (notes.mid, notes.chart or the song folder)
 python -m drum_agent gamechart "Songs/Band - Title" -o out/title
@@ -91,9 +91,10 @@ they were rendered with one), `doctor`.
 **[Download Drum Agent for Windows](https://github.com/urigrossman1-netizen/drum-agent/releases/latest/download/DrumAgent-Setup.exe)**
 (Windows 10 or 11, 64-bit; no administrator rights needed).
 
-Type a song and get its drum chart: the app finds the song on YouTube, separates the
-drums from the band, listens to them and writes them out, on your own computer. Or describe a beat and get an original
-chart. Charts of songs from YouTube are for your own practice: they are marked
+Type a song and get its drum chart: the app finds the recording among your own music
+files, separates the drums from the band, listens to them and writes them out, on your own
+computer. Or drop in any recording you have, or describe a beat and get an original
+chart. Charts of songs you didn't write are for your own practice: they are marked
 "Transcribed for personal practice. Not for distribution.", and the app never shares them
 (posting them publicly needs the music publisher's permission). Beats and charts of your
 own songs are yours to share. How it is built and tested: [docs/DESKTOP.md](docs/DESKTOP.md).
@@ -131,8 +132,9 @@ python -m drum_agent serve --seed-examples   # http://127.0.0.1:8000
   Spotify and YouTube when keys are set; metadata only). Then open a stored chart, or
   upload a recording you have the right to transcribe and follow the job to a
   full-song chart. In the app on your own computer (`serve --personal`, or the Windows
-  app above) you only pick the song: it is found on YouTube and charted for your own
-  practice. A shared server like the live studio never downloads songs.
+  app above) you only pick the song: it is found among your own music files and charted
+  for your own practice. A song found on YouTube plays in YouTube's own player; its audio
+  is never downloaded, anywhere.
 
 Both land in the chart workspace:
 

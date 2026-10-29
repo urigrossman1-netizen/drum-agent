@@ -2,9 +2,10 @@
 
 Everything here runs offline. The three metadata services answer with canned
 JSON through a replaced HTTP helper; downloads come from a local http.server
-on 127.0.0.1; yt-dlp is a fake Python script put first on PATH that answers
-searches and "downloads" a WAV synthesized from an original chart. The song
-("Test Groove" by "The Placeholders") and every fixture are made up.
+on 127.0.0.1; the user's music folder is a temporary folder holding a WAV
+synthesized from an original chart. Pages on video sites are refused, never
+requested. The song ("Test Groove" by "The Placeholders") and every fixture
+are made up.
 
 The rights gate is checked as an order of events: with --rights, it runs
 before anything is downloaded or opened for transcription; without, only the
@@ -32,7 +33,7 @@ from drum_agent.charts import compile_spec
 from drum_agent.cli import build_parser, main
 from drum_agent.model import Score
 from drum_agent.song import fetch, local, lookup
-from drum_agent.song.fetch import AudioSource, FetchError, VideoCandidate
+from drum_agent.song.fetch import AudioSource, FetchError
 from drum_agent.song.lookup import MetadataError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -313,14 +314,23 @@ def test_wrong_content_type_is_refused(web, tmp_path, name, body, match):
     assert cache_files(tmp_path) == []
 
 
-def test_a_web_page_needs_yt_dlp(web, tmp_path, monkeypatch):
+def test_a_web_page_is_refused(web, tmp_path):
     base, www, _ = web
     (www / "page.html").write_text("<html><body>a page</body></html>")
-    monkeypatch.setattr(fetch, "find_ytdlp", lambda: None)
-    with pytest.raises(FetchError, match=r"pip install yt-dlp"):
+    with pytest.raises(FetchError, match="is a web page, not an audio file"):
         fetch.fetch_audio(base + "/page.html")
     with pytest.raises(FetchError, match="sent a web page"):
         fetch.fetch_audio(base + "/disguised.mp3")  # labelled audio, but it isn't
+    assert cache_files(tmp_path) == []
+
+
+@pytest.mark.parametrize("url", ["https://www.youtube.com/watch?v=abc", "https://youtu.be/abc",
+                                 "https://music.youtube.com/watch?v=abc", "https://vimeo.com/123",
+                                 "https://soundcloud.com/band/song"])
+def test_a_video_page_is_refused_without_a_request(url, monkeypatch, tmp_path):
+    monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("a video page was requested"))
+    with pytest.raises(FetchError, match="video site"):
+        fetch.fetch_audio(url)
     assert cache_files(tmp_path) == []
 
 
@@ -414,19 +424,6 @@ def test_licence_hints_are_suggestions_only():
     assert fetch.license_hint("Standard YouTube License")[0] is None
 
 
-def test_video_ranking_prefers_the_right_length_and_the_original():
-    v = [VideoCandidate("https://v.example/1", "Test Groove - Drum Cover", duration_s=192),
-         VideoCandidate("https://v.example/2", "The Placeholders - Test Groove (Live)", duration_s=250),
-         VideoCandidate("https://v.example/3", "The Placeholders - Test Groove", duration_s=400),
-         VideoCandidate("https://v.example/4", "The Placeholders - Test Groove (Official Audio)", duration_s=193),
-         VideoCandidate("https://v.example/5", "Test Groove slowed + reverb 8D", duration_s=192)]
-    ranked = fetch.rank_videos(v, "The Placeholders Test Groove", expected_duration=192)
-    assert ranked[0].url == "https://v.example/4"
-    assert {ranked[-1].url, ranked[-2].url} == {"https://v.example/1", "https://v.example/5"}
-    asked_live = fetch.rank_videos(v, "The Placeholders Test Groove", 250, asked="test groove live")
-    assert asked_live[0].url == "https://v.example/2"  # the user asked for the live version
-
-
 # ---- the user's library ---------------------------------------------------------------
 
 def ffmpeg_tone(path: Path, **tags) -> Path:
@@ -500,55 +497,7 @@ def test_default_roots(tmp_path, monkeypatch):
     assert local.default_roots() == [(home / "Music").resolve(), extra.resolve()]
 
 
-# ---- a fake yt-dlp ---------------------------------------------------------------------
-
-FAKE_YTDLP = r'''#!{python}
-"""A stand-in for yt-dlp: answers searches from FAKE_YTDLP_VIDEOS and "downloads" FAKE_YTDLP_WAV."""
-import json, os, re, shutil, sys
-args = sys.argv[1:]
-with open(os.environ["FAKE_YTDLP_LOG"], "a") as log:
-    log.write(json.dumps(args) + "\n")
-videos = json.loads(os.environ["FAKE_YTDLP_VIDEOS"])
-target = args[-1]
-if "--dump-json" in args:
-    m = re.match(r"ytsearch(\d*):(.*)", target)
-    if m:
-        for v in videos[:int(m.group(1) or 1)]:
-            print(json.dumps(v))
-        sys.exit(0)
-    for v in videos:
-        if v["webpage_url"] == target:
-            print(json.dumps(v))
-            sys.exit(0)
-    print("ERROR: Unsupported URL: " + target, file=sys.stderr)
-    sys.exit(1)
-v = next((v for v in videos if v["webpage_url"] == target), None)
-if v is None or "-o" not in args:
-    print("ERROR: Unsupported URL: " + target, file=sys.stderr)
-    sys.exit(1)
-title = re.sub(r"[^A-Za-z0-9_.-]+", "_", v["title"]).strip("_")[:80]
-out = args[args.index("-o") + 1].replace("%(title).80B", title).replace("%(id)s", v["id"]).replace("%(ext)s", "wav")
-if "-P" in args:  # the download folder, as in yt-dlp: the template is relative to it
-    out = os.path.join(args[args.index("-P") + 1], out)
-if not os.path.isabs(out):
-    print("ERROR: fake yt-dlp would write into the working directory: " + out, file=sys.stderr)
-    sys.exit(1)
-shutil.copyfile(os.environ["FAKE_YTDLP_WAV"], out)
-print(out)
-'''
-
-CC_BY = "Creative Commons Attribution license (reuse allowed)"
-
-
-def video_infos(seconds: float) -> list[dict]:
-    def info(vid, title, duration, uploader, licence=None):
-        return {"id": vid, "title": title, "duration": duration, "uploader": uploader, "channel": uploader,
-                "license": licence, "webpage_url": f"https://www.youtube.com/watch?v={vid}"}
-    return [info("tg-cover", "Test Groove - Drum Cover", seconds, "Somebody Drums"),
-            info("tg-live", "The Placeholders - Test Groove (Live)", seconds * 1.4, "Fan Uploads"),
-            info("tg-official", "The Placeholders - Test Groove (Official Audio)", seconds, "The Placeholders",
-                 CC_BY)]
-
+# ---- the song command, on the user's music folder -----------------------------------
 
 @pytest.fixture(scope="module")
 def groove_wav(tmp_path_factory) -> Path:
@@ -561,52 +510,17 @@ def wav_seconds(path: Path) -> float:
 
 
 @pytest.fixture
-def ytdlp(tmp_path, monkeypatch, groove_wav):
-    """The fake yt-dlp first on PATH. Returns a function giving the argument lists it was called with."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    exe = bin_dir / "yt-dlp"
-    exe.write_text(FAKE_YTDLP.replace("{python}", sys.executable))
-    exe.chmod(0o755)
-    log = tmp_path / "ytdlp.log"
-    log.touch()
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
-    monkeypatch.setenv("FAKE_YTDLP_LOG", str(log))
-    monkeypatch.setenv("FAKE_YTDLP_WAV", str(groove_wav))
-    monkeypatch.setenv("FAKE_YTDLP_VIDEOS", json.dumps(video_infos(wav_seconds(groove_wav))))
-
-    def calls() -> list[list[str]]:
-        return [json.loads(line) for line in log.read_text().splitlines()]
-    return calls
-
-
-def downloads(calls) -> list[list[str]]:
-    return [c for c in calls if "-o" in c]
-
-
-def test_yt_dlp_search_and_download(ytdlp, groove_wav, tmp_path):
-    assert fetch.find_ytdlp() == [str(tmp_path / "bin" / "yt-dlp")]
-    videos = fetch.search_videos("The Placeholders Test Groove", 3, expected_duration=wav_seconds(groove_wav))
-    assert [v.id for v in videos][0] == "tg-official"
-    assert videos[0].license == CC_BY and videos[0].uploader == "The Placeholders"
-    assert downloads(ytdlp()) == []  # searching downloads nothing
-    audio = fetch.fetch_audio(videos[0].url, info=videos[0])
-    assert audio.origin == "video" and audio.license == CC_BY
-    assert audio.path.parent == (tmp_path / "cache").resolve() and audio.path.suffix == ".wav"
-    assert audio.path.read_bytes() == groove_wav.read_bytes()
-    call = downloads(ytdlp())[0]
-    assert call[-2:] == ["--", videos[0].url] and "--restrict-filenames" in call and "--no-overwrites" in call
-    assert "uploader The Placeholders" in audio.describe() and CC_BY in audio.describe()
-    again = fetch.fetch_audio(videos[0].url, info=videos[0])  # the same video: the cached file, no new download
-    assert again.path == audio.path and again.note == "already in the cache" and len(downloads(ytdlp())) == 1
-
-
-def test_without_yt_dlp_the_message_says_how_to_get_it(monkeypatch):
-    monkeypatch.setattr(fetch.shutil, "which", lambda name: None)
-    monkeypatch.setattr(fetch.importlib.util, "find_spec", lambda name: None)
-    assert fetch.find_ytdlp() is None
-    with pytest.raises(FetchError, match="pip install yt-dlp"):
-        fetch.fetch_audio("https://www.youtube.com/watch?v=tg-official")
+def groove_library(tmp_path, groove_wav):
+    """A music folder holding the song, named as a download would be, and two other takes of it."""
+    lib = tmp_path / "Music"
+    (lib / "Live").mkdir(parents=True)
+    plain = lib / "The Placeholders - Test Groove.wav"
+    shutil.copy(groove_wav, plain)
+    live = lib / "Live" / "The Placeholders - Test Groove (Live).wav"
+    shutil.copy(groove_wav, live)
+    demo = lib / "The Placeholders - Test Groove (Demo).wav"
+    shutil.copy(groove_wav, demo)
+    return {"folder": lib, "plain": plain, "live": live, "demo": demo}
 
 
 # ---- the song command -------------------------------------------------------------------
@@ -662,37 +576,27 @@ def kinds(seen) -> list[str]:
     return [k for k, _ in seen]
 
 
-def test_song_with_rights_transcribes_the_chosen_video(cli, services, ytdlp, events, groove_wav, tmp_path, monkeypatch):
+def test_song_with_rights_transcribes_the_picked_file(cli, services, groove_library, events, groove_wav, tmp_path):
     services(duration_s=wav_seconds(groove_wav))
-    gate = rights_module.require_rights
-
-    def gate_before_download(rights, source):
-        assert downloads(ytdlp()) == [], "audio was downloaded before the rights check"
-        return gate(rights, source)
-
-    monkeypatch.setattr(rights_module, "require_rights", gate_before_download)
     out = tmp_path / "out"
-    song = ["song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out, "--formats", FAST]
-    rc, text, err = cli(*song, "--library", tmp_path / "empty-library", "--candidates", 3)
-    assert rc == 1 and "2. Audio: nothing in your library" in text  # the search names the links, nothing more
-    official = re.search(r"--url '(\S+tg-official)'", err).group(1)
-    rc, text, err = cli(*song, "--url", official)
+    song = ["song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out, "--formats", FAST,
+            "--library", groove_library["folder"]]
+    rc, text, err = cli(*song)
+    assert rc == 1 and "--pick N" in err and "1) your library:" in text  # a basis names one recording
+    assert kinds(events) == []
+    rc, text, err = cli(*song, "--pick", 1)
     assert rc == 0, text + err
     assert kinds(events) == ["rights", "transcribe"]
-    assert "watch?v=tg-official" in events[0][1]
     path, opts = events[1][1]
-    assert path.parent == (tmp_path / "cache").resolve() and opts.bpm is None  # the metadata BPM is only a hint
-    for line in ("1. Identified 'Test Groove' by The Placeholders",
-                 "2. Audio: video: The Placeholders - Test Groove (Official Audio)", "3. Length: 0:",
-                 "matches the identified recording", "4. Transcription (--rights own)",
+    assert path == groove_library["plain"].resolve() and opts.bpm is None  # the metadata BPM is only a hint
+    for line in ("1. Identified 'Test Groove' by The Placeholders", "2. Audio: found in your library",
+                 "3. Length: 0:", "matches the identified recording", "4. Transcription (--rights own)",
                  "metadata BPM 118.5: a hint only", "check: MusicXML: OK", "check: MIDI: OK"):
         assert line in text, line
-    assert len(downloads(ytdlp())) == 1
     s = Score.load(out / "test_groove.json")
     assert (s.title, s.artist, s.rights, s.status) == ("Test Groove", "The Placeholders", "own", "unverified_auto")
     assert s.transcriber == "Drum Agent (automatic)"
-    assert "https://www.youtube.com/watch?v=tg-official" in s.source and "uploader The Placeholders" in s.source
-    assert CC_BY in s.source
+    assert s.source == f"audio file {groove_library['plain'].resolve()}"
     ident = s.analysis["identified_as"]
     assert (ident["title"], ident["artist"], ident["bpm"]) == ("Test Groove", "The Placeholders", 118.5)
     assert set(ident["sources"]) == {"musicbrainz", "itunes", "deezer"}
@@ -702,25 +606,23 @@ def test_song_with_rights_transcribes_the_chosen_video(cli, services, ytdlp, eve
     assert "Identified as Test Groove - The Placeholders" in report
 
 
-def test_song_without_rights_is_analysis_only(cli, services, ytdlp, events, groove_wav, tmp_path):
+def test_song_without_rights_is_analysis_only(cli, services, groove_library, events, groove_wav, tmp_path):
     services(duration_s=wav_seconds(groove_wav))
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "-o", out,
-                        "--library", tmp_path / "empty-library")
+                        "--library", groove_library["folder"])
     assert rc == 0, text + err
     assert kinds(events) == ["analyze"]  # no rights gate needed, and no transcription
+    assert events[0][1][0] == groove_library["plain"].resolve()
     assert "4. Analysis only (no --rights)" in text and '"tempo": "120 BPM' in text
     assert "--rights BASIS" in text and "licensed chart from the publisher" in text
-    assert "Creative Commons" in text and "--rights licensed fits" in text and "Not applied" in text
     assert not out.exists()  # no chart files
-    assert len(downloads(ytdlp())) == 1
 
 
-def test_song_uses_the_metadata_bpm_only_when_asked(cli, services, ytdlp, events, groove_wav, tmp_path):
+def test_song_uses_the_metadata_bpm_only_when_asked(cli, services, events, groove_wav, tmp_path):
     services(duration_s=wav_seconds(groove_wav))
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "original", "-o",
-                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm",
-                        "--url", "https://www.youtube.com/watch?v=tg-official")
+                        tmp_path / "out", "--formats", "json", "--use-metadata-bpm", "--audio", groove_wav)
     assert rc == 0, text + err
     assert events[-1][1][1].bpm == 118.5
     assert "tempo hint: the metadata BPM 118.5" in text
@@ -728,22 +630,22 @@ def test_song_uses_the_metadata_bpm_only_when_asked(cli, services, ytdlp, events
     assert any("used as the tempo hint" in n for n in s.analysis["notes"])
 
 
-def test_song_warns_when_the_length_is_off(cli, services, ytdlp, events, tmp_path):
-    services(duration_s=192)  # the identified recording; the video is ~12 s
-    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--library", tmp_path / "none")
+def test_song_warns_when_the_length_is_off(cli, services, groove_library, events, tmp_path):
+    services(duration_s=192)  # the identified recording; the file is ~12 s
+    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--library", groove_library["folder"])
     assert rc == 0, text + err
     assert "but the identified recording is 3:12" in text and "another version" in text
 
 
-def test_song_pick_chooses_another_candidate(cli, services, ytdlp, events, tmp_path):
+def test_song_pick_chooses_another_candidate(cli, services, groove_library, events, tmp_path):
     services()
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--pick", 3,
-                        "--library", tmp_path / "none")
+                        "--library", groove_library["folder"])
     assert rc == 0, text + err
     assert "using 3)" in text
-    third = re.search(r"^   3\) video: .* <(\S+)>", text, re.MULTILINE).group(1)
-    first = re.search(r"^   1\) video: .* <(\S+)>", text, re.MULTILINE).group(1)
-    assert [c[-1] for c in downloads(ytdlp())] == [third] and third != first
+    listed = re.findall(r"^   \d\) your library: (.+?\.wav) \(", text, re.MULTILINE)
+    assert len(listed) == 3 and Path(listed[0]) == groove_library["plain"].resolve()  # the plain take first
+    assert events[0][1][0] == Path(listed[2]) != Path(listed[0])
 
 
 def test_song_from_the_library_offline(cli, events, library, tmp_path, monkeypatch):
@@ -790,13 +692,22 @@ def test_song_refuses_a_streaming_link_before_any_lookup(cli, events, monkeypatc
     assert events == [] and not (tmp_path / "out").exists()
 
 
-def test_song_without_audio_says_how_to_get_some(cli, services, events, monkeypatch, tmp_path):
+def test_song_without_audio_says_how_to_get_some(cli, services, events, tmp_path):
     services()
-    monkeypatch.setattr(fetch, "find_ytdlp", lambda: None)
     rc, text, err = cli("song", "Test Groove", "--library", tmp_path / "none")
     assert rc == 1 and "1. Identified" in text
-    assert "--audio FILE" in err and "pip install yt-dlp" in err
-    assert events == []
+    assert "in your music folders" in err and "--audio FILE" in err and "--library DIR" in err
+    assert "yt-dlp" not in err and events == []
+
+
+def test_song_refuses_a_video_page(cli, events, monkeypatch, tmp_path):
+    monkeypatch.setattr(lookup, "http_get_json", canned_services(fail=("musicbrainz.org", "itunes.apple.com",
+                                                                       "api.deezer.com")))
+    monkeypatch.setattr(fetch, "open_url", lambda *a, **k: pytest.fail("a video page was requested"))
+    rc, _, err = cli("song", "Test Groove", "--url", "https://www.youtube.com/watch?v=tg-official", "--rights", "own",
+                     "-o", tmp_path / "out")
+    assert rc == 1 and "video site" in err and "Traceback" not in err
+    assert events == [] and not (tmp_path / "out").exists()
 
 
 @pytest.mark.parametrize("argv,message", [
@@ -840,12 +751,11 @@ def fluid_wav(tmp_path_factory) -> Path:
 @pytest.mark.slow
 @needs_fluidsynth
 @needs_lilypond
-def test_song_end_to_end_chart(cli, services, ytdlp, fluid_wav, tmp_path, monkeypatch):
-    monkeypatch.setenv("FAKE_YTDLP_WAV", str(fluid_wav))
+def test_song_end_to_end_chart(cli, services, fluid_wav, tmp_path):
     services(duration_s=wav_seconds(fluid_wav))
     out = tmp_path / "out"
     rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own", "-o", out,
-                        "--url", "https://www.youtube.com/watch?v=tg-official")
+                        "--audio", fluid_wav)
     assert rc == 0, text + err
     for name in ("test_groove.pdf", "test_groove.musicxml", "test_groove.mid", "test_groove.json",
                  "test_groove.report.md"):
@@ -855,17 +765,18 @@ def test_song_end_to_end_chart(cli, services, ytdlp, fluid_wav, tmp_path, monkey
     assert s.title == "Test Groove" and s.rights == "own" and len(s.measures) >= 5
     assert {"hihat", "snare", "kick"} <= set(s.instruments_used())
     report = (out / "test_groove.report.md").read_text()
-    assert "Automatic transcription, unverified" in report and "watch?v=tg-official" in report
+    assert "Automatic transcription, unverified" in report and fluid_wav.name in report
 
 
 @pytest.mark.slow
 @needs_fluidsynth
-def test_song_end_to_end_analysis(cli, services, ytdlp, fluid_wav, tmp_path, monkeypatch):
-    monkeypatch.setenv("FAKE_YTDLP_WAV", str(fluid_wav))
+def test_song_end_to_end_analysis(cli, services, fluid_wav, tmp_path):
     services(duration_s=wav_seconds(fluid_wav))
+    lib = tmp_path / "Music"
+    lib.mkdir()
+    shutil.copy(fluid_wav, lib / "The Placeholders - Test Groove.wav")
     out = tmp_path / "out"
-    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "-o", out,
-                        "--library", tmp_path / "none")
+    rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "-o", out, "--library", lib)
     assert rc == 0, text + err
     info = json.loads(text[text.index("   {\n"):text.index("\n   }\n") + 5])
     assert info["meter"].startswith("4/4")
@@ -876,19 +787,6 @@ def test_song_end_to_end_analysis(cli, services, ytdlp, fluid_wav, tmp_path, mon
 
 # ---- review regressions -------------------------------------------------------------
 
-def test_rights_after_a_video_search_needs_the_exact_link(cli, services, ytdlp, events, tmp_path):
-    # A basis is a statement about one recording; the first search result may be a reupload or
-    # a cover, and the search runs again (and can rank differently) on the next run, so a video
-    # is named by its link, never by its place in the list.
-    services()
-    for pick in ((), ("--pick", 1)):
-        rc, text, err = cli("song", "Test Groove", "--artist", "The Placeholders", "--rights", "own",
-                            "-o", tmp_path / "out", "--library", tmp_path / "none", *pick)
-        assert rc == 1 and "--url 'https://www.youtube.com/watch?v=tg-official'" in err, err
-        assert "--url 'https://www.youtube.com/watch?v=tg-cover'" in err and "using" not in text
-    assert kinds(events) == [] and downloads(ytdlp()) == []
-
-
 def test_rights_with_one_library_match_still_needs_a_pick(cli, events, library, tmp_path, monkeypatch):
     # One fuzzy match (here another band's live take) is still a search result, not the recording
     # the user stated a basis for.
@@ -898,40 +796,6 @@ def test_rights_with_one_library_match_still_needs_a_pick(cli, events, library, 
                         "-o", tmp_path / "out", "--formats", "json")
     assert rc == 1 and "--pick N" in err and "1) your library:" in text and "Cover Band" in text
     assert events == [] and not (tmp_path / "out").exists()
-
-
-def test_drumless_and_backing_tracks_rank_last():
-    names = ["The Placeholders - Test Groove (Drumless)", "The Placeholders - Test Groove (Drum Backing Track)",
-             "The Placeholders - Test Groove (Official Audio)", "The Placeholders - Test Groove (No Drums)",
-             "The Placeholders - Test Groove (Instrumental)"]
-    v = [VideoCandidate(url=f"https://www.youtube.com/watch?v={i}", title=n, duration_s=192)
-         for i, n in enumerate(names)]
-    ranked = fetch.rank_videos(v, "The Placeholders Test Groove", expected_duration=192)
-    assert ranked[0].title.endswith("(Official Audio)")
-    assert all(r.score < ranked[0].score - 0.5 for r in ranked[1:] if "rums" in r.title)
-
-
-def test_a_page_with_several_recordings_is_refused(monkeypatch):
-    infos = [{"webpage_url": f"https://example.com/album#{i}", "title": f"Track {i}", "id": f"t{i}"} for i in range(3)]
-    out = "\n".join(json.dumps(i) for i in infos)
-    monkeypatch.setattr(fetch, "_run_ytdlp", lambda exe, args, timeout: subprocess.CompletedProcess(args, 0, out, ""))
-    with pytest.raises(FetchError, match="holds 3 recordings"):
-        fetch.video_info("https://example.com/album", ytdlp=["yt-dlp"])
-
-
-def test_ytdlp_downloads_into_the_cache_by_folder_not_template(monkeypatch, tmp_path):
-    cache = tmp_path / "cache_100%_sure"
-    seen = {}
-
-    def run(exe, args, timeout):
-        seen["args"] = args
-        return subprocess.CompletedProcess(args, 1, "", "stop here")
-    monkeypatch.setattr(fetch, "_run_ytdlp", run)
-    with pytest.raises(FetchError):
-        fetch.download_with_ytdlp("https://www.youtube.com/watch?v=x", cache, ytdlp=["yt-dlp"])
-    a = seen["args"]
-    assert a[a.index("-P") + 1] == str(cache.resolve()) and "%" not in a[a.index("-o") + 1].split("%(")[0]
-    assert a[a.index("--playlist-items") + 1] == "1"
 
 
 def test_redirect_to_ftp_is_not_followed(tmp_path):
@@ -1066,35 +930,6 @@ def test_a_web_page_sent_in_small_pieces_is_still_recognised(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_a_web_page_given_as_a_link_is_checked_like_a_video_page(web, tmp_path, monkeypatch):
-    # A page on a host that isn't a known video site still goes to yt-dlp: it must be one
-    # recording, and its title, uploader and licence go on the source line.
-    base, www, _ = web
-    for name in ("album.html", "single.html"):
-        (www / name).write_text("<!doctype html><title>a page</title>")
-    calls = []
-
-    def run(exe, args, timeout):
-        calls.append(args)
-        page = args[-1]
-        if "--dump-json" in args:
-            n = 2 if page.endswith("album.html") else 1
-            infos = [{"webpage_url": page if n == 1 else f"{page}#t{i}", "title": f"Track {i}", "id": f"t{i}",
-                      "uploader": "The Placeholders", "license": CC_BY} for i in range(1, n + 1)]
-            return subprocess.CompletedProcess(args, 0, "\n".join(json.dumps(i) for i in infos), "")
-        saved = Path(args[args.index("-P") + 1]) / "Track_1-t1.wav"
-        saved.write_bytes(b"RIFF")
-        return subprocess.CompletedProcess(args, 0, f"{saved}\n", "")
-    monkeypatch.setattr(fetch, "_run_ytdlp", run)
-    with pytest.raises(FetchError, match="holds 2 recordings"):
-        fetch.fetch_audio(base + "/album.html", ytdlp=["yt-dlp"])
-    assert downloads(calls) == []
-    audio = fetch.fetch_audio(base + "/single.html", ytdlp=["yt-dlp"])
-    assert (audio.origin, audio.title, audio.uploader, audio.license) == ("video", "Track 1", "The Placeholders",
-                                                                           CC_BY)
-    assert downloads(calls)[0][-1] == base + "/single.html"
-
-
 def test_the_suggested_rights_command_keeps_the_source_and_options():
     import argparse
 
@@ -1108,12 +943,12 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
         "--paper", "a4", "--staff-size", "18", "--repeats", "none", "--bars-per-line", "3", "--no-legend",
         "--midi-timing", "performed", "--kit", "my kit.json", "--voicing", "hands-up", "--candidates", "3",
         "--library", "/music", "-o", "out dir", "--", "-ism"])
-    video = AudioSource(Path("/cache/x.wav"), "video", url="https://www.youtube.com/watch?v=tg-official")
-    cmd = run._rerun_command(given, video)
-    assert "--url 'https://www.youtube.com/watch?v=tg-official'" in cmd and "/cache/x.wav" not in cmd
+    link = AudioSource(Path("/cache/x.wav"), "direct", url="https://example.org/takes/tg.wav")
+    cmd = run._rerun_command(given, link)
+    assert "--url https://example.org/takes/tg.wav" in cmd and "/cache/x.wav" not in cmd
     assert "--rights BASIS" in cmd and cmd.endswith(" -- -ism")
     again = parser.parse_args(shlex.split(cmd.replace("BASIS", "own"))[3:])
-    assert (again.url, again.audio, again.rights) == (video.url, None, "own")
+    assert (again.url, again.audio, again.rights) == (link.url, None, "own")
     source = {"audio", "url", "library", "candidates", "pick", "rights"}  # replaced by the source and the basis
     for name, value in vars(given).items():
         if name not in source:
@@ -1127,26 +962,3 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
     mine = AudioSource(Path("/music/x.wav"), "file")
     mine_cmd = run._rerun_command(given, mine).replace("BASIS", "own")
     assert parser.parse_args(shlex.split(mine_cmd)[3:]).audio == "/music/x.wav"
-
-
-def test_ranking_prefers_the_album_track_and_the_artists_own_uploads():
-    """Titles, channels and lengths as YouTube's search returned them for "Back in Black" (Oct 2026),
-    plus the kinds of upload that must never win."""
-    vids = [VideoCandidate(url=f"u{k}", title=t, channel=c, duration_s=d) for k, (t, c, d) in enumerate([
-        ("AC/DC - Back In Black (Official 4K Video)", "AC/DC", 254),
-        ("AC/DC - Back In Black (Lyrics)", "7clouds Rock", 252),
-        ("AC/DC - Back In Black", "Rock And Metal Tv", 256),
-        ("Back In Black", "AC/DC - Topic", 255),
-        ("AC/DC - Back In Black (Live At River Plate, December 2009)", "AC/DC", 270),
-        ("AC/DC - Back In Black (Drum Cover)", "Drummer Kid", 255),
-        ("Back In Black - Drumless Backing Track", "Backing Tracks", 255),
-    ])]
-    ranked = fetch.rank_videos(vids, "AC/DC Back in Black", 255, asked="Back in Black AC/DC", artist="AC/DC")
-    assert [v.channel for v in ranked[:3]] == ["AC/DC - Topic", "AC/DC", "Rock And Metal Tv"]
-    assert [v.title for v in ranked[-3:]] == ["AC/DC - Back In Black (Live At River Plate, December 2009)",
-                                              "AC/DC - Back In Black (Drum Cover)",
-                                              "Back In Black - Drumless Backing Track"]
-    # Asked for the live version: the live upload is no longer pushed down.
-    live = fetch.rank_videos(vids, "AC/DC Back in Black live", None, asked="Back in Black live River Plate",
-                             artist="AC/DC")
-    assert live[0].title.startswith("AC/DC - Back In Black (Live At River Plate")

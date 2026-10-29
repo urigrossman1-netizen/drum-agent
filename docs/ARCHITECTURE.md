@@ -160,9 +160,9 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
   grid most of its ticks sit on, even with one a few ticks off. See
   `docs/GAMECHARTS.md`.
 - `song/`: from a song's name to audio: metadata (MusicBrainz, iTunes,
-  Deezer), the user's own library (by tags), a direct link, or a video page
-  through the user's own yt-dlp. Streaming services are metadata only. See
-  `docs/SONG_LOOKUP.md`.
+  Deezer), the user's own library (by tags or file names), or a direct link to
+  an audio file. Video sites and streaming services are metadata only: their
+  pages are refused as audio sources. See `docs/SONG_LOOKUP.md`.
 - `charts.py`: YAML/JSON chart specs for hand-written charts, exercises,
   tests and examples.
 - `edit.py`: exact, reference-based corrections to a score.json (the

@@ -10,11 +10,10 @@
   full-song transcription of an authorized recording (the Northbound example song
   synthesized with a band: an original composition, so the rights basis is "original"),
   its review, playback and PDF.
-- A song from its name (tests/e2e/find.e2e.js): the personal app (`serve --personal`) with
-  a stand-in for yt-dlp on PATH (tests/test_song.py's fake: it answers YouTube searches and
-  "downloads" a synthesized take), so the journey runs without the network: type the song,
-  confirm it's for your own practice, watch it being found, downloaded and charted, and
-  check the chart is marked as a personal-practice chart.
+- A song from its name (tests/e2e/library.e2e.js): the personal app (`serve --personal`) with
+  a music folder holding the song (a synthesized take, named as a download would be) and a
+  live take of it: type the song, confirm it's for your own practice, watch it being found
+  among the files and charted, and check the chart is marked as a personal-practice chart.
 
 Metadata providers and Claude are switched off so the runs don't depend on the network;
 their failure states are unit-tested in test_web.py.
@@ -84,27 +83,17 @@ def server(tmp_path):
 
 @pytest.fixture
 def personal_server(tmp_path):
-    """The personal app with the song tests' fake yt-dlp first on PATH (no network)."""
-    import json
-
-    import soundfile
-    from test_song import FAKE_YTDLP, video_infos
-
+    """The personal app with a music folder holding the song and a live take of it (no network)."""
     from drum_agent.charts import compile_spec
     from drum_agent.synth import synthesize
     groove = {"hh": "x-x-x-x-", "sn": "--x---x-", "bd": "x---x---"}
     spec = compile_spec({"title": "Test Groove", "artist": "The Placeholders", "tempo": 100, "rights": "original",
                          "sections": [{"label": "A", "bars": [groove] * 4}, {"label": "B", "bars": [groove] * 4}]})
-    wav = synthesize(spec, tmp_path / "groove.wav", method="fluidsynth")
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    exe = bin_dir / "yt-dlp"
-    exe.write_text(FAKE_YTDLP.replace("{python}", sys.executable))
-    exe.chmod(0o755)
-    (tmp_path / "ytdlp.log").touch()
-    proc, base = _serve(tmp_path / "data", "--personal", env_extra={
-        "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}", "FAKE_YTDLP_LOG": str(tmp_path / "ytdlp.log"),
-        "FAKE_YTDLP_WAV": str(wav), "FAKE_YTDLP_VIDEOS": json.dumps(video_infos(soundfile.info(str(wav)).duration))})
+    music = tmp_path / "Music"
+    (music / "Live").mkdir(parents=True)
+    wav = synthesize(spec, music / "The Placeholders - Test Groove.wav", method="fluidsynth")
+    shutil.copy(wav, music / "Live" / "The Placeholders - Test Groove (Live).wav")
+    proc, base = _serve(tmp_path / "data", "--personal", env_extra={"DRUM_AGENT_MUSIC_DIRS": str(music)})
     try:
         yield base
     finally:
@@ -140,4 +129,4 @@ def test_song_to_chart_end_to_end(server, tmp_path, artifacts):
 
 @needs_browser
 def test_song_from_its_name_end_to_end(personal_server, artifacts):
-    _run("find.e2e.js", personal_server, artifacts / "web_e2e")
+    _run("library.e2e.js", personal_server, artifacts / "web_e2e")

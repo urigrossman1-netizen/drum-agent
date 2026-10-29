@@ -42,9 +42,10 @@ MusicXML and MIDI, which are checked against each other automatically.
    (ask for title and artist; suggest the publisher's official transcription or
    an authorised sheet-music retailer; don't claim a specific chart exists
    unless you checked). Never take audio from DRM services (Spotify, Apple
-   Music, Tidal, Deezer, Amazon Music: metadata only) or bypass DRM. Video
-   pages only through the user's own yt-dlp (`song`), and a download is never
-   a rights basis.
+   Music, Tidal, Deezer, Amazon Music: metadata only) or bypass DRM. Never take
+   audio from video sites (YouTube and the like: official APIs for metadata,
+   links and embedded players only; no scraping or extraction), and a download
+   is never a rights basis.
 4. **Rendering correctness is not transcription correctness.** "All checks OK"
    means the formats agree with score.json. It does not mean the notes match the
    recording. Say which one you've verified.
@@ -90,8 +91,8 @@ size? section names?), choose the conventional default and say so.
    never a substitute for listening: nothing from research goes on the page
    as notes.
 2. **Find audio and analyse:** `python -m drum_agent song "TITLE" --artist "ARTIST"`
-   lists the identified recordings, picks audio (the user's file or library,
-   a direct link, or the user's own yt-dlp), checks its length against the
+   lists the identified recordings, picks audio (the user's file or music
+   folders, or a direct link to an audio file), checks its length against the
    identified recording, and without `--rights` prints tempo, meter and
    sections only. Read every step it prints; a length mismatch means another
    version.
@@ -100,16 +101,15 @@ size? section names?), choose the conventional default and say so.
    ```bash
    # a file from the user's library, by its number in the list
    python -m drum_agent song "Song Title" --artist "Band" --pick 1 --rights own -o out/song --bpm 96 --sections "Intro:1,Verse:5,Chorus:13"
-   # a video the search found, by its exact link
-   python -m drum_agent song "Song Title" --artist "Band" --url "https://www.youtube.com/watch?v=VIDEO_ID" --rights own -o out/song --bpm 96
+   # a file the user gives
+   python -m drum_agent song "Song Title" --artist "Band" --audio "~/Music/Band - Song Title.flac" --rights own -o out/song --bpm 96
    ```
    A basis covers one recording, so with `--rights` a search result is never
    taken for you, even when it is the only match: show the user the list and
    let them name the one their basis covers. Name a library file with
-   `--pick N` (needed even for a single match) and a video with `--url URL`
-   (the refusal prints the `--url` of each video; `--pick` is refused for
-   videos, because the search runs again and can rank differently).
-   `--audio FILE` uses a file the user gave you, `--url URL` one link.
+   `--pick N` (needed even for a single match). `--audio FILE` uses a file
+   the user gave you, `--url URL` one direct link to an audio file (pages on
+   video sites are refused).
    Details: [docs/SONG_LOOKUP.md](../../../docs/SONG_LOOKUP.md).
 4. Continue with step 3 below (report, pages, QC). In the delivery, list which
    hints came from research (with the links) and which came from the audio.
@@ -249,5 +249,5 @@ which chart you started from.
 See [reference/troubleshooting.md](reference/troubleshooting.md): LilyPond
 errors, verification mismatches, unsupported rhythms (quintuplets), chart-spec
 grid errors, MIDI without channel 10 or with a pickup, slow or noisy audio.
-`song` problems (nothing identified, no audio, yt-dlp missing, wrong version)
+`song` problems (nothing identified, no audio found, a video link given, wrong version)
 are explained in the lines it prints and in [docs/SONG_LOOKUP.md](../../../docs/SONG_LOOKUP.md).
