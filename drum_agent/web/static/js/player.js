@@ -5,6 +5,11 @@
 // the "acoustic" kit uses drum samples rendered on the server from the FluidR3 GM
 // soundfont; the "electronic" kit (and any instrument without a sample) is synthesized
 // here. The visual position comes from the same clock, read on every animation frame.
+//
+// Listening along: a chart transcribed from a recording knows where each bar starts in it
+// (the performed bar starts). With the recording on, the bars and strokes are moved onto the
+// recording's own time and the recording plays on the same clock, so the cursor, the loop
+// and the chart's strokes follow the real performance, tempo drift included.
 
 import { events as buildEvents, beats } from "./score.js";
 
@@ -32,6 +37,12 @@ export class Player {
     this.onHit = null; // (event) => void, called when a stroke sounds
     this.scheduledLog = []; // for tests: what was scheduled, in song time
     this._ringing = new Map();
+    this.recording = null; // the chart's recording (an AudioBuffer), once loaded
+    this.timeline = null; // where each bar starts in the recording (s)
+    this.recordingOn = false; // play the recording, in time with the chart
+    this.drumsOn = true; // play the chart's own drum sounds
+    this.following = false; // this run plays the recording
+    this._sources = [];
   }
 
   async init() {
@@ -62,6 +73,22 @@ export class Player {
     }));
   }
 
+  /** The chart's recording, decoded once, and the performed start of every bar in it. */
+  async loadRecording(url, timeline) {
+    await this.init();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`The recording could not be loaded (HTTP ${res.status}).`);
+    this.recording = await this.ctx.decodeAudioData(await res.arrayBuffer());
+    this.timeline = timeline;
+  }
+
+  /** Can the recording follow this score: one start per bar, in order, inside the recording? */
+  canFollow(score) {
+    const t = this.timeline;
+    return !!(this.recording && Array.isArray(t) && t.length === score.measures.length
+      && t.every((x, i) => Number.isFinite(x) && x >= 0 && x < this.recording.duration && (i === 0 || x > t[i - 1])));
+  }
+
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.02); }
 
   audible(inst) {
@@ -80,10 +107,18 @@ export class Player {
     this.times = built.times;
     const first = this.range ? this.range[0] : (fromBar ?? 0);
     const last = this.range ? this.range[1] : score.measures.length - 1;
+    this.following = this.recordingOn && this.canFollow(score);
+    let events = built.events;
+    this.clicks = this.metronome ? this._clicks(score, first, last) : [];
+    if (this.following) {
+      const warp = this._warp(built.times);
+      events = events.map((e) => ({ ...e, t: warp.at(e.t, e.bar) }));
+      this.clicks = this.clicks.map((c) => ({ ...c, t: warp.at(c.t, c.bar) }));
+      this.times = warp.times;
+    }
     this.segStart = this.times[first].start;
     this.segEnd = this.times[last].start + this.times[last].dur;
-    this.events = built.events.filter((e) => e.t >= this.segStart - 0.06 && e.t < this.segEnd - 1e-6);
-    this.clicks = this.metronome ? this._clicks(score, first, last) : [];
+    this.events = events.filter((e) => e.t >= this.segStart - 0.06 && e.t < this.segEnd - 1e-6);
     const lead = 0.08;
     let countInDur = 0;
     if (this.countIn) {
@@ -99,6 +134,7 @@ export class Player {
     this.scheduledLog = [];
     this.state = "playing";
     this.countInUntil = this.ctx.currentTime + lead + countInDur;
+    if (this.following) this._startRecording(this.t0 + this.segStart);
     this.onState && this.onState(this.state);
     this._timer = setInterval(() => this._schedule(), TICK_MS);
     this._schedule();
@@ -111,6 +147,8 @@ export class Player {
     this._timer = null;
     if (this.ctx) for (const [, nodes] of this._ringing) for (const n of nodes) { try { n.g.gain.cancelScheduledValues(this.ctx.currentTime); n.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.03); } catch { /* ended */ } }
     this._ringing.clear();
+    for (const src of this._sources) { try { src.stop(); } catch { /* not started */ } }
+    this._sources = [];
     if (this.state !== "stopped") {
       this.state = "stopped";
       if (!silent) this.onState && this.onState(this.state);
@@ -132,7 +170,7 @@ export class Player {
       while (this.cursor < this.events.length && base + this.events[this.cursor].t <= horizon) {
         const e = this.events[this.cursor++];
         const at = Math.max(base + e.t, this.ctx.currentTime);
-        if (this.audible(e.inst)) this._voice(e.inst, at, e.vel / 127, e);
+        if (this.drumsOn && this.audible(e.inst)) this._voice(e.inst, at, e.vel / 127, e);
         this.scheduledLog.push({ t: +(e.t - this.segStart + this.pass * len).toFixed(4), inst: e.inst, bar: e.bar, pos: e.pos, grace: !!e.grace });
         if (this.onHit) { const delay = Math.max(0, (at - this.ctx.currentTime) * 1000); setTimeout(() => this.onHit && this.onHit(e), delay); }
       }
@@ -145,6 +183,7 @@ export class Player {
       if (this.loop) {
         if (base + this.segEnd > horizon) break; // the next pass starts when this one ends
         this.pass += 1; this.cursor = 0; this.clickCursor = 0;
+        if (this.following) this._startRecording(this.t0 + this.pass * len + this.segStart);
         continue;
       }
       if (this.ctx.currentTime > base + this.segEnd + 0.05) { this.stop(); }
@@ -171,9 +210,34 @@ export class Player {
     const out = [];
     for (let i = first; i <= last; i++) {
       const spw = (4 * 60) / this.times[i].tempo;
-      beats(score.measures[i]).forEach(([s], k) => out.push({ t: this.times[i].start + s.value * spw, down: k === 0 }));
+      beats(score.measures[i]).forEach(([s], k) => out.push({ t: this.times[i].start + s.value * spw, down: k === 0, bar: i }));
     }
     return out;
+  }
+
+  /** The bars on the recording's own time at this speed, and the map of a chart time in a bar onto it. */
+  _warp(times) {
+    const p = this.timeline;
+    const warped = times.map((b, i) => {
+      const next = i + 1 < p.length ? p[i + 1] : Math.min(this.recording.duration, p[i] + b.dur * this.speed);
+      return { ...b, start: p[i] / this.speed, dur: Math.max(0.05, (next - p[i]) / this.speed) };
+    });
+    const at = (t, bar) => {
+      const b = times[bar], w = warped[bar];
+      return w.start + (b.dur > 0 ? (t - b.start) / b.dur : 0) * w.dur;
+    };
+    return { times: warped, at };
+  }
+
+  /** The recording from the segment's start, at `at` on the audio clock, for one pass. */
+  _startRecording(at) {
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.recording;
+    src.playbackRate.value = this.speed;
+    src.connect(this.master);
+    const late = Math.max(0, this.ctx.currentTime - at);
+    src.start(at + late, (this.segStart + late) * this.speed, Math.max(0.01, (this.segEnd - this.segStart - late) * this.speed));
+    this._sources.push(src);
   }
 
   // ---- sounds -------------------------------------------------------------------

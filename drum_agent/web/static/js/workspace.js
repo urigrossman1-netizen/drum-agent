@@ -70,6 +70,10 @@ class Workspace {
     player.speed = 1;
     player.loop = false;
     player.range = null;
+    player.recording = null;  // another chart, another recording
+    player.timeline = null;
+    player.recordingOn = false;
+    player.drumsOn = true;
     player.setVolume(prefs.get("volume", 0.85));
     player.onPosition = (bar, sec) => this.onPosition(bar, sec);
     player.onState = (s) => this.onPlayState(s);
@@ -199,9 +203,39 @@ class Workspace {
       h("div", { class: "group" }, h("label", { class: "mini" }, "BPM", this.bpmInput)),
       h("div", { class: "group optional" }, h("label", { class: "mini" }, "Speed", speed, speedLabel)),
       h("div", { class: "group optional" }, h("label", { class: "mini" }, icon("volume"), vol)),
-      h("div", { class: "group" }, kit,
+      h("div", { class: "group" }, kit, this.soundSelect(),
         toggle("follow", "Follow", "score", () => this.follow, (v) => (this.follow = v))),
       this.engravingEl);
+  }
+
+  /** What you hear: the chart's drums, the recording it was transcribed from, or both, the
+   *  recording in time with the chart (it knows where each bar starts in it: player.js). */
+  soundSelect() {
+    const timeline = this.view && this.view.timeline_kind === "performed" ? this.view.timeline.map((x) => x.t) : null;
+    if (!this.chart.has_audio || !timeline) return null;
+    const sel = h("select", { class: "select sound", style: { width: "176px", "min-height": "34px" }, "aria-label": "What you hear" },
+      h("option", { value: "drums" }, "Chart drums"),
+      h("option", { value: "both" }, "Recording + chart"),
+      h("option", { value: "recording" }, "Recording only"));
+    sel.addEventListener("change", async () => {
+      if (sel.value !== "drums" && !player.recording) {
+        sel.disabled = true;
+        const was = this.posEl.textContent;
+        this.posEl.textContent = "Loading the recording…";
+        try { await player.loadRecording(`/api/charts/${this.chart.id}/audio`, timeline); }
+        catch (e) { toast(e.message, "bad"); sel.value = "drums"; }
+        sel.disabled = false;
+        this.posEl.textContent = was;
+      }
+      player.recordingOn = sel.value !== "drums";
+      player.drumsOn = sel.value !== "recording";
+      if (player.recordingOn && !player.canFollow(this.score)) {
+        toast("The recording can't follow this version: its bars no longer match the recording's.", "bad");
+        player.recordingOn = false; player.drumsOn = true; sel.value = "drums";
+      }
+      if (player.state === "playing") this.restartPlayback();
+    });
+    return sel;
   }
 
   // ---- notation ------------------------------------------------------------------

@@ -98,6 +98,24 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
     expect(true, "the transcribed drum part plays");
     await page.click(".transport .play");
 
+    // Listening along: the recording it was transcribed from, in time with the chart.
+    const chartNow = await (await page.request.get(BASE + "/api/charts/" + page.url().split("/chart/")[1])).json();
+    expect(chartNow.has_audio && chartNow.view.timeline_kind === "performed", "the chart knows where each bar starts in the recording");
+    const starts = chartNow.view.timeline.map((x) => x.t);
+    await page.selectOption(".transport select.sound", "both");
+    await page.waitForFunction(() => !!window.__drumAgent.player.recording, null, { timeout: 30000 });
+    await page.click(".transport .play");
+    await page.waitForFunction(() => window.__drumAgent.player.following && window.__drumAgent.player._sources.length > 0, null, { timeout: 15000 });
+    const warped = await page.evaluate(() => window.__drumAgent.player.times.map((b) => b.start));
+    expect(warped.length === starts.length && warped.every((t, i) => Math.abs(t - starts[i]) < 1e-6), "the bars follow the recording's own bar starts");
+    await page.waitForFunction(() => /Bar ([2-9]|\d\d)/.test(document.querySelector(".position").textContent), null, { timeout: 15000 });
+    expect(true, "the recording plays with the chart, the cursor moving through the bars");
+    await shot("s05b-listening");
+    await page.click(".transport .play");
+    await page.selectOption(".transport select.sound", "recording");
+    expect(await page.evaluate(() => window.__drumAgent.player.recordingOn && !window.__drumAgent.player.drumsOn), "the recording can be heard alone");
+    await page.selectOption(".transport select.sound", "drums");
+
     // Review one flagged bar and save it as a new version.
     if (flags) {
       await page.locator(".side-panel button", { hasText: "Next ›" }).click();
