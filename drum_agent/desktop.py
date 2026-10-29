@@ -73,6 +73,8 @@ def configure(data: Path, tools: Path | None) -> None:
         if lily.is_file():
             os.environ["DRUM_AGENT_LILYPOND"] = str(lily)
         paths += [str(p) for p in (tools / "ffmpeg" / "bin", tools / "deno") if p.is_dir()]
+        if (tools / "torch").is_dir():  # the drum separation model, shipped: no download on the first song
+            os.environ.setdefault("TORCH_HOME", str(tools / "torch"))
     os.environ["PATH"] = os.pathsep.join([*paths, os.environ.get("PATH", "")])
 
 

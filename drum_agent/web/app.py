@@ -165,6 +165,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
                 "claude": {"configured": cfg["configured"], "missing": cfg["missing"]},
                 "licensed_audio_providers": [], "rights_options": _rights_options(),
                 "mode": "personal" if sources.personal_mode() else "shared", "online": online.status(),
+                "separation": _separation(),
                 "asset_dir_configured": sources.asset_dir() is not None,
                 "limits": {"max_upload_mb": MAX_BYTES // 2**20}}
         return JSONResponse(body, status_code=200 if ok else 503)
@@ -413,6 +414,12 @@ def _chart(store: Store, chart_id: str) -> dict:
 def _public_song(s: dict) -> dict:
     return {k: s.get(k) for k in ("id", "title", "artist", "album", "year", "duration_s", "isrc", "version", "provider",
                                   "urls", "kind", "prompt", "updated_at")}
+
+
+def _separation() -> dict:
+    """Is the drum separation (HTDemucs) installed? Band mixes are then separated before detection."""
+    from ..audio.separate import MODEL, available
+    return {"available": available(), "model": MODEL}
 
 
 def _rights_options() -> dict:

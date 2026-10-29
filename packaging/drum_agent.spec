@@ -16,6 +16,15 @@ datas += collect_data_files("webview")
 datas += [(os.path.join(ROOT, "examples", "specs", "03_full_song_northbound.yaml"), os.path.join("examples", "specs"))]
 
 hiddenimports = collect_submodules("drum_agent") + collect_submodules("uvicorn") + ["webview"]
+try:  # the drum separation (HTDemucs), when the build machine installed demucs and PyTorch
+    import demucs  # noqa: F401
+    datas += collect_data_files("demucs")  # its model list (remote/*.yaml, files.txt)
+    # What loading and running the model needs; the model's class is named inside the checkpoint,
+    # so the analysis can't see it. (Not all of demucs: its training code needs much more.)
+    hiddenimports += ["demucs." + m for m in ("pretrained", "apply", "repo", "states", "utils", "htdemucs",
+                                               "hdemucs", "demucs", "transformer", "spec")]
+except ImportError:
+    pass
 
 a = Analysis(  # noqa: F821
     [os.path.join(SPECPATH, "launch.py")],  # noqa: F821

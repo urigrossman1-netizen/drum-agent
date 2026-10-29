@@ -5,8 +5,10 @@
                     (Windows build: https://github.com/BtbN/FFmpeg-Builds)
   yt-dlp            finding and downloading songs on YouTube   Unlicense  https://github.com/yt-dlp/yt-dlp
   Deno              the JavaScript runtime yt-dlp needs        MIT        https://deno.com
+  HTDemucs model    separating the drums from the band         MIT        https://github.com/adefossez/demucs
+                    (with --separation; its code, PyTorch and demucs, is in the app itself)
 
-    python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools
+    python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools [--separation]
 
 DEST gets lilypond/, ffmpeg/bin/, yt-dlp/, deno/ and NOTICES.txt (what each tool is, its
 licence and where its source is). Downloads are cached in build/downloads.
@@ -15,6 +17,7 @@ licence and where its source is). Downloads are cached in build/downloads.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import shutil
 import sys
 import tarfile
@@ -45,6 +48,9 @@ TOOLS = {
     },
 }
 
+# HTDemucs (demucs.pretrained "htdemucs"): torch hub checks that its SHA-256 starts with the name's suffix.
+HTDEMUCS = "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th"
+
 NOTICES = f"""Tools shipped with Drum Agent
 =============================
 
@@ -58,6 +64,9 @@ yt-dlp (yt-dlp/): finding and downloading songs on YouTube. The Unlicense (publi
   Source: https://github.com/yt-dlp/yt-dlp  (it updates itself; see Settings in the app)
 Deno (deno/): the JavaScript runtime yt-dlp needs for YouTube. MIT licence.
   Source: https://github.com/denoland/deno
+HTDemucs (torch/, when present): the model that separates the drums from the band before
+  transcription, run with PyTorch (BSD) and demucs (MIT). MIT licence.
+  Source: https://github.com/adefossez/demucs
 
 The licence texts are in each tool's folder where its download includes them.
 """
@@ -95,6 +104,18 @@ def unpack(archive: Path, into: Path) -> Path:
             t.extractall(into, filter="data")
     kids = [p for p in into.iterdir()]
     return kids[0] if len(kids) == 1 and kids[0].is_dir() else into
+
+
+def fetch_separation(dest: Path) -> None:
+    """The HTDemucs weights where torch hub looks for them ($TORCH_HOME/hub/checkpoints)."""
+    src = download(HTDEMUCS)
+    expect = HTDEMUCS.rsplit("-", 1)[-1].split(".")[0]
+    digest = hashlib.sha256(src.read_bytes()).hexdigest()
+    if not digest.startswith(expect):
+        raise SystemExit(f"the HTDemucs download is not the expected file (sha256 {digest[:12]}...)")
+    out = dest / "torch" / "hub" / "checkpoints"
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, out / src.name)
 
 
 def fetch(platform: str, dest: Path) -> None:
@@ -135,8 +156,11 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--platform", choices=sorted(TOOLS), required=True)
     p.add_argument("--dest", type=Path, required=True)
+    p.add_argument("--separation", action="store_true", help="also the drum separation model (HTDemucs)")
     args = p.parse_args()
     fetch(args.platform, args.dest.resolve())
+    if args.separation:
+        fetch_separation(args.dest.resolve())
     return 0
 
 
