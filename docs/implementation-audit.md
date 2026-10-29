@@ -115,4 +115,32 @@ build; the Windows release workflow.
 
 ## 8. Outcome
 
-(Filled in as the work lands.)
+| Section 3 item | Now | Evidence |
+|---|---|---|
+| 1. YouTube audio path | Removed. A video page is refused before any request; YouTube is used through the Data API (search, lengths) and its embedded player only. The personal app finds a typed song among the user's own audio files | commit 643b357; `test_a_video_page_is_refused_without_a_request`, `test_song_refuses_a_video_page`, `test_personal_app_finds_the_song_in_the_music_folder_and_charts_it`, `tests/e2e/library.e2e.js`; the packaged Windows app found a song in a music folder and charted it (runs 40900218089, 40902632085) |
+| 2. Visitors | A private workspace per browser (an owner cookie); another visitor's project answers 404; the examples are read-only | commit 01023d7; `test_visitors_never_see_each_others_projects`, `test_an_example_is_everyones_and_read_only_on_a_shared_server`, `test_a_new_visitor_gets_a_private_owner_cookie` |
+| 3. Listening along | The recording plays on the chart's clock, every bar at its performed start; a loop restarts it at the loop's start | commit 89e6f2c; `tests/e2e/song.e2e.js` (the bars follow the recording's bar starts, the cursor moves, the recording alone) |
+| 4. Deployment | A Docker image with everything inside, tested as a shared server in CI before it is published to ghcr.io; a deploy job for a permanent address (a Hugging Face Space) that waits on a token; the temporary link in the meantime | commits cd58d06, 025ae8a, ee4a993; `docs/DEPLOY.md`; run 40905703452 built the image and started it as a shared server (its acceptance run: below) |
+| 5. YouTube and Spotify keys | Still not configured (section 6) | the image test passes them into the container once they are repository secrets |
+| 6. Real catalog search | Run from GitHub's runners: iTunes and Deezer returned the real "Back In Black" by AC/DC; MusicBrainz answered HTTP 503 that time and was reported as an error | `packaging/smoke_test.py --search` (run 40900218089); the image's acceptance run repeats it |
+| 7. Accuracy reporting | Precision, recall, missed and extra strokes and the mean timing error are printed | commit c1b31cd; development split, all five classes: drum stems P 0.826, R 0.888, 9.1 ms; band mixes P 0.691, R 0.702, 11.1 ms |
+
+Found on the way and fixed: the Settings page was 40 px wider than a phone screen (a long
+variable name that could not wrap; `tests/e2e/phone.e2e.js` now checks every page at
+390 px); `.env`, a filled-in copy of `.env.example`, was not ignored by git (now ignored by
+git and Docker; no credential is in any tracked file); the first image build failed
+because demucs imports numpy without declaring it (installed first now).
+
+Tests: the full suite, 929 passed (6 min 51 s), before the 5 tests added in ee4a993, which
+pass; the fast suite, 796 passed.
+
+The whole workflow on a real recording (`scripts/acceptance_run.py`: the MDB Drums Britpop
+band mix, 36.8 s, 257 annotated strokes; pick the song, upload it with its rights basis,
+the job, the chart, an edit saved as version 2, both versions reopened, PDF, MusicXML and
+MIDI exported, the chart's strokes scored against the annotations): on this machine,
+without separation, F 0.757 (P 0.783, R 0.732, mean timing error 9.8 ms). In the image, with the
+drums separated first: run 40905703452 (in progress when this was written).
+
+Still blocked (section 6): a hosting account for the permanent address (the deploy job
+needs the repository secret `HF_TOKEN`), and the YouTube Data API key and Spotify client
+credentials.
