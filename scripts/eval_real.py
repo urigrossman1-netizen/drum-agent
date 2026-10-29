@@ -115,16 +115,18 @@ def _f(tp: int, ref: int, est: int) -> tuple[float, float, float]:
     return (2 * p * r / (p + r) if p + r else 0.0), p, r
 
 
-def score_track(ref: list[tuple[float, str]], est: list[tuple[float, str]]) -> dict[str, dict[str, int]]:
-    """tp/ref/est per MDB class (OT, "other" percussion, is not scored)."""
+def score_track(ref: list[tuple[float, str]], est: list[tuple[float, str]]) -> dict[str, dict]:
+    """tp/ref/est per MDB class (OT, "other" percussion, is not scored), and the summed timing
+    error of the matched strokes (err_ms: |detected - annotated|, in ms)."""
     import numpy as np
     import mir_eval
     out = {}
     for c in CLASSES:
         r = sorted(t for t, k in ref if k == c)
         e = sorted(t for t, k in est if k == c)
-        tp = len(mir_eval.util.match_events(np.array(r), np.array(e), TOL)) if r and e else 0
-        out[c] = {"tp": tp, "ref": len(r), "est": len(e)}
+        pairs = mir_eval.util.match_events(np.array(r), np.array(e), TOL) if r and e else []
+        out[c] = {"tp": len(pairs), "ref": len(r), "est": len(e),
+                  "err_ms": round(sum(abs(e[j] - r[i]) for i, j in pairs) * 1000, 3)}
     return out
 
 
@@ -169,23 +171,26 @@ def _separator() -> str:
 def summarize(rows: dict[tuple[str, str], dict]) -> dict:
     pooled: dict[str, dict] = {}
     for mix in sorted({m for _, m in rows}):
-        acc = defaultdict(lambda: {"tp": 0, "ref": 0, "est": 0})
+        acc = defaultdict(lambda: {"tp": 0, "ref": 0, "est": 0, "err_ms": 0.0})
         for (track, m), res in rows.items():
             if m != mix:
                 continue
             for c, s in res.items():
-                for k in ("tp", "ref", "est"):
-                    acc[c][k] += s[k]
+                for k in ("tp", "ref", "est", "err_ms"):
+                    acc[c][k] += s.get(k, 0)
         table = {}
         for c in CLASSES:
             f, p, r = _f(acc[c]["tp"], acc[c]["ref"], acc[c]["est"])
-            table[c] = {"F": round(f, 3), "P": round(p, 3), "R": round(r, 3), **acc[c]}
+            table[c] = {"F": round(f, 3), "P": round(p, 3), "R": round(r, 3), **acc[c],
+                        "timing_ms": round(acc[c]["err_ms"] / acc[c]["tp"], 1) if acc[c]["tp"] else None}
         for name, group in (("KD/SD/HH", CLASSES[:3]), ("all 5", CLASSES)):
             tp = sum(acc[c]["tp"] for c in group)
             ref = sum(acc[c]["ref"] for c in group)
             est = sum(acc[c]["est"] for c in group)
+            err = sum(acc[c]["err_ms"] for c in group)
             f, p, r = _f(tp, ref, est)
-            table[name] = {"F": round(f, 3), "P": round(p, 3), "R": round(r, 3), "tp": tp, "ref": ref, "est": est}
+            table[name] = {"F": round(f, 3), "P": round(p, 3), "R": round(r, 3), "tp": tp, "ref": ref, "est": est,
+                           "timing_ms": round(err / tp, 1) if tp else None}
         # Mean of per-track F (the MIREX convention) for the three main classes.
         per_track = []
         for (track, m), res in rows.items():
@@ -244,6 +249,11 @@ def main() -> None:
     for mix, table in summary.items():
         print(f"{mix:6s} " + " ".join(f"{table[c]['F']:6.3f}" for c in CLASSES)
               + f" {table['KD/SD/HH']['F']:9.3f} {table['all 5']['F']:6.3f} {table['mean track F (KD/SD/HH)']:10.3f}")
+    print("\nAll 5 classes: precision, recall, missed and extra strokes, mean |timing error| of the matched ones:")
+    for mix, table in summary.items():
+        t5 = table["all 5"]
+        print(f"{mix:6s} P {t5['P']:.3f}  R {t5['R']:.3f}  missed {t5['ref'] - t5['tp']:5d} of {t5['ref']:5d}  "
+              f"extra {t5['est'] - t5['tp']:5d}  timing {t5['timing_ms']} ms")
     out = ROOT / "tests" / "_artifacts" / f"eval_real_{a.split if not a.tracks else 'custom'}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"summary": summary, "pipeline": a.pipeline,

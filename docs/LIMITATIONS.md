@@ -39,7 +39,14 @@ once, for this table.
 | Full band mix, NMF | 0.570 | 0.434 | 0.621 | 0.057 | 0.162 | 0.546 | 0.421 |
 
 Development recordings (12): drum stems 0.856 (NMF 0.791), band mixes 0.696
-(NMF 0.484), band mixes with the drums separated first 0.774. Separation (the
+(NMF 0.484), band mixes with the drums separated first 0.774. On those recordings,
+all five classes, drum stems: precision 0.826, recall 0.888 (433 of 3850 strokes missed,
+720 extra), mean timing error of the matched strokes 9.1 ms; band mixes as given: 0.691,
+0.702, 11.1 ms (`scripts/eval_real.py` prints these). `scripts/acceptance_run.py` runs the
+whole app on one of them, through its API (upload, job, chart, edit, save, reopen,
+export), and scores the app's own chart against the annotations: on the Britpop band mix,
+without separation, F 0.757 (P 0.783, R 0.732, 9.8 ms; kick 0.84, snare 0.74, hi-hat
+0.78, toms 0, cymbals 0.17). Separation (the
 default when PyTorch and demucs are installed; the Windows app has them) is
 described and measured in [MODELS.md](MODELS.md).
 
