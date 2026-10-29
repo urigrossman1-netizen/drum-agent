@@ -524,3 +524,135 @@ def test_store_migrates_a_v1_database(tmp_path):
     assert st.list_projects()[0]["kind"] == "song"
     j = st.create_job(song_id="s_0000000000000001", source_id=None, engine="g", key="k2", kind="generate")
     assert j["source_id"] is None and j["kind"] == "generate"
+
+
+# ---- a song from its name: the personal app finds the recording ------------------------
+
+from test_song import FAKE_YTDLP, video_infos  # noqa: E402 - the song tests' stand-in for yt-dlp
+
+
+@pytest.fixture
+def personal(monkeypatch):
+    monkeypatch.setenv("DRUM_AGENT_MODE", "personal")
+
+
+@pytest.fixture
+def fake_ytdlp(tmp_path, monkeypatch):
+    """The song tests' fake yt-dlp first on PATH: it answers searches and "downloads" a synthesized take."""
+    import os
+    import sys
+
+    from drum_agent.synth import synthesize
+    wav = synthesize(song_spec(bars=8, tempo=100), tmp_path / "groove.wav", method="numpy")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    exe = bin_dir / "yt-dlp"
+    exe.write_text(FAKE_YTDLP.replace("{python}", sys.executable))
+    exe.chmod(0o755)
+    log = tmp_path / "ytdlp.log"
+    log.touch()
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("FAKE_YTDLP_LOG", str(log))
+    monkeypatch.setenv("FAKE_YTDLP_WAV", str(wav))
+    monkeypatch.setenv("FAKE_YTDLP_VIDEOS", json.dumps(video_infos(sf.info(str(wav)).duration)))
+    return {"wav": wav, "seconds": sf.info(str(wav)).duration,
+            "calls": lambda: [json.loads(line) for line in log.read_text().splitlines()]}
+
+
+def test_rights_personal_basis_is_accepted_only_where_one_person_uses_it():
+    from drum_agent import rights
+    rights.require_rights("personal", "song.mp3")  # the command line: the user's own computer
+    with pytest.raises(rights.RightsError, match="own computer"):
+        rights.require_rights("personal", "song.mp3", personal_ok=False)
+    assert not rights.shareable("personal") and rights.shareable("original") and not rights.shareable(None)
+
+
+@needs_ffmpeg
+def test_shared_server_never_fetches_songs_or_accepts_personal_charts(client, tmp_path, fake_ytdlp):
+    body = client.get("/api/health").json()
+    assert body["mode"] == "shared" and "personal" not in body["rights_options"]
+    assert body["online"] == {"available": False, "reason": "shared_server", "detail": body["online"]["detail"]}
+    d = _song(client, "Test Groove", "The Placeholders")
+    sid = d["song"]["id"]
+    assert d["status"] == "NEEDS_SOURCE" and d["resolution"]["case"] == "NEEDS_SOURCE"
+    assert client.get(f"/api/songs/{sid}/videos").status_code == 403
+    assert client.post(f"/api/songs/{sid}/find", json={"personal": True}).status_code == 403
+    wav = tone(tmp_path / "a.wav", 8.0).read_bytes()
+    r = client.post(f"/api/songs/{sid}/upload", files={"file": ("a.wav", wav, "audio/wav")}, data={"rights": "personal"})
+    assert r.status_code == 403 and "own computer" in r.json()["detail"]
+    assert fake_ytdlp["calls"]() == []  # yt-dlp was never run
+
+
+def test_personal_app_without_yt_dlp_says_so(client, personal, monkeypatch):
+    monkeypatch.setattr("drum_agent.song.fetch.find_ytdlp", lambda: None)
+    body = client.get("/api/health").json()
+    assert body["mode"] == "personal" and "personal" in body["rights_options"]
+    assert body["online"]["available"] is False and body["online"]["reason"] == "no_ytdlp"
+    sid = _song(client)["song"]["id"]
+    r = client.post(f"/api/songs/{sid}/find", json={"personal": True})
+    assert r.status_code == 503 and "yt-dlp" in r.json()["detail"]
+
+
+@needs_lilypond
+@needs_ffmpeg
+def test_personal_app_finds_the_song_downloads_it_and_charts_it(client, personal, fake_ytdlp, tmp_path):
+    d = client.post("/api/songs", json={"title": "Test Groove", "artist": "The Placeholders",
+                                        "duration_s": fake_ytdlp["seconds"]}).json()
+    sid = d["song"]["id"]
+    assert d["status"] == "READY" and d["resolution"]["case"] == "FIND_ONLINE"
+
+    found = client.get(f"/api/songs/{sid}/videos").json()
+    assert found["query"] == "The Placeholders Test Groove"
+    assert [v["id"] for v in found["videos"]][0] == "tg-official" and found["videos"][0]["length_ok"]
+    live = next(v for v in found["videos"] if v["id"] == "tg-live")
+    assert not live["length_ok"] and live["length_off"] == pytest.approx(0.4, abs=0.01)
+    assert not [c for c in fake_ytdlp["calls"]() if "-o" in c]  # a search downloads nothing
+
+    assert client.post(f"/api/songs/{sid}/find", json={}).status_code == 403  # not confirmed: personal practice
+    r = client.post(f"/api/songs/{sid}/find", json={"personal": True})
+    assert r.status_code == 200 and r.json()["created"] and r.json()["job"]["kind"] == "find"
+    plan = [s["name"] for s in r.json()["job"]["plan"]]
+    assert plan[:3] == ["search", "download", "prepare"]
+    done = client.app_state.runner.wait(r.json()["job"]["id"], timeout=300)
+    assert done["status"] == "succeeded", done
+    assert [s["name"] for s in done["stages"]][:3] == ["search", "download", "prepare"]
+    again = client.post(f"/api/songs/{sid}/find", json={"personal": True}).json()
+    assert again["job"]["id"] == done["id"] and again["created"] is False  # asked twice: one job
+
+    downloads = [c for c in fake_ytdlp["calls"]() if "-o" in c]
+    assert len(downloads) == 1 and downloads[0][-1] == "https://www.youtube.com/watch?v=tg-official"
+    detail = client.get(f"/api/songs/{sid}").json()
+    src = detail["sources"][0]
+    assert src["kind"] == "video" and src["rights"] == "personal" and src["shareable"] is False
+    assert src["video"]["id"] == "tg-official" and src["video"]["title"].endswith("(Official Audio)")
+    assert detail["resolution"]["case"] == "EXISTING_CHART" and detail["status"] in ("COMPLETE", "NEEDS_CORRECTION")
+    store_root = client.app_state.store.root
+    assert not any((store_root / "downloads").glob("*")), "the download is decoded, then removed"
+
+    chart = client.get(f"/api/charts/{done['chart_id']}").json()
+    assert chart["shareable"] is False and chart["summary"]["rights"] == "personal"
+    score = client.get(chart["files"]["chart.json"]).json()
+    assert score["copyright"] == "Transcribed for personal practice. Not for distribution."
+    assert score["source"].startswith("YouTube: The Placeholders - Test Groove (Official Audio)")
+    assert client.get(chart["files"]["chart.pdf"]).content[:4] == b"%PDF"
+
+    # An edited version stays a personal-practice chart, whatever the page sends.
+    edited = {**score, "rights": "original", "copyright": None}
+    v2 = client.post(f"/api/projects/{sid}/versions", json={"score": edited, "base_chart_id": chart["id"]})
+    assert v2.status_code == 200, v2.text
+    assert v2.json()["shareable"] is False and v2.json()["summary"]["rights"] == "personal"
+    assert client.get(f"/api/charts/{v2.json()['id']}/files/chart.json").json()["copyright"] == score["copyright"]
+
+
+def test_a_picked_video_must_be_a_video_page(client, personal, fake_ytdlp):
+    sid = _song(client)["song"]["id"]
+    for url in ("https://example.com/song.mp3", "https://open.spotify.com/track/abc", "ftp://x.org/v"):
+        r = client.post(f"/api/songs/{sid}/find", json={"personal": True, "video": {"url": url}})
+        assert r.status_code == 422, url
+    assert fake_ytdlp["calls"]() == []
+
+
+def test_serve_personal_listens_only_on_this_computer(capsys):
+    from drum_agent.cli import main
+    assert main(["serve", "--personal", "--host", "0.0.0.0"]) == 2
+    assert "own computer" in capsys.readouterr().err

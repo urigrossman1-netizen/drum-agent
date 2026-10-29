@@ -168,6 +168,7 @@ export const STATUS = {
   COMPLETE: ["Complete", "ok"], NEEDS_CORRECTION: ["Needs review", "warn"], NEEDS_SOURCE: ["Needs source", "bad"],
   NOT_STARTED: ["Source ready", "plain"], ANALYZING: ["Analyzing audio", "busy"], TRANSCRIBING: ["Transcribing", "busy"],
   VERIFYING: ["Validating chart", "busy"], GENERATING: ["Generating", "busy"], FAILED: ["Generation failed", "bad"],
+  READY: ["Ready to chart", "plain"], FINDING: ["Finding the song", "busy"],
 };
 
 export function statusBadge(status, kind) {

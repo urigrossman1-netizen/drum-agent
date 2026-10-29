@@ -19,7 +19,7 @@ from pathlib import Path
 from .export.lilypond import MARGIN_MM, PAPER_WIDTH_MM
 from .kit import DEFAULT_KIT, Kit
 from .layout import LayoutPlan, plan_layout
-from .model import CHART_TYPES, STATUSES, Score
+from .model import CHART_TYPES, PERSONAL_NOTICE, STATUSES, Score
 from .verify import Comparison, validate_musicxml, verify_exports
 
 
@@ -69,6 +69,8 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     out = Path(out_dir).resolve()  # report every file with the same, absolute, kind of path
     out.mkdir(parents=True, exist_ok=True)
     report = ExportReport()
+    if score.rights == "personal" and not (score.copyright or "").strip():
+        score.copyright = PERSONAL_NOTICE  # on every page and in every file of a personal-practice chart
     report.warnings += score.validate(kit)
     plan = plan_layout(score, repeats=opts.repeats, bars_per_line=opts.bars_per_line)
     report.uncertain_bars = [plan.printed_numbers[i] for i, m in enumerate(score.measures) if m.uncertain]

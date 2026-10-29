@@ -32,7 +32,10 @@ MusicXML and MIDI, which are checked against each other automatically.
 3. **Rights before transcription.** Note-for-note transcription of a recording
    needs `--rights` with one of: `own` (the user made or owns the recording),
    `permission` (the rights holder allowed it), `licensed` (a licence covers
-   transcription), `public_domain`, `original` (the user's own composition).
+   transcription), `public_domain`, `original` (the user's own composition),
+   or `personal` (for the user's own practice: the chart is marked "Transcribed
+   for personal practice. Not for distribution." and never shared; accepted only
+   on the user's own computer, the command line or the Drum Agent desktop app).
    Use a value only when the user's words support it. If they don't: ask which
    applies, offer `analyze` (tempo, meter, form; no notes) and run it only if
    they accept or only asked for those, and offer to help find a licensed chart

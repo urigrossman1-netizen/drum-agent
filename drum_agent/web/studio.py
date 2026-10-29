@@ -287,7 +287,9 @@ def project(project_id: str, request: Request):
            "jobs": [public_job(j) for j in store.jobs_for(s["id"])][:10],
            "draft": s.get("draft")}
     if out["kind"] == "song":
+        from .app import _public_source
         out["resolution"] = {k: v for k, v in sources.resolve(store, s).items() if k != "path"}
+        out["sources"] = [_public_source(x) for x in store.sources_for(s["id"])]
     return out
 
 
@@ -326,6 +328,12 @@ def save_version(project_id: str, body: VersionIn, request: Request):
     if s.get("kind") == "beat":
         score.title = s["title"]
     src = store.get_source(base["source_id"]) if base and base.get("source_id") else None
+    # An edit never changes the rights basis (a personal-practice chart stays one): it comes from
+    # the recording, else from the version edited.
+    if src is not None:
+        score.rights = src["rights"]
+    elif base is not None and (base.get("summary") or {}).get("rights"):
+        score.rights = base["summary"]["rights"]
     with request.app.state.revise_lock:
         try:
             chart = runner._save_chart(s, score, lambda stage: None, origin="edit", source=src,

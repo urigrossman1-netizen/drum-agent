@@ -7,6 +7,9 @@ Routes (all JSON unless noted):
   GET  /api/songs                          the catalog
   GET  /api/songs/{id}                     song, status, source resolution, jobs, chart versions
   POST /api/songs/{id}/upload              multipart file + rights: validated, normalized, queued
+  GET  /api/songs/{id}/videos              personal app: uploads of this song on YouTube, best first
+  POST /api/songs/{id}/find                personal app: find the recording (or use the picked video),
+                                           download it and chart it for personal practice
   POST /api/songs/{id}/use-asset           transcribe the operator-provided asset for this song
   POST /api/songs/{id}/jobs                (re)queue the song's latest source (idempotent)
   GET  /api/jobs/{id}                      stages, status, error
@@ -37,8 +40,9 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
-from ..rights import RightsError
-from . import claude, sources
+from ..rights import RightsError, shareable
+from ..song.fetch import FetchError
+from . import claude, online, sources
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
 from .store import Store, default_data_dir
@@ -64,6 +68,19 @@ class SongIn(BaseModel):
     provider_id: str | None = Field(default=None, max_length=120)
     url: str | None = Field(default=None, max_length=500)
     id: str | None = None
+
+
+class VideoIn(BaseModel):
+    url: str = Field(min_length=8, max_length=500)
+    id: str | None = Field(default=None, max_length=64)
+    title: str | None = Field(default=None, max_length=300)
+    channel: str | None = Field(default=None, max_length=300)
+    duration_s: float | None = None
+
+
+class FindIn(BaseModel):
+    personal: bool = False  # the user confirmed: for their own practice, not shared
+    video: VideoIn | None = None
 
 
 class SectionName(BaseModel):
@@ -146,7 +163,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         body = {"ok": ok, "version": __version__, "engine": ENGINE, "checks": checks,
                 "providers": providers.status(),
                 "claude": {"configured": cfg["configured"], "missing": cfg["missing"]},
-                "licensed_audio_providers": [], "rights_options": RIGHTS,
+                "licensed_audio_providers": [], "rights_options": _rights_options(),
+                "mode": "personal" if sources.personal_mode() else "shared", "online": online.status(),
                 "asset_dir_configured": sources.asset_dir() is not None,
                 "limits": {"max_upload_mb": MAX_BYTES // 2**20}}
         return JSONResponse(body, status_code=200 if ok else 503)
@@ -195,7 +213,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         row = _song(store, song_id)
         name = sources.safe_name(file.filename)
         try:
-            sources.rights_gate.require_rights(rights or None, name)
+            sources.rights_gate.require_rights(rights or None, name, personal_ok=sources.personal_mode())
         except RightsError as exc:
             raise HTTPException(403, str(exc)) from None
         tmp = sources.save_stream(file.file, MAX_BYTES, dir=store.root / "uploads")
@@ -205,6 +223,32 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             tmp.unlink(missing_ok=True)
         job, created = runner.submit(row["id"], src["id"])
         return {"source": _public_source(src), "job": _public_job(job), "created": created}
+
+    @app.get("/api/songs/{song_id}/videos")
+    def videos(song_id: str):
+        row = _song(store, song_id)
+        _require_online()
+        try:
+            found = online.candidates(row)
+        except FetchError as exc:
+            raise HTTPException(502, f"the YouTube search failed: {exc}") from None
+        return {"query": online.search_query(row), "expected_duration_s": row.get("duration_s"),
+                "videos": [online.public(v, row.get("duration_s")) for v in found]}
+
+    @app.post("/api/songs/{song_id}/find")
+    def find(song_id: str, body: FindIn):
+        row = _song(store, song_id)
+        _require_online()
+        if not body.personal:
+            raise HTTPException(403, "confirm that the chart is for your own practice (it is not shared)")
+        video = None
+        if body.video is not None:
+            try:
+                video = online.public(online.chosen(body.video.model_dump()), row.get("duration_s"))
+            except FetchError as exc:
+                raise HTTPException(422, str(exc)) from None
+        job, created = runner.submit_find(row["id"], video)
+        return {"job": _public_job(job), "created": created}
 
     @app.post("/api/songs/{song_id}/use-asset")
     def use_asset(song_id: str):
@@ -371,9 +415,21 @@ def _public_song(s: dict) -> dict:
                                   "urls", "kind", "prompt", "updated_at")}
 
 
+def _rights_options() -> dict:
+    """The bases a user may state here: "personal" only in the personal app."""
+    return {k: v for k, v in RIGHTS.items() if k != "personal" or sources.personal_mode()}
+
+
+def _require_online() -> None:
+    st = online.status()
+    if not st["available"]:
+        raise HTTPException(403 if st["reason"] == "shared_server" else 503, st["detail"])
+
+
 def _public_source(s: dict) -> dict:
     info = s.get("info") or {}
     return {"id": s["id"], "kind": s["kind"], "rights": s["rights"], "rights_text": RIGHTS.get(s["rights"]),
+            "shareable": shareable(s["rights"]), "video": info.get("video"),
             "name": s["original_name"], "duration_s": info.get("duration_s"),
             "original": {k: info.get(f"original_{k}") for k in ("codec", "sample_rate", "channels", "format")},
             "levels": {"rms_dbfs": info.get("rms_dbfs"), "peak_dbfs": info.get("peak_dbfs")}}
@@ -388,8 +444,10 @@ def _public_job(j: dict) -> dict:
 
 
 def _public_chart(c: dict) -> dict:
-    return {k: c.get(k) for k in ("id", "song_id", "version", "parent_id", "status", "origin", "bars", "validation",
-                                  "summary", "created_at", "note", "source_id")}
+    out = {k: c.get(k) for k in ("id", "song_id", "version", "parent_id", "status", "origin", "bars", "validation",
+                                 "summary", "created_at", "note", "source_id")}
+    out["shareable"] = shareable((c.get("summary") or {}).get("rights"))
+    return out
 
 
 def _song_card(store: Store, s: dict) -> dict:

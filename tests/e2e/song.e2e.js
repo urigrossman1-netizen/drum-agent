@@ -78,9 +78,10 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
     await page.waitForSelector(".progress-card", { timeout: 60000 });
     await page.waitForSelector('.stages li[data-stage="detect"].running, .stages li[data-stage="detect"].done', { timeout: 60000 });
     await shot("s04-transcribing");
-    await page.waitForSelector("text=Open the chart", { timeout: 300000 });
-    expect(await page.locator(".stages li.done").count() === 9, "all nine real stages completed");
-    await page.click("text=Open the chart");
+    const songId = page.url().match(/#\/song\/(s_[0-9a-f]{16})/)[1];
+    await page.waitForURL(/#\/chart\/ch_[0-9a-f]{16}$/, { timeout: 300000 });
+    const job = (await (await page.request.get(BASE + "/api/projects/" + songId)).json()).jobs[0];
+    expect(job.stages.filter((st) => st.status === "done").length === 9, "all nine real stages completed, then the chart opened by itself");
     await page.waitForSelector(".page img");
     await page.waitForFunction(() => [...document.querySelectorAll(".page img")].every((i) => i.complete && i.naturalWidth > 0));
     expect(/Transcription/.test(await page.textContent(".ws-head")), "labelled as a transcription");

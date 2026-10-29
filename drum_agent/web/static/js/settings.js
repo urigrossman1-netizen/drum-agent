@@ -33,6 +33,10 @@ export function showSettings(root, app) {
         h("div", { class: "int" }, icon("sparkle"), h("div", { style: { flex: 1 } }, "Claude", h("div", { class: "d" }, hl.claude.configured ? "Reads beat descriptions and edit requests, and suggests section names." : `Optional. Set ${(hl.claude.missing || []).join(" and ")} on the server.`)),
           h("span", { class: `badge ${hl.claude.configured ? "ai" : "plain"}` }, hl.claude.configured ? "configured" : "not configured")),
         ...hl.providers.map((p) => h("div", { class: "int" }, icon("search"), h("div", { style: { flex: 1 } }, `${p.provider} search`, h("div", { class: "d" }, "Metadata only: identifies recordings, never supplies audio.")), prov(p))),
+        h("div", { class: "int" }, icon("disc"), h("div", { style: { flex: 1 } }, "Songs from YouTube",
+          h("div", { class: "d" }, hl.online?.available ? "A song you type is found on YouTube (yt-dlp on this computer), downloaded and charted for your own practice."
+            : hl.online?.detail || "Not available here.")),
+          h("span", { class: `badge ${hl.online?.available ? "ok" : "plain"}` }, hl.online?.available ? "ready" : hl.online?.reason === "no_ytdlp" ? "missing" : "off")),
         h("div", { class: "int" }, icon("disc"), h("div", { style: { flex: 1 } }, "Licensed audio provider", h("div", { class: "d" }, "None is configured. Songs are transcribed from recordings you upload with a rights basis, or from the operator's authorized assets.")), h("span", { class: "badge plain" }, "none")))),
     h("section", { class: "panel" }, h("h3", {}, "Keyboard"),
       h("dl", { class: "kv" }, ...[["Space", "Play / pause"], ["Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"], ["Ctrl+S", "Save version"], ["Arrow keys", "Move around the grid"], ["Enter / Space on a cell", "Add or remove a stroke"], ["Ctrl+Enter", "Generate (in the description box)"]].flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])))));

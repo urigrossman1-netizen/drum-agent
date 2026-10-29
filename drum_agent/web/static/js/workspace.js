@@ -143,7 +143,9 @@ class Workspace {
     this.headEl.replaceChildren(
       h("a", { class: "btn icon-only ghost", href: this.kind === "beat" ? "#/library" : `#/song/${this.project.id}`, "aria-label": "Back" }, icon("arrowLeft")),
       h("div", { class: "ws-title" }, title, rename, kindBadge,
-        h("span", { class: "badge plain num" }, `v${this.chart.version}`), statusBadge(this.chart.status, this.kind)),
+        h("span", { class: "badge plain num" }, `v${this.chart.version}`), statusBadge(this.chart.status, this.kind),
+        this.kind !== "beat" && this.chart.shareable === false ? h("span", { class: "badge warn plain",
+          title: "Transcribed for your own practice: play along and print it for yourself. Posting it publicly needs the music publisher's permission." }, "Personal practice") : null),
       this.saveStateEl, this.undoBtn, this.redoBtn, this.saveBtn, h("div", { class: "menu" }, exportBtn),
       h("button", { class: "btn", type: "button", onclick: () => this.print() }, icon("print"), "Print"));
     this.updateSaveState();

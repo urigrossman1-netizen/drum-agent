@@ -8,7 +8,7 @@ title: Song Title               # only what the user called it
 artist: Band                    # omit unless the user gave it
 transcriber: Name               # omit unless the user gave it; never guess a name
 chart_type: pattern_study       # groove/fill/rudiment/exercise; performance_chart for a song road map
-rights: original                # own | permission | licensed | public_domain | original
+rights: original                # own | permission | licensed | public_domain | original | personal
 tempo: 100                      # quarter notes per minute, or "4.=72" / "2=60"
 tempo_text: Funk                # style/feel printed with the tempo mark (also per section)
 time: 4/4                       # 3/4, 6/8, 12/8, 7/8 (+ beat_groups: "2+2+3") ...

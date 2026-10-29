@@ -48,7 +48,7 @@ function route() {
   if (!(m = path.match(/^\/chart\/(ch_[0-9a-f]{16})$/))) closeWorkspace();
   main.replaceChildren(view);
   if (m) { setNav(null); document.title = "Chart · Drum Agent"; return showWorkspace(view, m[1], app); }
-  if ((m = path.match(/^\/song\/(s_[0-9a-f]{16})$/))) { setNav("create"); document.title = "Song · Drum Agent"; return showSong(view, m[1], app); }
+  if ((m = path.match(/^\/song\/(s_[0-9a-f]{16})$/))) { setNav("create"); document.title = "Song · Drum Agent"; return showSong(view, m[1], app, params); }
   if (path === "/library") { setNav("library"); document.title = "My Charts · Drum Agent"; return showLibrary(view); }
   if (path === "/settings") { setNav("settings"); document.title = "Settings · Drum Agent"; return showSettings(view, app); }
   setNav("create");

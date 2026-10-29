@@ -318,6 +318,13 @@ dialog.modal .actions { display: flex; justify-content: flex-end; gap: 8px; marg
 .dropzone { border: 1.5px dashed var(--line-2); border-radius: var(--r-3); padding: 22px; text-align: center; color: var(--text-2); background: var(--bg-2); transition: border-color var(--t), background var(--t); cursor: pointer; }
 .dropzone.over { border-color: var(--mint); background: var(--mint-soft); }
 .dropzone input { display: none; }
+.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.check input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--mint); flex: none; }
+.video-list { display: grid; gap: 6px; }
+.video { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-2); border: 1px solid var(--line); background: var(--bg-2); }
+.video .what { flex: 1; min-width: 0; }
+.video .title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video .meta { margin-top: 2px; }
 .upload-progress { height: 4px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
 .upload-progress > div { height: 100%; background: var(--mint); width: 0; transition: width var(--t); }
 

@@ -6,13 +6,18 @@ In order:
 2. AUTHORIZED_ASSET    the operator placed the recording in the asset directory
                        (DRUM_AGENT_ASSET_DIR) with a manifest entry stating its rights basis
 3. USER_UPLOAD         the user uploaded the recording and stated a rights basis
-4. LICENSED_SOURCE     a licensed audio provider; none is configured in this build, and the
+                       (or VIDEO: the app fetched it from a video site, see 4)
+4. FIND_ONLINE         personal mode only (the desktop app: one person, their own computer):
+                       the app can find the recording on YouTube and chart it for the user's
+                       own practice (`online.py`, rights basis `personal`)
+5. LICENSED_SOURCE     a licensed audio provider; none is configured in this build, and the
                        answer says so rather than pretending one exists
-5. NEEDS_SOURCE        the song is identified but no authorized audio is available: the
-                       user can upload a recording they have the right to transcribe
+6. NEEDS_SOURCE        the song is identified but no audio is available: the user can
+                       upload a recording they have the right to transcribe
 
-Streaming services are never a source: Spotify and YouTube results are metadata only,
-and the server never downloads audio from them (`drum_agent/rights.py`).
+Streaming services (Spotify, Apple Music, Deezer...) are never a source: their results
+are metadata only and their DRM-protected audio is never fetched. A shared server never
+fetches from video sites either (`drum_agent/rights.py`).
 """
 
 from __future__ import annotations
@@ -28,7 +33,14 @@ from ..model import RIGHTS
 from ..song.lookup import artist_key, title_key
 from .store import Store
 
-CASES = ("EXISTING_CHART", "AUTHORIZED_ASSET", "USER_UPLOAD", "LICENSED_SOURCE", "NEEDS_SOURCE")
+CASES = ("EXISTING_CHART", "AUTHORIZED_ASSET", "USER_UPLOAD", "VIDEO", "FIND_ONLINE", "LICENSED_SOURCE",
+         "NEEDS_SOURCE")
+
+
+def personal_mode() -> bool:
+    """The personal app: one person on their own computer (the desktop app sets DRUM_AGENT_MODE=personal).
+    Only there are recordings fetched from video sites and charted for personal practice."""
+    return os.environ.get("DRUM_AGENT_MODE", "").strip().lower() == "personal"
 
 
 def asset_dir() -> Path | None:
@@ -73,12 +85,17 @@ def resolve(store: Store, song: dict) -> dict:
     sources = store.sources_for(song["id"])
     if sources:
         s = sources[0]
-        case = "AUTHORIZED_ASSET" if s["kind"] == "asset" else "USER_UPLOAD"
+        case = {"asset": "AUTHORIZED_ASSET", "video": "VIDEO"}.get(s["kind"], "USER_UPLOAD")
         return {"case": case, "source_id": s["id"], "detail": f"{s['original_name']} (rights: {RIGHTS[s['rights']]})"}
     asset = find_asset(song)
     if asset is not None:
         return {"case": "AUTHORIZED_ASSET", "source_id": None, "asset": asset["file"],
                 "detail": f"{asset['file']} in the asset directory (rights: {RIGHTS[asset['rights']]})"}
+    from . import online
+    if online.status()["available"]:
+        return {"case": "FIND_ONLINE",
+                "detail": "Drum Agent finds this recording on YouTube on your computer, listens to it and writes "
+                          "the drum chart, for your own practice."}
     return {"case": "NEEDS_SOURCE", "licensed_providers": [],
             "detail": "No authorized audio for this recording is available to the server. No licensed audio "
                       "provider is configured, and streaming services (Spotify, YouTube) are metadata only. "
@@ -93,6 +110,8 @@ def song_status(store: Store, song: dict) -> str:
         return "GENERATING"
     if active is not None:
         stage = active["stage"]
+        if stage in ("search", "download") or (stage is None and active["kind"] == "find"):
+            return "FINDING"
         if stage in (None, "prepare"):
             return "ANALYZING"
         if stage in ("detect", "beats", "measures", "sections"):
@@ -107,13 +126,14 @@ def song_status(store: Store, song: dict) -> str:
         return "NOT_STARTED"
     if store.sources_for(song["id"]) or find_asset(song) is not None:
         return "NOT_STARTED"
-    return "NEEDS_SOURCE"
+    from . import online
+    return "READY" if online.status()["available"] else "NEEDS_SOURCE"
 
 
 def add_upload(store: Store, song: dict, upload_path: Path, original_name: str, rights: str) -> dict:
     """Validate and normalize an uploaded file and record it as a source for the song.
     The rights gate runs first: nothing is decoded without a stated basis."""
-    rights_gate.require_rights(rights, original_name)
+    rights_gate.require_rights(rights, original_name, personal_ok=personal_mode())
     sha = file_sha256(upload_path)
     for s in store.sources_for(song["id"]):
         if s["sha256"] == sha and Path(s["path"]).is_file():
@@ -124,6 +144,23 @@ def add_upload(store: Store, song: dict, upload_path: Path, original_name: str, 
     meta.pop("path")
     return store.add_source(song_id=song["id"], kind="upload", rights=rights, sha256=sha, path=str(wav),
                             original_name=safe_name(original_name), info=meta)
+
+
+def add_video(store: Store, song: dict, audio_path: Path, video: dict) -> dict:
+    """A recording fetched from a video site (personal mode): decoded like an upload and kept as the
+    song's source, on the personal-practice basis. `video` says where it came from."""
+    rights_gate.require_rights(rights_gate.PERSONAL, video.get("title") or "the video", personal_ok=personal_mode())
+    sha = file_sha256(audio_path)
+    for s in store.sources_for(song["id"]):
+        if s["sha256"] == sha and Path(s["path"]).is_file():
+            return s
+    wav = store.root / "sources" / f"{sha}.wav"
+    info = prepare(audio_path, wav, original_name=audio_path.name)
+    meta = info.to_dict()
+    meta.pop("path")
+    meta["video"] = {k: video.get(k) for k in ("url", "id", "title", "channel", "duration_s")}
+    return store.add_source(song_id=song["id"], kind="video", rights=rights_gate.PERSONAL, sha256=sha,
+                            path=str(wav), original_name=safe_name(video.get("title") or audio_path.name), info=meta)
 
 
 def add_asset(store: Store, song: dict) -> dict | None:

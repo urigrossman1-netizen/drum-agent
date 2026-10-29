@@ -41,7 +41,9 @@ RIGHTS = {
     "licensed": "Licensed material",
     "public_domain": "Public-domain material",
     "original": "Original composition/pattern",
+    "personal": "For my own practice (not shared)",
 }
+PERSONAL_NOTICE = "Transcribed for personal practice. Not for distribution."
 
 
 STICKING = re.compile(r"[RLB]{1,3}")

@@ -525,5 +525,5 @@ def analyze_file(path: str | Path, bpm: float | None = None, time_signature: str
         "bars": len(score.measures),
         "sections": score.analysis["sections"],
         "note": "High-level analysis only. Full transcription requires --rights (own, permission, licensed, "
-                "public_domain, original); otherwise obtain a licensed chart.",
+                "public_domain, original, personal); otherwise obtain a licensed chart.",
     }

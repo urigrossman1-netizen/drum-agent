@@ -20,13 +20,16 @@ const SETTINGS = [
 ];
 
 export function showCreate(root, app, params) {
-  const mode = params.get("mode") || prefs.get("mode", "beat");
+  const online = !!app.health?.online?.available;
+  const mode = params.get("mode") || prefs.get("mode", online ? "song" : "beat");
   const state = { mode };
   const hero = h("div", { class: "hero" },
     h("h1", { class: "enter", style: { "--i": 0 } }, "Your next groove ", h("span", { class: "accent" }, "starts here.")),
-    h("p", { class: "enter", style: { "--i": 1 } }, "Describe a beat and get an original drum chart you can hear, edit and print. Or find a song: open its chart, or transcribe a recording you have the rights to."));
+    h("p", { class: "enter", style: { "--i": 1 } }, online
+      ? "Type a song and get its drum chart: Drum Agent finds the recording, listens to the drums and writes them out. Or describe a beat and get an original one."
+      : "Describe a beat and get an original drum chart you can hear, edit and print. Or find a song: open its chart, or transcribe a recording you have the rights to."));
   const tabs = h("div", { class: "modes enter", role: "tablist", "aria-label": "What do you want to make?", style: { "--i": 2 } });
-  const songTab = modeButton("song", "disc", "Song to Chart", "Find the recording. Open its chart, or transcribe audio you're allowed to use.", state, () => switchTo("song"));
+  const songTab = modeButton("song", "disc", "Song to Chart", online ? "Type the song. Drum Agent finds it, listens and writes the drum chart." : "Find the recording. Open its chart, or transcribe audio you're allowed to use.", state, () => switchTo("song"));
   const beatTab = modeButton("beat", "sparkle", "Create a Beat", "Describe the groove in your own words. Get a real, playable, printable chart.", state, () => switchTo("beat"));
   tabs.append(songTab, beatTab);
   tabs.addEventListener("keydown", (e) => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); switchTo(state.mode === "song" ? "beat" : "song"); (state.mode === "song" ? songTab : beatTab).focus(); } });
@@ -61,7 +64,9 @@ function songPanel(app, params) {
   const results = h("div", { class: "results", id: "song-results" });
   const form = h("form", { class: "composer", role: "tabpanel", id: "mode-panel", "aria-labelledby": "mode-song" },
     h("div", { class: "search-row" }, h("div", { class: "search-box" }, icon("search"), input), btn),
-    h("p", { class: "tiny muted", style: { "margin-top": "10px" } }, "Try “American Idiot - Green Day”. The chart catalog is searched first, then music metadata services. Streaming services identify recordings only; their audio is never downloaded or analyzed."),
+    h("p", { class: "tiny muted", style: { "margin-top": "10px" } }, app.health?.online?.available
+      ? "Try “Back in Black - AC/DC”. Pick the song, and Drum Agent finds it on YouTube, listens and writes the chart, for your own practice. Spotify and other streaming services only help identify songs."
+      : "Try “American Idiot - Green Day”. The chart catalog is searched first, then music metadata services. Streaming services identify recordings only; their audio is never downloaded or analyzed. To chart a song from its name, use the Drum Agent app on your computer."),
     stateEl);
   let seq = 0;
   async function run(q) {
@@ -84,16 +89,19 @@ function songPanel(app, params) {
     if (data.catalog.length) {
       results.append(h("h2", {}, "In your chart catalog"), ...data.catalog.map((s) => catalogCard(s, k++)));
     }
+    const online = !!app.health?.online?.available;
     if (data.results.length) {
-      results.append(h("h2", {}, "Recordings found"), ...data.results.map((r) => resultCard(r, k++)));
+      results.append(h("h2", {}, "Recordings found"), ...data.results.map((r) => resultCard(r, k++, online)));
     }
     if (!data.catalog.length && !data.results.length) {
-      results.append(h("div", { class: "empty" }, h("strong", {}, "No recordings found"), "You can add the song yourself below, then upload a recording you have the right to transcribe."));
+      results.append(h("div", { class: "empty" }, h("strong", {}, "No recordings found"), online
+        ? "Add the song yourself below; Drum Agent then looks for it on YouTube."
+        : "You can add the song yourself below, then upload a recording you have the right to transcribe."));
     }
     results.append(h("div", { class: "provider-states", "aria-label": "Search sources" }, data.providers.map((p) =>
       h("span", { class: `badge ${p.state === "ok" ? "ok" : p.state === "error" ? "bad" : "plain"}`, title: p.detail || "" },
         `${p.provider}: ${p.state === "ok" ? "searched" : p.state === "error" ? "unavailable" : "not configured"}`))));
-    results.append(manualAdd(data.title, data.artist));
+    results.append(manualAdd(data.title, data.artist, online));
   }
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -117,13 +125,13 @@ function catalogCard(s, i) {
     s.chart ? h("a", { class: "btn primary", href: `#/chart/${s.chart.id}` }, "Open chart") : h("a", { class: "btn", href: `#/song/${s.id}` }, "Open"));
 }
 
-function resultCard(r, i) {
+function resultCard(r, i, online) {
   const meta = [r.album, r.year, fmtDur(r.duration_s), r.isrc ? `ISRC ${r.isrc}` : null].filter(Boolean).join(" · ");
   const version = h("span", { class: `badge plain ${["live", "demo", "remix", "cover"].includes(r.version) ? "warn" : ""}` }, r.version);
-  const pick = h("button", { class: "btn", type: "button" }, "Select");
+  const pick = h("button", { class: online ? "btn primary" : "btn", type: "button" }, online ? "Make the chart" : "Select");
   pick.addEventListener("click", async () => {
     pick.disabled = true;
-    try { const d = await api("/api/songs", { json: r }); location.hash = `#/song/${d.song.id}`; }
+    try { const d = await api("/api/songs", { json: r }); location.hash = `#/song/${d.song.id}${online ? "?go=1" : ""}`; }
     catch (e) { toast(`Could not select it: ${e.message}`, "bad"); pick.disabled = false; }
   });
   return h("div", { class: "result enter", style: { "--i": i } },
@@ -133,15 +141,15 @@ function resultCard(r, i) {
     version, statusBadge(r.status, "song"), pick);
 }
 
-function manualAdd(title, artist) {
+function manualAdd(title, artist, online) {
   const t = h("input", { class: "input", value: title || "", placeholder: "Title", required: true, maxlength: 300, "aria-label": "Title" });
   const a = h("input", { class: "input", value: artist || "", placeholder: "Artist", required: true, maxlength: 300, "aria-label": "Artist" });
   const form = h("form", { class: "panel" }, h("h3", {}, "Not listed? Add the song yourself"),
     h("div", { class: "row" }, h("div", { style: { flex: 2, "min-width": "180px" } }, t), h("div", { style: { flex: 2, "min-width": "160px" } }, a), h("button", { class: "btn", type: "submit" }, icon("plus"), "Add song")),
-    h("p", { class: "tiny muted", style: { "margin-top": "8px" } }, "Next you'll be asked for a recording you have the right to transcribe."));
+    h("p", { class: "tiny muted", style: { "margin-top": "8px" } }, online ? "Drum Agent then looks for it on YouTube and writes the chart." : "Next you'll be asked for a recording you have the right to transcribe."));
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    try { const d = await api("/api/songs", { json: { title: t.value, artist: a.value } }); location.hash = `#/song/${d.song.id}`; }
+    try { const d = await api("/api/songs", { json: { title: t.value, artist: a.value } }); location.hash = `#/song/${d.song.id}${online ? "?go=1" : ""}`; }
     catch (err) { toast(err.message, "bad"); }
   });
   return form;

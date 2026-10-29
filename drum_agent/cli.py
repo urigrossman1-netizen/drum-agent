@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sys
 from fractions import Fraction
@@ -373,6 +374,12 @@ def cmd_serve(args) -> int:
         print("error: the web app needs its extra dependencies: pip install -e '.[web]'", file=sys.stderr)
         return 1
     from .web.app import serve
+    if args.personal:
+        if args.host not in ("127.0.0.1", "localhost", "::1"):
+            print("error: --personal is for one person on their own computer; it can't listen on "
+                  f"{args.host} (other people could use it)", file=sys.stderr)
+            return 2
+        os.environ["DRUM_AGENT_MODE"] = "personal"
     if args.seed_examples:
         _catalog_seed(args.data)
     serve(args.host, args.port, args.data)
@@ -451,7 +458,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("transcribe", help="audio recording -> drum score (requires --rights)")
     p.add_argument("input")
     p.add_argument("--rights", required=False, choices=sorted(RIGHTS),
-                   help="basis for full transcription: own, permission, licensed, public_domain, original")
+                   help="basis for full transcription: own, permission, licensed, public_domain, original, "
+                        "personal (for your own practice; the chart is not shared)")
     p.add_argument("--title")
     p.add_argument("--artist")
     p.add_argument("--transcriber")
@@ -491,8 +499,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--candidates", type=int, default=5, help="how many candidates to list and search (default 5)")
     p.add_argument("--pick", type=int, help="use audio candidate N from the list instead of the best one")
     p.add_argument("--rights", choices=sorted(RIGHTS),
-                   help="basis for full transcription: own, permission, licensed, public_domain, original "
-                        "(without it: analysis only)")
+                   help="basis for full transcription: own, permission, licensed, public_domain, original, "
+                        "personal (for your own practice; not shared) (without it: analysis only)")
     p.add_argument("--use-metadata-bpm", action="store_true", help="use the identified recording's BPM as --bpm")
     p.add_argument("--title", help="title printed on the chart (default: QUERY as typed)")
     p.add_argument("--transcriber")
@@ -567,6 +575,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--data", help="data directory (default: $DRUM_AGENT_DATA_DIR or ~/.drum_agent/web)")
     p.add_argument("--seed-examples", action="store_true", help="add the example song chart to the catalog first")
+    p.add_argument("--personal", action="store_true",
+                   help="personal app on your own computer: a typed song is found on YouTube (with yt-dlp) and "
+                        "charted for your own practice; only on 127.0.0.1")
     p.set_defaults(func=cmd_serve)
 
     p = sub.add_parser("catalog", help="web app catalog: seed the example chart or import a song list (CSV)")
