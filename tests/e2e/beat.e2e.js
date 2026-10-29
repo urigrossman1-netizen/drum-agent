@@ -10,11 +10,12 @@ const BASE = process.env.E2E_BASE;
 const OUT = process.env.E2E_OUT;
 const log = (...a) => console.log("[beat]", ...a);
 function expect(cond, what) { if (!cond) throw new Error("expectation failed: " + what); log("ok -", what); }
-const api = async (p) => (await fetch(BASE + p)).json();
 
 (async () => {
   const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 920 }, acceptDownloads: true });
+  // The API as the page sees it: with its cookie (each browser is its own visitor on a shared server).
+  const api = async (p) => (await ctx.request.get(BASE + p)).json();
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -75,8 +76,8 @@ const api = async (p) => (await fetch(BASE + p)).json();
     await page.waitForFunction((b) => document.querySelector(".page img").src !== b && /previews/.test(document.querySelector(".page img").src), before, { timeout: 30000 });
     const working = await page.evaluate(() => window.__drumAgent.score);
     expect(working.measures[0].hits.some((x) => x.inst === "tom1" && x.pos === "1/8"), "the working score has the tom");
-    const svg = await (await fetch(await page.$eval(".page img", (i) => i.src))).text();
-    const oldSvg = await (await fetch(before)).text();
+    const svg = await (await ctx.request.get(await page.$eval(".page img", (i) => i.src))).text();
+    const oldSvg = await (await ctx.request.get(before)).text();
     const count = (s) => (s.match(/class="nh" data-bar="1" data-pos="1\/8"/g) || []).length;
     expect(count(svg) === count(oldSvg) + 1, `the notation shows one more note at bar 1, & of 1 (${count(oldSvg)} -> ${count(svg)})`);
     expect(/Unsaved changes/.test(await page.textContent(".save-state")), "the edit is marked unsaved");

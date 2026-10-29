@@ -78,8 +78,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .studio-data
-          key: studio-data-${{ github.run_id }}
-          restore-keys: studio-data-
+          key: studio-data-v2-${{ github.run_id }}
+          restore-keys: studio-data-v2-  # v2: projects have owners; the shared charts of earlier runs are not carried over
 
       - name: Start the studio
         timeout-minutes: 5
@@ -182,4 +182,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .studio-data
-          key: studio-data-${{ github.run_id }}
+          key: studio-data-v2-${{ github.run_id }}

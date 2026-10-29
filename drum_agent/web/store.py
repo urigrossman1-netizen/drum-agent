@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS songs (
   kind TEXT NOT NULL DEFAULT 'song',   -- song (a recording) | beat (an original beat)
   prompt TEXT,                          -- the description an original beat was generated from
   draft TEXT,                           -- unsaved working score {score, base_chart_id, saved_at}
-  updated_at REAL
+  updated_at REAL,
+  owner TEXT                            -- the visitor it belongs to on a shared server (owners.py); NULL: everyone's
 );
 CREATE TABLE IF NOT EXISTS sources (
   id TEXT PRIMARY KEY,
@@ -131,7 +132,7 @@ class Store:
         cols = lambda t: {r[1]: r for r in self._db.execute(f"PRAGMA table_info({t})")}
         songs = cols("songs")
         for name, decl in (("kind", "TEXT NOT NULL DEFAULT 'song'"), ("prompt", "TEXT"), ("draft", "TEXT"),
-                           ("updated_at", "REAL")):
+                           ("updated_at", "REAL"), ("owner", "TEXT")):
             if name not in songs:
                 self._db.execute(f"ALTER TABLE songs ADD COLUMN {name} {decl}")
         if "note" not in cols("charts"):
@@ -174,7 +175,7 @@ class Store:
                     duration_s: float | None = None, isrc: str | None = None, version: str | None = None,
                     provider: str | None = None, provider_id: str | None = None,
                     urls: dict | None = None, song_id: str | None = None, kind: str = "song",
-                    prompt: str | None = None) -> dict:
+                    prompt: str | None = None, owner: str | None = None) -> dict:
         sid = song_id or song_id_for(title, artist, provider, provider_id)
         existing = self.get_song(sid)
         ids = dict(existing["provider_ids"]) if existing else {}
@@ -192,9 +193,10 @@ class Store:
                 now = time.time()
                 self._db.execute(
                     "INSERT INTO songs (id, title, artist, album, year, duration_s, isrc, version, provider, "
-                    "provider_ids, urls, created_at, kind, prompt, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "provider_ids, urls, created_at, kind, prompt, updated_at, owner) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (sid, title, artist, album, year, duration_s, isrc, version, provider, json.dumps(ids),
-                     json.dumps(merged_urls), now, kind, prompt, now))
+                     json.dumps(merged_urls), now, kind, prompt, now, owner))
             self._db.commit()
         return self.get_song(sid)
 
@@ -202,11 +204,16 @@ class Store:
         r = self._q("SELECT * FROM songs WHERE id=?", (song_id,))
         return r[0] if r else None
 
-    def find_songs(self, text: str, limit: int = 20) -> list[dict]:
+    def _owned(self, owner: str | None) -> tuple[str, tuple]:
+        """The WHERE clause for the songs an owner sees: theirs and everyone's (no owner: all of them)."""
+        return ("WHERE owner IS NULL OR owner = ?", (owner,)) if owner is not None else ("", ())
+
+    def find_songs(self, text: str, limit: int = 20, owner: str | None = None) -> list[dict]:
         """Songs already in the catalog whose title or artist matches every word of `text`."""
         from ..song.lookup import text_key
         words = text_key(text).split()
-        rows = self._q("SELECT * FROM songs ORDER BY created_at DESC")
+        where, args = self._owned(owner)
+        rows = self._q(f"SELECT * FROM songs {where} ORDER BY created_at DESC", args)
         out = []
         for r in rows:
             hay = text_key(f"{r['title']} {r['artist']} {r['album'] or ''}")
@@ -214,11 +221,15 @@ class Store:
                 out.append(r)
         return out[:limit]
 
-    def list_songs(self, limit: int = 200) -> list[dict]:
-        return self._q("SELECT * FROM songs ORDER BY title COLLATE NOCASE LIMIT ?", (limit,))
+    def list_songs(self, limit: int = 200, owner: str | None = None) -> list[dict]:
+        where, args = self._owned(owner)
+        return self._q(f"SELECT * FROM songs {where} ORDER BY title COLLATE NOCASE LIMIT ?", (*args, limit))
 
-    def list_projects(self, text: str = "", kind: str | None = None, limit: int = 500) -> list[dict]:
-        rows = self._q("SELECT * FROM songs ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", (limit,))
+    def list_projects(self, text: str = "", kind: str | None = None, limit: int = 500,
+                      owner: str | None = None) -> list[dict]:
+        where, args = self._owned(owner)
+        rows = self._q(f"SELECT * FROM songs {where} ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?",
+                       (*args, limit))
         if kind:
             rows = [r for r in rows if r["kind"] == kind]
         if text.strip():

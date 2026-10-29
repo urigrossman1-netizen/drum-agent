@@ -42,10 +42,10 @@ from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
 from ..rights import RightsError, shareable
 from ..song.fetch import FetchError
-from . import claude, library, sources
+from . import claude, library, owners, sources
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
-from .store import Store, default_data_dir
+from .store import Store, default_data_dir, song_id_for
 
 log = logging.getLogger("drum_agent.web")
 STATIC = Path(__file__).parent / "static"
@@ -127,6 +127,26 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             "frame-src https://www.youtube-nocookie.com")  # YouTube's own player, for songs found there
         return response
 
+    @app.middleware("http")
+    async def owner_scope(request: Request, call_next):
+        """A shared server's visitor: their owner token, from the cookie or a new one (`owners.py`)."""
+        if sources.personal_mode():
+            return await call_next(request)
+        owner = request.cookies.get(owners.COOKIE)
+        fresh = not owners.valid(owner)
+        if fresh:
+            owner = owners.new_token()
+        token = owners.enter(owner)
+        try:
+            response = await call_next(request)
+        finally:
+            owners.leave(token)
+        if fresh:
+            https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+            response.set_cookie(owners.COOKIE, owner, max_age=owners.MAX_AGE_S, httponly=True, samesite="lax",
+                                secure=https, path="/")
+        return response
+
     @app.exception_handler(AudioError)
     async def audio_error(request: Request, exc: AudioError):
         return JSONResponse({"error": exc.code, "detail": str(exc)}, status_code=422)
@@ -170,12 +190,12 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         if not text:
             raise HTTPException(400, "type a song name, e.g. American Idiot - Green Day")
         title, artist = split_query(text)
-        catalog = [_song_card(store, s) for s in store.find_songs(f"{title} {artist or ''}")]
+        catalog = [_song_card(store, s) for s in store.find_songs(f"{title} {artist or ''}", owner=owners.current())]
         results, states = providers.search(text)
         known = {c["id"] for c in catalog}
         for r in results:
-            r["in_catalog"] = r["id"] in known
-            existing = store.get_song(r["id"])
+            r["in_catalog"] = owners.scoped_id(r["id"]) in known
+            existing = store.get_song(owners.scoped_id(r["id"]))
             r["status"] = sources.song_status(store, existing) if existing else "NEEDS_SOURCE"
         return {"query": text, "title": title, "artist": artist, "catalog": catalog,
                 "results": [r for r in results if not r["in_catalog"]], "providers": states}
@@ -183,19 +203,22 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
     # ---- songs -----------------------------------------------------------
     @app.get("/api/songs")
     def songs():
-        return {"songs": [_song_card(store, s) for s in store.list_songs()]}
+        return {"songs": [_song_card(store, s) for s in store.list_songs(owner=owners.current())]}
 
     @app.post("/api/songs")
     def pick(song: SongIn):
-        if song.id:
-            existing = store.get_song(_check("song", song.id))
-            if existing:
-                return _song_detail(store, existing)
+        # The visitor's own song for this catalog id (on a shared server two visitors never share one).
+        base = _check("song", song.id) if song.id else song_id_for(song.title.strip(), song.artist.strip(),
+                                                                    song.provider, song.provider_id)
+        sid = owners.scoped_id(base)
+        existing = store.get_song(sid)
+        if existing:
+            return _song_detail(store, existing)
         row = store.upsert_song(title=song.title.strip(), artist=song.artist.strip(), album=song.album,
                                 year=song.year, duration_s=song.duration_s, isrc=song.isrc, version=song.version,
                                 provider=song.provider, provider_id=song.provider_id,
                                 urls={song.provider: song.url} if song.provider and song.url else None,
-                                song_id=song.id)
+                                song_id=sid, owner=owners.current())
         return _song_detail(store, row)
 
     @app.get("/api/songs/{song_id}")
@@ -204,7 +227,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/songs/{song_id}/upload")
     def upload(song_id: str, file: Annotated[UploadFile, File()], rights: Annotated[str, Form()] = ""):
-        row = _song(store, song_id)
+        row = _song(store, song_id, write=True)
         name = sources.safe_name(file.filename)
         try:
             sources.rights_gate.require_rights(rights or None, name, personal_ok=sources.personal_mode())
@@ -228,7 +251,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/songs/{song_id}/library")
     def library_chart(song_id: str, body: LibraryIn):
-        row = _song(store, song_id)
+        row = _song(store, song_id, write=True)
         _require_library()
         if not body.personal:
             raise HTTPException(403, "confirm that the chart is for your own practice (it is not shared)")
@@ -243,7 +266,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/songs/{song_id}/use-asset")
     def use_asset(song_id: str):
-        row = _song(store, song_id)
+        row = _song(store, song_id, write=True)
         src = sources.add_asset(store, row)
         if src is None:
             raise HTTPException(404, "no authorized asset is configured for this song")
@@ -252,7 +275,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/songs/{song_id}/jobs")
     def start(song_id: str):
-        row = _song(store, song_id)
+        row = _song(store, song_id, write=True)
         srcs = store.sources_for(row["id"])
         if not srcs:
             raise HTTPException(409, "this song has no authorized source yet; upload a recording first")
@@ -266,12 +289,12 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/jobs/{job_id}/cancel")
     def cancel(job_id: str):
-        _job(store, job_id)
+        _job(store, job_id, write=True)
         return _public_job(runner.cancel(job_id))
 
     @app.post("/api/jobs/{job_id}/retry")
     def retry(job_id: str):
-        _job(store, job_id)
+        _job(store, job_id, write=True)
         try:
             return _public_job(runner.retry(job_id))
         except ValueError as exc:
@@ -318,7 +341,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/charts/{chart_id}/suggest-sections")
     def suggest(chart_id: str):
-        c = _chart(store, chart_id)
+        c = _chart(store, chart_id, write=True)
         score = Score.load(Path(c["dir"]) / "chart.json")
         try:
             return {"suggestion": claude.suggest_section_names(score), "applied": False}
@@ -328,7 +351,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
     @app.post("/api/charts/{chart_id}/sections")
     def apply_sections(chart_id: str, body: SectionsIn):
-        c = _chart(store, chart_id)
+        c = _chart(store, chart_id, write=True)
         score = Score.load(Path(c["dir"]) / "chart.json")
         boundaries = [i + 1 for i, m in enumerate(score.measures) if m.section]
         if [s.first_bar for s in body.sections] != boundaries:
@@ -352,7 +375,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         """A person listened to these bars and confirms them: their review flags are cleared
         in a new chart version (the notes are not changed)."""
         from ..edit import EditError, mark_verified
-        c = _chart(store, chart_id)
+        c = _chart(store, chart_id, write=True)
         score = Score.load(Path(c["dir"]) / "chart.json")
         try:
             cleared = sum(mark_verified(score, str(b)) for b in sorted(set(body.bars)))
@@ -380,24 +403,33 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
 # ---- views of rows (no server paths, no secrets) ---------------------------------------
 
-def _song(store: Store, song_id: str) -> dict:
+def _song(store: Store, song_id: str, *, write: bool = False) -> dict:
+    """The song, if this visitor may see it (else 404, as if it didn't exist); `write`: and change it."""
     row = store.get_song(_check("song", song_id))
-    if row is None:
+    if not owners.visible(row):
         raise HTTPException(404, "no such song")
+    if write:
+        owners.require_writable(row)
     return row
 
 
-def _job(store: Store, job_id: str) -> dict:
+def _job(store: Store, job_id: str, *, write: bool = False) -> dict:
     row = store.get_job(_check("job", job_id))
-    if row is None:
+    song = store.get_song(row["song_id"]) if row else None
+    if not owners.visible(song):
         raise HTTPException(404, "no such job")
+    if write:
+        owners.require_writable(song)
     return row
 
 
-def _chart(store: Store, chart_id: str) -> dict:
+def _chart(store: Store, chart_id: str, *, write: bool = False) -> dict:
     row = store.get_chart(_check("chart", chart_id))
-    if row is None or not (Path(row["dir"]) / "view.json").is_file():
+    song = store.get_song(row["song_id"]) if row else None
+    if not owners.visible(song) or not (Path(row["dir"]) / "view.json").is_file():
         raise HTTPException(404, "no such chart")
+    if write:
+        owners.require_writable(song)
     return row
 
 

@@ -43,7 +43,7 @@ from ..generate.styles import STYLES
 from ..kit import DEFAULT_KIT
 from ..model import Score, ScoreError
 from ..validate import validate_score
-from . import samples, sources
+from . import owners, samples, sources
 from .beats import apply_action, apply_command, interpret_request
 from .jobs import PROVISIONAL_TITLE, ChartInvalid
 from .store import new_id
@@ -112,11 +112,14 @@ def parse_score(d: dict) -> Score:
     return score
 
 
-def _project(store, project_id: str) -> dict:
+def _project(store, project_id: str, *, write: bool = False) -> dict:
+    """The project, if this visitor may see it (else 404); `write`: and change it (`owners.py`)."""
     from .app import _check
     row = store.get_song(_check("song", project_id))
-    if row is None:
+    if not owners.visible(row):
         raise HTTPException(404, "no such project")
+    if write:
+        owners.require_writable(row)
     return row
 
 
@@ -182,16 +185,18 @@ def create_beat(body: BeatIn, request: Request):
     if not body.prompt.strip() and not body.settings:
         raise HTTPException(400, "describe the beat, or choose a style in the quick settings")
     title = (body.title or "").strip() or PROVISIONAL_TITLE
-    if body.request_id:
-        existing = store.job_by_key(f"generate|{body.request_id}")
+    owner = owners.current()
+    rid = f"{owner}:{body.request_id}" if owner and body.request_id else body.request_id  # one visitor's request
+    if rid:
+        existing = store.job_by_key(f"generate|{rid}")
         if existing:
             return {"project": project_card(store, store.get_song(existing["song_id"])),
                     "job": request.app.state.public_job(existing), "created": False}
     pid = new_id("s")
     store.upsert_song(title=title, artist="Original beat", song_id=pid, kind="beat", prompt=body.prompt.strip() or None,
-                      provider="generator")
+                      provider="generator", owner=owner)
     job, created = runner.submit_generate(pid, {"prompt": body.prompt, "settings": body.settings,
-                                                "title": body.title, "request_id": body.request_id})
+                                                "title": body.title, "request_id": rid})
     return {"project": project_card(store, store.get_song(pid)), "job": request.app.state.public_job(job),
             "created": created}
 
@@ -274,7 +279,8 @@ def projects(request: Request, q: str = "", kind: str | None = None):
     store, _ = _state(request)
     if kind not in (None, "", "song", "beat"):
         raise HTTPException(400, "kind is song or beat")
-    return {"projects": [project_card(store, s) for s in store.list_projects(q[:200], kind or None)]}
+    return {"projects": [project_card(store, s)
+                         for s in store.list_projects(q[:200], kind or None, owner=owners.current())]}
 
 
 @router.get("/api/projects/{project_id}")
@@ -296,14 +302,14 @@ def project(project_id: str, request: Request):
 @router.patch("/api/projects/{project_id}")
 def rename(project_id: str, body: RenameIn, request: Request):
     store, _ = _state(request)
-    _project(store, project_id)
+    _project(store, project_id, write=True)
     return project_card(store, store.rename(project_id, " ".join(body.title.split())))
 
 
 @router.put("/api/projects/{project_id}/draft")
 def save_draft(project_id: str, body: DraftIn, request: Request):
     store, _ = _state(request)
-    _project(store, project_id)
+    _project(store, project_id, write=True)
     score = parse_score(body.score)
     store.set_draft(project_id, {"score": score.to_dict(), "base_chart_id": body.base_chart_id, "saved_at": time.time()})
     return {"saved_at": time.time()}
@@ -312,7 +318,7 @@ def save_draft(project_id: str, body: DraftIn, request: Request):
 @router.delete("/api/projects/{project_id}/draft")
 def discard_draft(project_id: str, request: Request):
     store, _ = _state(request)
-    _project(store, project_id)
+    _project(store, project_id, write=True)
     store.set_draft(project_id, None)
     return {"ok": True}
 
@@ -320,7 +326,7 @@ def discard_draft(project_id: str, request: Request):
 @router.post("/api/projects/{project_id}/versions")
 def save_version(project_id: str, body: VersionIn, request: Request):
     store, runner = _state(request)
-    s = _project(store, project_id)
+    s = _project(store, project_id, write=True)
     score = parse_score(body.score)
     base = store.get_chart(body.base_chart_id) if body.base_chart_id else store.latest_chart(project_id)
     if base is not None and base["song_id"] != project_id:
@@ -352,7 +358,8 @@ def duplicate(project_id: str, request: Request):
     pid = new_id("s")
     store.upsert_song(title=f"{s['title']} (copy)"[:120], artist=s["artist"], album=s.get("album"), year=s.get("year"),
                       duration_s=s.get("duration_s"), isrc=s.get("isrc"), version=s.get("version"),
-                      provider=s.get("provider"), song_id=pid, kind=s.get("kind") or "song", prompt=s.get("prompt"))
+                      provider=s.get("provider"), song_id=pid, kind=s.get("kind") or "song", prompt=s.get("prompt"),
+                      owner=owners.current())
     latest = store.latest_chart(project_id)
     if latest is not None:
         cid = new_id("ch")
@@ -368,7 +375,7 @@ def duplicate(project_id: str, request: Request):
 @router.delete("/api/projects/{project_id}")
 def delete(project_id: str, request: Request):
     store, _ = _state(request)
-    _project(store, project_id)
+    _project(store, project_id, write=True)
     if any(j["status"] in ("queued", "running") for j in store.jobs_for(project_id)):
         raise HTTPException(409, "a job is still running for this project; cancel it first")
     for p in store.delete_project(project_id):
@@ -385,7 +392,7 @@ def delete(project_id: str, request: Request):
 def restore(chart_id: str, request: Request):
     from .app import _chart
     store, runner = _state(request)
-    c = _chart(store, chart_id)
+    c = _chart(store, chart_id, write=True)
     s = store.get_song(c["song_id"])
     score = Score.load(Path(c["dir"]) / "chart.json")
     src = store.get_source(c["source_id"]) if c.get("source_id") else None

@@ -685,3 +685,82 @@ def test_band_mix_is_separated_first_when_demucs_is_there(monkeypatch):
     monkeypatch.setattr(separate, "available", lambda: False)
     with pytest.raises(ValueError, match="demucs"):
         use_separation(TranscribeOptions(separate="on"))
+
+
+# ---- a shared server: every visitor has a private workspace (owners.py) ----------------
+
+VISITOR_A, VISITOR_B = "a" * 32, "b" * 32
+
+
+def visit(client, token: str) -> None:
+    from drum_agent.web import owners
+    client.cookies.clear()
+    client.cookies.set(owners.COOKIE, token)
+
+
+def test_a_new_visitor_gets_a_private_owner_cookie(client):
+    from drum_agent.web import owners
+    client.cookies.clear()
+    r = client.get("/api/songs")
+    cookie = r.headers["set-cookie"].lower()
+    assert cookie.startswith(owners.COOKIE + "=") and "httponly" in cookie and "samesite=lax" in cookie
+    assert "set-cookie" not in client.get("/api/songs").headers  # kept, not renewed
+    visit(client, "not-a-token")
+    assert client.get("/api/songs").headers["set-cookie"].startswith(owners.COOKIE + "=")
+
+
+def test_personal_mode_has_no_owners(client, personal):
+    client.cookies.clear()
+    assert "set-cookie" not in client.get("/api/songs").headers
+
+
+@needs_lilypond
+def test_visitors_never_see_each_others_projects(client):
+    visit(client, VISITOR_A)
+    a_song = _song(client, "Test Groove", "The Placeholders")["song"]["id"]
+    r = client.post("/api/beats", json={"prompt": "a rock beat at 120 BPM, 4 bars", "request_id": "r-1"})
+    assert r.status_code == 200, r.text
+    beat, job = r.json()["project"]["id"], r.json()["job"]["id"]
+    chart = client.app_state.runner.wait(job, timeout=300)["chart_id"]
+    mine = {p["id"] for p in client.get("/api/projects").json()["projects"]}
+    assert {a_song, beat} <= mine
+
+    visit(client, VISITOR_B)
+    assert client.get("/api/songs").json()["songs"] == [] and client.get("/api/projects").json()["projects"] == []
+    for url in (f"/api/songs/{a_song}", f"/api/projects/{beat}", f"/api/jobs/{job}", f"/api/charts/{chart}",
+                f"/api/charts/{chart}/files/chart.json", f"/api/charts/{chart}/files/chart.pdf"):
+        assert client.get(url).status_code == 404, url
+    assert client.post(f"/api/jobs/{job}/retry").status_code == 404
+    assert client.patch(f"/api/projects/{beat}", json={"title": "Taken"}).status_code == 404
+    assert client.delete(f"/api/projects/{beat}").status_code == 404
+    # The same request id from another visitor is another beat, not A's.
+    again = client.post("/api/beats", json={"prompt": "a rock beat at 120 BPM, 4 bars", "request_id": "r-1"}).json()
+    assert again["project"]["id"] != beat and again["created"] is True
+    # The same song typed by two visitors: two projects, nothing shared.
+    b_song = _song(client, "Test Groove", "The Placeholders")
+    assert b_song["song"]["id"] != a_song and b_song["sources"] == [] and b_song["charts"] == []
+    found = client.get("/api/search?q=Test Groove - The Placeholders").json()
+    assert [c["id"] for c in found["catalog"]] == [b_song["song"]["id"]]
+
+    visit(client, VISITOR_A)
+    assert client.get(f"/api/charts/{chart}").status_code == 200  # still A's
+    assert b_song["song"]["id"] not in {p["id"] for p in client.get("/api/projects").json()["projects"]}
+
+
+@needs_lilypond
+def test_an_example_is_everyones_and_read_only_on_a_shared_server(client):
+    from drum_agent.web.catalog import seed_examples
+    [example] = seed_examples(client.app_state.store, client.app_state.runner)
+    sid = example["song_id"]
+    for token in (VISITOR_A, VISITOR_B):
+        visit(client, token)
+        assert sid in [s["id"] for s in client.get("/api/songs").json()["songs"]]
+        assert client.get(f"/api/charts/{example['id']}/files/chart.pdf").content[:4] == b"%PDF"
+        for r in (client.patch(f"/api/projects/{sid}", json={"title": "Mine now"}), client.delete(f"/api/projects/{sid}"),
+                  client.post(f"/api/charts/{example['id']}/restore")):
+            assert r.status_code == 403 and "duplicate it" in r.json()["detail"]
+    copy = client.post(f"/api/projects/{sid}/duplicate").json()  # visitor B's own copy
+    assert copy["id"] != sid
+    assert client.patch(f"/api/projects/{copy['id']}", json={"title": "Mine now"}).status_code == 200
+    visit(client, VISITOR_A)
+    assert copy["id"] not in {p["id"] for p in client.get("/api/projects").json()["projects"]}

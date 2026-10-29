@@ -332,9 +332,22 @@ is named by its SHA-256.
   kept.
 - `samples/<instrument>.wav`, the rendered drum sounds.
 
-The app has no user accounts: run it for yourself or behind your own authentication.
-It doesn't redistribute uploaded audio or charts. Each file is served only to whoever
-can reach the server.
+## Visitors of a shared server
+
+The app has no user accounts. On a shared server every browser is its own visitor with a
+private workspace (`drum_agent/web/owners.py`): its first request gets a random owner token
+in a cookie (HttpOnly, SameSite=Lax, Secure over HTTPS, a year), and its songs, beats,
+uploads, jobs and chart versions belong to it (`songs.owner`). Lists, the search's
+catalog and every lookup by id show a visitor only their own projects and the operator's
+seeded examples; anything else answers 404, as if it didn't exist. A song's id is the
+visitor's own (derived from the catalog id and the token), so two visitors charting the
+same song never share a project, its upload or its chart. Examples have no owner: anyone
+can open, play and print them, nobody can change them (403); "Duplicate" makes the
+visitor's own copy. Clearing the browser's cookies loses the workspace. In personal mode
+(one person, their own computer) nothing is scoped and no cookie is set.
+
+The app doesn't redistribute uploaded audio or charts: a recording is played back only in
+its own project's chart.
 
 ## Transcription engine
 

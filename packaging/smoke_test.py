@@ -20,6 +20,7 @@ Standard library only. Prints each result; exits 1 at the first failure.
 from __future__ import annotations
 
 import argparse
+import http.cookiejar
 import json
 import sys
 import time
@@ -43,6 +44,8 @@ def check(cond: bool, what: str) -> None:
 class App:
     def __init__(self, base: str):
         self.base = base.rstrip("/")
+        # One visitor: a shared server keeps each browser's projects apart by a cookie.
+        self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def call(self, method: str, path: str, *, json_body=None, data: bytes | None = None,
              headers: dict | None = None, raw: bool = False):
@@ -52,7 +55,7 @@ class App:
             h["Content-Type"] = "application/json"
         req = urllib.request.Request(self.base + path, data=data, method=method, headers=h)
         try:
-            with urllib.request.urlopen(req, timeout=120) as r:
+            with self.opener.open(req, timeout=120) as r:
                 body = r.read()
         except urllib.error.HTTPError as exc:
             raise Failed(f"{method} {path}: HTTP {exc.code} {exc.read()[:400]!r}") from None
