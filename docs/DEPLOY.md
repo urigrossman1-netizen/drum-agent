@@ -79,5 +79,6 @@ unless persistent storage is mounted at `/data` (the Space's settings). Check Hu
 Face's current terms for both.
 
 Until then, `.github/workflows/live-studio.yml` puts the studio online for up to 5.5 hours
-on a temporary `trycloudflare.com` address. It posts the address to the issue "Drum Agent
-Studio: live link".
+on a temporary `trycloudflare.com` address. It builds and runs the same image, runs the
+acceptance test through the public address, and posts the address and the test's result
+to the issue "Drum Agent Studio: live link".

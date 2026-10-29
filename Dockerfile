@@ -1,8 +1,9 @@
 # The Drum Agent studio as a server: a shared website, every visitor with a private
 # workspace (drum_agent/web/owners.py). Everything a chart needs is inside the image:
 # LilyPond 2.26 (engraving), FFmpeg (decoding), CPU PyTorch with demucs and the HTDemucs
-# weights (separating the drums from the band), so nothing is downloaded at run time except
-# song metadata (MusicBrainz, iTunes, Deezer; Spotify and YouTube with keys).
+# weights (separating the drums from the band), fluidsynth with the FluidR3 GM soundfont (the
+# sampled drums the player uses), so nothing is downloaded at run time except song metadata
+# (MusicBrainz, iTunes, Deezer; Spotify and YouTube with keys).
 #
 #   docker build -t drum-agent .
 #   docker run -p 8000:8000 -v drum-agent-data:/data drum-agent
@@ -19,7 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     TORCH_HOME=/opt/torch NUMBA_CACHE_DIR=/tmp/numba PORT=8000
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates fontconfig \
+ && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates fontconfig fluidsynth fluid-soundfont-gm \
  && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/install_lilypond.sh /tmp/install_lilypond.sh

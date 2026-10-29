@@ -46,7 +46,10 @@ all five classes, drum stems: precision 0.826, recall 0.888 (433 of 3850 strokes
 whole app on one of them, through its API (upload, job, chart, edit, save, reopen,
 export), and scores the app's own chart against the annotations: on the Britpop band mix,
 without separation, F 0.757 (P 0.783, R 0.732, 9.8 ms; kick 0.84, snare 0.74, hi-hat
-0.78, toms 0, cymbals 0.17). Separation (the
+0.78, toms 0, cymbals 0.17); in the server image, with the drums separated first, F 0.901
+(P 0.864, R 0.942, 8.9 ms; kick 0.93, snare 0.90, hi-hat 0.90, cymbals 0.67; 15 of 257
+strokes missed, 38 extra). One development recording of 37 s, not a held-out measurement:
+the held-out numbers are the table above. Separation (the
 default when PyTorch and demucs are installed; the Windows app has them) is
 described and measured in [MODELS.md](MODELS.md).
 

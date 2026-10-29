@@ -1,7 +1,10 @@
-# Puts the studio online on a public link for a few hours, on a GitHub-hosted runner:
-# installs LilyPond, ffmpeg and fluidsynth, starts `python -m drum_agent serve`, opens a
-# Cloudflare quick tunnel (a random https://*.trycloudflare.com address) and prints the
-# link in the run's summary. Charts made in one run are cached for the next.
+# Puts the studio online on a public link for a few hours, on a GitHub-hosted runner: builds
+# the server image (Dockerfile: LilyPond, FFmpeg, the drum separation, the sampled drums) and
+# runs it as a shared server, opens a Cloudflare quick tunnel (a random
+# https://*.trycloudflare.com address), tests the public address as a visitor
+# (scripts/acceptance_run.py: a real recording uploaded, separated, transcribed, edited, saved,
+# reopened, exported, scored against its annotations) and only then posts the link. Charts made
+# in one run are cached for the next.
 #
 # Start it: Actions -> "Live studio" -> Run workflow (or push a change to .github/live-studio).
 name: Live studio
@@ -24,15 +27,17 @@ permissions:
   contents: read
   issues: write  # the link is posted to an issue, readable (and notified) while the run is going
 
+env:
+  YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+  SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+  SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+
 jobs:
   studio:
     runs-on: ubuntu-latest
     timeout-minutes: 355
     env:
       HOURS: ${{ inputs.hours || '5' }}
-      DRUM_AGENT_DATA_DIR: ${{ github.workspace }}/.studio-data
-      LILYPOND_HOME: /home/runner/lilypond
-      DRUM_AGENT_LILYPOND: /home/runner/lilypond/lilypond-2.26.0/bin/lilypond
     steps:
       - uses: actions/checkout@v4
 
@@ -41,55 +46,28 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      # Optional extras, installed in the background because apt can stall for many minutes on
-      # a hosted runner: the studio plays its synthesized kit until fluidsynth and the
-      # soundfont arrive, then serves sampled drums; ffmpeg only widens the upload formats.
-      - name: Install ffmpeg and fluidsynth (in the background)
-        run: |
-          sudo rm -f /var/lib/man-db/auto-update  # skip the slow manual-page index rebuild
-          opts="-o Acquire::http::Timeout=30 -o Acquire::Retries=2 -o DPkg::Lock::Timeout=120"
-          nohup bash -c "timeout 1200 sudo apt-get $opts update && timeout 1200 sudo DEBIAN_FRONTEND=noninteractive \
-            apt-get $opts install -y --no-install-recommends ffmpeg fluidsynth fluid-soundfont-gm" > apt.log 2>&1 &
-
-      - name: Restore LilyPond
-        id: lilypond
-        uses: actions/cache/restore@v4
-        with:
-          path: /home/runner/lilypond
-          key: lilypond-2.26.0-linux-x86_64
-
-      - name: Install LilyPond
-        if: steps.lilypond.outputs.cache-hit != 'true'
-        timeout-minutes: 10
-        run: PREFIX="$LILYPOND_HOME" scripts/install_lilypond.sh
-
-      - name: Keep LilyPond for the next run
-        if: steps.lilypond.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: /home/runner/lilypond
-          key: lilypond-2.26.0-linux-x86_64
-
-      - name: Install the studio
-        timeout-minutes: 15
-        run: pip install -q -e ".[web]"
+      - name: Build the server image
+        timeout-minutes: 30
+        run: docker build -q -t drum-agent .
 
       - name: Restore the charts saved by the last run
         uses: actions/cache/restore@v4
         with:
           path: .studio-data
-          key: studio-data-v2-${{ github.run_id }}
-          restore-keys: studio-data-v2-  # v2: projects have owners; the shared charts of earlier runs are not carried over
+          key: studio-data-v3-${{ github.run_id }}
+          restore-keys: studio-data-v3-  # v3: the server image's /data
 
       - name: Start the studio
         timeout-minutes: 5
         run: |
-          nohup python -m drum_agent serve --host 127.0.0.1 --port 8000 --seed-examples > studio.log 2>&1 &
+          mkdir -p .studio-data && sudo chown -R 1000:1000 .studio-data  # the image's user
+          docker run -d --name studio -p 127.0.0.1:8000:8000 -v "$PWD/.studio-data:/data" \
+            -e YOUTUBE_API_KEY -e SPOTIFY_CLIENT_ID -e SPOTIFY_CLIENT_SECRET drum-agent
           for _ in $(seq 1 180); do
             [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health)" = "200" ] && break
             sleep 1
           done
-          curl -fsS http://127.0.0.1:8000/api/health || { echo "The studio did not start:"; tail -50 studio.log; exit 1; }
+          curl -fsS http://127.0.0.1:8000/api/health || { echo "The studio did not start:"; docker logs studio 2>&1 | tail -50; exit 1; }
           echo
 
       - name: Open the public link
@@ -132,6 +110,29 @@ jobs:
           printf '\nTo start it again later: Actions -> "Live studio" -> Run workflow.\n' >> link.md
           { echo "STUDIO_URL=$url"; echo "STUDIO_UNTIL=$until_utc"; } >> "$GITHUB_ENV"
 
+      # The result goes into the issue either way; a failure is reported there and marks the step.
+      - name: The public address, tested as a visitor
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          python -m pip install -q numpy soundfile mir_eval
+          python scripts/eval_real.py --download > /dev/null
+          host="${STUDIO_URL#https://}"
+          for _ in $(seq 1 40); do getent hosts "$host" > /dev/null && break; sleep 3; done
+          status=0
+          python scripts/acceptance_run.py "$STUDIO_URL" --track Britpop --search "Back in Black - AC/DC" --expect-separation | tee acceptance.txt || status=$?
+          {
+            echo
+            if [ "$status" = 0 ]; then
+              echo "Tested through the public address at $(date -u '+%H:%M UTC') as a visitor: a real recording (MDB Drums) uploaded, the drums separated, transcribed, edited, saved, reopened and exported."
+              grep -o "the chart against the annotations.*" acceptance.txt | sed 's/^/Accuracy of that chart: /'
+            else
+              echo "The visitor test through the public address failed at $(date -u '+%H:%M UTC'): $(grep -o 'FAILED.*' acceptance.txt | tail -1)"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY" >> link.md
+          exit "$status"
+
       # One issue holds the current link: readable while the run is going (the run's log and
       # summary are not), and GitHub notifies the repository's owner. Each run updates it,
       # reopens it and comments. A failure here leaves the studio running.
@@ -160,7 +161,7 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             sleep 60
             [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health)" = "200" ] || {
-              echo "The studio stopped:"; tail -50 studio.log; exit 1; }
+              echo "The studio stopped:"; docker logs studio 2>&1 | tail -50; exit 1; }
             pgrep -f "cloudflared tunnel" > /dev/null || { echo "The tunnel stopped:"; tail -50 tunnel.log; exit 1; }
           done
 
@@ -169,8 +170,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          pkill -f "drum_agent serve" || true
-          echo "apt install log:"; tail -20 apt.log || true
+          docker stop studio > /dev/null 2>&1 || true
           if [ -n "${STUDIO_ISSUE:-}" ]; then
             printf '## Drum Agent Studio is offline\n\nThe last link has stopped working. To start it again: Actions -> "Live studio" -> Run workflow.\n' > link.md
             gh issue edit "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file link.md || true
@@ -182,4 +182,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .studio-data
-          key: studio-data-v2-${{ github.run_id }}
+          key: studio-data-v3-${{ github.run_id }}

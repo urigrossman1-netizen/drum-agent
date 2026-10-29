@@ -50,6 +50,8 @@ jobs:
           docker run -d --name studio -p 8000:8000 -e YOUTUBE_API_KEY -e SPOTIFY_CLIENT_ID -e SPOTIFY_CLIENT_SECRET drum-agent:test
           for _ in $(seq 1 120); do curl -fsS http://127.0.0.1:8000/api/health > /dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:8000/api/health | python3 -c "import json, sys; h = json.load(sys.stdin); print(json.dumps({k: h[k] for k in ('ok', 'mode', 'checks', 'providers', 'separation')}, indent=1))"
+          curl -fsS http://127.0.0.1:8000/api/kit | python3 -c "import json, sys; k = json.load(sys.stdin); print('sampled drums:', k['sample_source']); sys.exit(0 if k['samples'] else 1)"
+          curl -fsS -o /dev/null -w "a sampled kick: HTTP %{http_code}, %{size_download} bytes\n" http://127.0.0.1:8000/api/kit/samples/kick.wav
           docker image ls drum-agent:test --format "image size: {{.Size}}"
 
       - uses: actions/setup-python@v5
