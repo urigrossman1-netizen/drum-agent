@@ -131,8 +131,9 @@ variable name that could not wrap; `tests/e2e/phone.e2e.js` now checks every pag
 git and Docker; no credential is in any tracked file); the first image build failed
 because demucs imports numpy without declaring it (installed first now).
 
-Tests: the full suite, 929 passed (6 min 51 s), before the 5 tests added in ee4a993, which
-pass; the fast suite, 796 passed.
+Tests: the full suite on the final code (b5cde57), 936 passed, 1 warning (a Starlette
+deprecation), 7 min 41 s; it includes the four browser journeys (a beat, a song to its
+chart with listening along, a song from its name, every page on a phone).
 
 The whole workflow on a real recording (`scripts/acceptance_run.py`: the MDB Drums Britpop
 band mix, 36.8 s, 257 annotated strokes; pick the song, upload it with its rights basis,
