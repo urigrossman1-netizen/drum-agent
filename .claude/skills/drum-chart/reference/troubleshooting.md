@@ -43,11 +43,11 @@ chart some other way). Fix the cause.
 ## Audio
 | Situation | What to do |
 |---|---|
-| Speed | ≈ 45 s for a 3 min band mix on CPU; use `--start/--end` for quick checks of a passage |
+| Speed | ≈ 45 s for a 3 min band mix on CPU, plus about the song's length for drum separation on two CPU threads (less with more); use `--start/--end` for quick checks of a passage |
 | Memory | ≈ 560 MB peak for a 3 min song; chunked, so long files are OK |
 | Very noisy/live recording | expect many flags; prefer a drum stem; tell the user the chart is a draft |
 | Wrong tempo/meter/downbeat | see [transcription-guide.md](transcription-guide.md); re-run with hints rather than editing every bar |
-| A real stem-separation model (Demucs etc.) | not bundled. If the user has a separated drum stem, use it with `--drums-only` |
+| Drum separation (HTDemucs) | runs by itself when PyTorch and demucs are installed (`pip install demucs`; the Windows app has them). `--separate off` if a soft jazz track loses strokes; a real drum stem with `--drums-only` is still the best input |
 
 ## Engraving looks wrong but checks pass
 - Collisions or cramped bars: `--bars-per-line 3` or `--staff-size 18`.

@@ -35,23 +35,32 @@ once, for this table.
 | Drum stem, classifier | 0.963 | 0.866 | 0.723 | 0.495 | 0.270 | 0.837 | **0.772** |
 | Drum stem, NMF | 0.969 | 0.685 | 0.704 | 0.193 | 0.170 | 0.770 | 0.662 |
 | Full band mix, classifier | 0.706 | 0.688 | 0.611 | 0.307 | 0.094 | 0.664 | **0.591** |
+| Full band mix, drums separated first (HTDemucs), classifier | 0.945 | 0.823 | 0.703 | 0.427 | 0.144 | 0.808 | **0.733** |
 | Full band mix, NMF | 0.570 | 0.434 | 0.621 | 0.057 | 0.162 | 0.546 | 0.421 |
 
 Development recordings (12): drum stems 0.856 (NMF 0.791), band mixes 0.696
-(NMF 0.484).
+(NMF 0.484), band mixes with the drums separated first 0.774. Separation (the
+default when PyTorch and demucs are installed; the Windows app has them) is
+described and measured in [MODELS.md](MODELS.md).
 
 What this means for a chart made from a real recording:
-- **Kick and snare** are mostly right on a drum stem (0.96, 0.87), and about
-  two in three strokes are right in a full mix.
+- **Kick and snare** are mostly right on a drum stem (0.96, 0.87), and in a
+  full band mix once the drums are separated (0.95, 0.82; about two in three
+  without separation).
 - **Hi-hat** is right about three times in four; open versus closed and
   hi-hat versus ride are the usual confusions, and brushes and dense jazz
   ride patterns produce extra hi-hat strokes.
-- **Toms** are found about half the time on a stem and a third in a mix.
+- **Toms** are found about half the time on a stem, and less often in a band
+  mix (0.43 separated, 0.31 as given).
 - **Cymbals (crash, ride, china, splash) are the weakest class**: about one
-  in four on a stem, and in a full band mix the classifier finds fewer than
-  the old detector did (0.09 vs 0.16). Expect to add crashes by ear.
-- A drum stem (from the session, an e-kit, or a separation tool) is much
-  better than a full mix: pass `--drums-only`.
+  in four on a stem and one in seven in a separated band mix (0.14; 0.09 as
+  given, where the old detector found 0.16). Expect to add crashes by ear.
+- Separating the drums brings a band mix close to a drum stem for kick, snare
+  and hi-hat (mean per-recording F 0.828, the stems 0.830), not for toms and
+  cymbals. It can lose quiet strokes in soft jazz: on CoolJazz the kick fell
+  from 0.61 to 0.20 (`--separate off` turns it off).
+- A drum stem you have (from the session, an e-kit) is still the best input:
+  pass `--drums-only`.
 
 ## Synthesized audio, measured
 
@@ -59,22 +68,26 @@ What this means for a chart made from a real recording:
 Notation F counts a stroke as right only if it is in the right bar, at the
 right position, on the right instrument. Ten charts, four conditions each:
 
+The band columns give the mix as given / with the drums separated first
+(HTDemucs, `--separate`); drums-only audio is never separated.
+
 | Chart | Standard kit, drums only | Jazz kit (held out), drums only | Standard kit + bass/keys | Jazz kit + bass/keys, ±8 ms humanized |
 |---|---|---|---|---|
-| 02 eighth-note rock | 1.000 | 1.000 | 1.000 | 1.000 |
-| 03 16th syncopation | 0.987 | 1.000 | 0.987 | 0.987 |
-| 05 open/closed/half-open hi-hat | 0.958 | 0.958 | 0.958 | 0.968 |
-| 06 tom fill over the barline | 0.980 | 1.000 | 0.974 | 0.987 |
-| 07 ghosts, accents, flams, rolls | 0.930 | 0.922 | 0.906 | 0.879 |
-| 10 pickup, 12/8 bridge, tempo change | 0.987 | 0.987 | 0.979 | 0.785 |
-| 11 tom grooves and fills | 0.899 | 0.954 | 0.902 | 0.920 |
-| 12 two short bars (2/4, 3/4) | 0.992 | 0.992 | 0.992 | 0.967 |
-| 13 crash accents on beat 3 | 0.974 | 0.974 | 0.977 | 0.969 |
-| Northbound, full 60-bar song | 0.978 | 0.991 | 0.978 | 0.951 |
+| 02 eighth-note rock | 1.000 | 1.000 | 1.000 / 0.981 | 1.000 / 1.000 |
+| 03 16th syncopation | 0.987 | 1.000 | 0.987 / 0.981 | 0.987 / 0.974 |
+| 05 open/closed/half-open hi-hat | 0.958 | 0.958 | 0.958 / 0.920 | 0.968 / 0.947 |
+| 06 tom fill over the barline | 0.980 | 1.000 | 0.974 / 0.980 | 0.987 / 1.000 |
+| 07 ghosts, accents, flams, rolls | 0.930 | 0.922 | 0.906 / 0.930 | 0.879 / 0.920 |
+| 10 pickup, 12/8 bridge, tempo change | 0.987 | 0.987 | 0.979 / 0.983 | 0.785 / 0.937 |
+| 11 tom grooves and fills | 0.899 | 0.954 | 0.902 / 0.908 | 0.920 / 0.953 |
+| 12 two short bars (2/4, 3/4) | 0.992 | 0.992 | 0.992 / 0.988 | 0.967 / 0.994 |
+| 13 crash accents on beat 3 | 0.974 | 0.974 | 0.977 / 0.960 | 0.969 / 0.981 |
+| Northbound, full 60-bar song | 0.978 | 0.991 | 0.978 / 0.976 | 0.951 / 0.984 |
 
-Mean 0.963, median 0.977 over the 40 runs (the NMF detector: 0.948). Every
-run found the right tempo, including case 07, which used to read at double
-tempo.
+Mean 0.963, median 0.977 over the 40 runs as given (the NMF detector: 0.948);
+0.969 with the band mixes separated (standard kit with band 0.965 -> 0.961,
+jazz kit with band 0.941 -> 0.969). Every run found the right tempo, including
+case 07, which used to read at double tempo.
 
 ### Stroke level (scripts/eval_detection.py)
 Onset F at 50 ms, pooled over six charts (722 strokes per condition):
@@ -141,8 +154,11 @@ Charts of non-commercial-licensed material are not committed.
    ring-out can create phantom strokes. Noise below -60 dBFS is ignored.
 9. **Section names** are letters (A, B, C); name them with `--sections` or
    `edit --sections`.
-10. **No source separation.** Detection works on the mix as given; with a
-    drum stem from another tool, use `--drums-only`.
+10. **Drum separation needs PyTorch and demucs** (`pip install demucs`; the
+    Windows app includes them). Without them a band mix is transcribed as
+    given, which is much less accurate (above). Separation takes about as
+    long as the recording on two CPU threads, and can lose quiet strokes in
+    soft jazz (`--separate off`).
 
 ## Notation limits
 - Rhythms finer than 32nds or sextuplets (quintuplets, 64ths) can't be

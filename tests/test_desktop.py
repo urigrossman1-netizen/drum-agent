@@ -68,6 +68,24 @@ def test_the_window_is_maximized_on_a_small_screen():
     assert desktop.window_size([])["maximized"]  # no screen information
 
 
+def test_an_example_that_fails_to_engrave_leaves_no_song_behind(tmp_path, monkeypatch):
+    from drum_agent.web.catalog import seed_examples
+    from drum_agent.web.jobs import JobRunner
+    from drum_agent.web.store import Store
+
+    store = Store(tmp_path)
+    runner = JobRunner(store, start=False)
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("LilyPond failed")
+
+    monkeypatch.setattr(runner, "_save_chart", broken)
+    with pytest.raises(RuntimeError):
+        seed_examples(store, runner)
+    assert store.list_songs() == []  # not a song "ready to chart" from YouTube
+    store.close()
+
+
 def test_headless_app_serves_the_personal_studio_once(tmp_path):
     data = tmp_path / "data"
     port = desktop.free_port()

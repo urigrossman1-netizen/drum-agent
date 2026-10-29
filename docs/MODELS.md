@@ -180,3 +180,42 @@ Per-class tables, the synthetic stroke-level results and what they mean for
 a chart are in `docs/LIMITATIONS.md`. The weakest class on real recordings is
 cymbals (crash, ride: 0.27 on drum stems, 0.09 in band mixes on the test
 recordings).
+
+## Drum separation, before the classifier
+
+In a band recording, guitars, bass and voices are heard as strokes. So before detection
+the drums are separated from the band with HTDemucs (`drum_agent/audio/separate.py`;
+Rouard, Massa and Défossez, "Hybrid Transformers for Music Source Separation", ICASSP
+2023; MIT licence), and the classifier reads its drum stem. `--separate auto` (the
+default) does this when PyTorch and demucs are installed and the input is not marked as
+drums only; `on` requires it, `off` turns it off. The chart's notes say when it ran. The
+Windows app ships it with the model's weights (`tools/torch`), so nothing is downloaded
+on first use. The model runs on the CPU: on GitHub's runners, with two threads, it took
+about as long as the recording (a 104-second recording, about 100 s).
+
+It was turned on after both measurements below, with the test recordings run once.
+MDB Drums, onset F at 50 ms (`scripts/eval_real.py --separate`):
+
+| | Development (12), all 5 | Test (11), all 5 | Test, KD / SD / HH / TT / CY |
+|---|---|---|---|
+| Band mix as given | 0.696 | 0.591 | 0.706 / 0.688 / 0.611 / 0.307 / 0.094 |
+| **Band mix, drums separated first** | **0.774** | **0.733** | 0.945 / 0.823 / 0.703 / 0.427 / 0.144 |
+| Drum stems (for reference) | 0.856 | 0.772 | 0.963 / 0.866 / 0.723 / 0.495 / 0.270 |
+
+The mean per-recording F for kick, snare and hi-hat on the test recordings went from
+0.654 to 0.828, against 0.830 on the drum stems themselves. It does not help
+everywhere. Soft jazz loses strokes: on CoolJazz (development) the kick fell from 0.61
+to 0.20, the hi-hat from 0.66 to 0.53 and the cymbals from 0.33 to 0; on BebopJazz the kick rose (0.19 to 0.74) but
+the snare, hi-hat and cymbals fell (0.50 to 0.44, 0.82 to 0.62, 0.46 to 0.29). Toms
+disappeared on FunkJazz (0.67 to 0) and FreeJazz (0.29 to 0), and cymbals fell on
+SpeedMetal (0.80 to 0.67) and SwingJazz (0.40 to 0.29). Every other recording's kick and
+snare stayed level or improved.
+
+Synthesized charts (`scripts/eval_notation.py --separate off|auto`, 40 runs; the
+drums-only conditions are never separated): notation F 0.963 to 0.969. The held-out
+Jazz kit with bass and keys went from 0.941 to 0.969 (worst run 0.785 to 0.920); the
+Standard kit with bass and keys slipped from 0.965 to 0.961 (six charts lower, two of
+them by less than 0.005, and four higher; the open and closed hi-hat chart 0.958 to
+0.920). Per-chart numbers are in
+`docs/LIMITATIONS.md`. `scripts/eval_detection.py` measures `detect()` itself, which
+separation doesn't change; its results are unchanged.

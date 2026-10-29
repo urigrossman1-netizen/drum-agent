@@ -4,6 +4,12 @@ Read this before transcribing audio. It tells you what the detector can and
 can't hear, so you know which parts of a chart to distrust.
 
 ## What the pipeline does
+First, when PyTorch and demucs are installed and the input is not `--drums-only`, the
+drums are separated from the band with HTDemucs (`audio/separate.py`, `--separate
+auto|on|off`) and the steps below run on that drum stem. On held-out real band
+recordings this raised onset F from 0.591 to 0.733; it can lose quiet strokes in soft
+jazz (docs/MODELS.md). The chart's notes say when it ran.
+
 1. **Front end** (`drum_agent/audio/features.py`, `detect.py`): 44.1 kHz mono,
    96-band mel spectrogram (hop 256 ≈ 5.8 ms). Unless `--drums-only`, harmonic/
    percussive separation (HPSS) suppresses sustained instruments, processed in

@@ -141,8 +141,9 @@ Full list with numbers: [LIMITATIONS.md](LIMITATIONS.md). In short:
   swing at 3/4 of its tempo: check the report's tempo line and pass `--bpm`
   when it is wrong. Odd meters from audio are not supported (MIDI, game
   charts and chart specs handle them).
-- No source separation: `--drums-only` with a stem from another tool is the
-  best path for a full mix.
+- Drum separation (HTDemucs, before detection) needs PyTorch and demucs
+  installed (the Windows app has them); without it a full mix is transcribed
+  as given, which is much less accurate (docs/MODELS.md).
 
 ## 8. Exact commands
 

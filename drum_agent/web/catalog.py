@@ -30,7 +30,11 @@ def seed_examples(store: Store, runner: JobRunner) -> list[dict]:
                                  provider="library")
         if store.charts_for(song["id"]):
             continue
-        out.append(runner._save_chart(song, score, lambda stage: None, origin="library_chart"))
+        try:
+            out.append(runner._save_chart(song, score, lambda stage: None, origin="library_chart"))
+        except Exception:
+            store.delete_project(song["id"])  # not left behind as a song waiting for a recording
+            raise
     return out
 
 

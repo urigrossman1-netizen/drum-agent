@@ -348,9 +348,9 @@ The engine is the project's own:
 
 Its measured accuracy is in [LIMITATIONS.md](LIMITATIONS.md).
 
-Demucs (drum-stem separation before detection) and Omnizart (an alternative drum
-transcription model) were considered but not evaluated here. Both install from PyPI,
-but their model checkpoints are downloaded from hosts this build environment can't
-reach. They can't be measured, so neither is wired in. To evaluate one, run
-`scripts/eval_real.py --split train` with and without it, per the rules in CLAUDE.md:
-no regression on held-out kits or band mixes, and the test split run once.
+When PyTorch and demucs are installed (the Windows app has them), a band recording's
+drums are first separated from the other instruments with HTDemucs; the job shows it as
+its own stage ("Separating the drums from the band") and the chart's notes say so. It was
+measured on real recordings and synthesized charts before it was turned on: see
+[MODELS.md](MODELS.md). Omnizart (an alternative drum transcription model) was
+considered but not evaluated.

@@ -184,7 +184,7 @@ def wait_ready(url: str, timeout: float = 120.0) -> bool:
     return False
 
 
-def seed_examples() -> None:
+def seed_examples() -> threading.Thread:
     """The example song's chart in My Charts, the first time (best effort, in the background)."""
     def run():
         try:
@@ -196,7 +196,9 @@ def seed_examples() -> None:
             store.close()
         except Exception:  # noqa: BLE001 - a missing example never stops the app
             log.exception("could not add the example chart")
-    threading.Thread(target=run, name="seed", daemon=True).start()
+    thread = threading.Thread(target=run, name="seed", daemon=True)
+    thread.start()
+    return thread
 
 
 LOADING = """<!doctype html><html><head><meta charset="utf-8"><style>
@@ -204,7 +206,7 @@ html,body{height:100%;margin:0;background:#0b1020;color:#e8ecf8;font:16px system
 body{display:grid;place-items:center}.b{text-align:center}.s{width:34px;height:34px;margin:0 auto 18px;
 border:3px solid #2a3350;border-top-color:#2ee6a6;border-radius:50%;animation:r 0.9s linear infinite}
 @keyframes r{to{transform:rotate(360deg)}}p{color:#98a2c0;font-size:13px}</style></head>
-<body><div class="b"><div class="s"></div><strong>Starting Drum Agent…</strong><p>This takes a few seconds.</p>
+<body><div class="b"><div class="s"></div><strong>Starting Drum Agent…</strong><p>This takes a few seconds (longer the first time).</p>
 </div></body></html>"""
 
 
@@ -217,6 +219,13 @@ def window_size(screens) -> dict:
     w, h = WINDOW
     roomy = bool(screens) and screens[0].width >= w + 40 and screens[0].height >= h + 100
     return {"width": w, "height": h, "maximized": not roomy}
+
+
+def studio_ready(url: str, seeding: threading.Thread, seed_wait: float = 120.0) -> bool:
+    """The studio answers, with the example chart in place: the first start engraves it, and
+    its card would otherwise show a song without a chart."""
+    seeding.join(timeout=seed_wait)
+    return wait_ready(url)
 
 
 def show_window(url: str, ready) -> bool:
@@ -238,7 +247,8 @@ def show_window(url: str, ready) -> bool:
                 win.load_url(url)
             else:
                 win.load_html(LOADING.replace("Starting Drum Agent…", "Drum Agent could not start")
-                              .replace("This takes a few seconds.", f"See the log in {data_dir() / 'logs'}"))
+                              .replace("This takes a few seconds (longer the first time).",
+                                       f"See the log in {data_dir() / 'logs'}"))
         webview.start(load)
         return True
     except Exception:  # noqa: BLE001 - no web view on this system: the small window below
@@ -305,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
     port = args.port or free_port()
     url = f"http://127.0.0.1:{port}"
     server = start_server(port)
-    seed_examples()
+    seeding = seed_examples()
     (data / "app.json").write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
     log.info("%s %s on %s (tools: %s)", TITLE, _version(), url, tools)
     try:
@@ -316,8 +326,8 @@ def main(argv: list[str] | None = None) -> int:
                     time.sleep(0.5)
             except KeyboardInterrupt:
                 pass
-        elif not show_window(url, lambda: wait_ready(url)):
-            if wait_ready(url):
+        elif not show_window(url, lambda: studio_ready(url, seeding)):
+            if studio_ready(url, seeding):
                 show_launcher(url)
     finally:
         server.should_exit = True

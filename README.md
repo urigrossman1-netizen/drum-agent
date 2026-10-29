@@ -91,8 +91,8 @@ they were rendered with one), `doctor`.
 **[Download Drum Agent for Windows](https://github.com/urigrossman1-netizen/drum-agent/releases/latest/download/DrumAgent-Setup.exe)**
 (Windows 10 or 11, 64-bit; no administrator rights needed).
 
-Type a song and get its drum chart: the app finds the song on YouTube, listens to the
-drums and writes them out, on your own computer. Or describe a beat and get an original
+Type a song and get its drum chart: the app finds the song on YouTube, separates the
+drums from the band, listens to them and writes them out, on your own computer. Or describe a beat and get an original
 chart. Charts of songs from YouTube are for your own practice: they are marked
 "Transcribed for personal practice. Not for distribution.", and the app never shares them
 (posting them publicly needs the music publisher's permission). Beats and charts of your
