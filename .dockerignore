@@ -1,0 +1,16 @@
+.git
+.github
+.claude
+build
+dist
+tests
+library
+docs
+packaging
+**/__pycache__
+**/*.pyc
+*.egg-info
+tests/_artifacts
+**/*.wav
+**/*.mp3
+**/*.flac

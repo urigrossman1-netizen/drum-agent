@@ -1,0 +1,66 @@
+# Builds the server image (Dockerfile), runs it as a shared server and tests it the way a
+# visitor uses it: every tool ready, a real catalog search (MusicBrainz, iTunes, Deezer), and
+# the whole workflow on a real, annotated recording (scripts/acceptance_run.py: pick the song,
+# upload it, the job with the drum separation, the chart, an edit saved as a version, both
+# versions reopened, the exports, and the chart scored against the human annotations). Only
+# then is the image pushed to this repository's container registry:
+#   ghcr.io/<owner>/<repo>:latest   (docker run -p 8000:8000 -v drum-agent-data:/data ...)
+name: Server image
+
+on:
+  push:
+    branches: [claude/peaceful-noether-qz2xmc]
+    paths: ["drum_agent/**", "Dockerfile", ".dockerignore", "pyproject.toml", "scripts/acceptance_run.py",
+            "scripts/eval_real.py", "scripts/install_lilypond.sh", ".github/workflows/container.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write  # pushing the tested image
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        timeout-minutes: 30
+        run: docker build -t drum-agent:test .
+
+      - name: Run it, as a shared server
+        run: |
+          docker run -d --name studio -p 8000:8000 drum-agent:test
+          for _ in $(seq 1 120); do curl -fsS http://127.0.0.1:8000/api/health > /dev/null 2>&1 && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8000/api/health | python3 -c "import json, sys; h = json.load(sys.stdin); print(json.dumps({k: h[k] for k in ('ok', 'mode', 'checks', 'providers', 'separation')}, indent=1))"
+          docker image ls drum-agent:test --format "image size: {{.Size}}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The recordings with their annotations (MDB Drums, CC BY-NC-SA 4.0), into a local cache
+        run: |
+          python -m pip install -q numpy soundfile mir_eval
+          python scripts/eval_real.py --download
+
+      - name: A visitor's whole workflow on a real recording
+        timeout-minutes: 20
+        run: python scripts/acceptance_run.py http://127.0.0.1:8000 --track Britpop --search "Back in Black - AC/DC"
+
+      - name: The server's log
+        if: always()
+        run: docker logs studio 2>&1 | tail -60
+
+      - name: Publish the tested image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:latest"
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag drum-agent:test "$image"
+          docker push -q "$image"
+          echo "Image: $image" >> "$GITHUB_STEP_SUMMARY"
