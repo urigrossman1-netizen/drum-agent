@@ -81,7 +81,7 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
           $version = python -c "import drum_agent; print(drum_agent.__version__)"
-          & $iscc "/DAppVersion=$version" "packaging\windows\DrumAgent.iss"
+          & $iscc /Q "/DAppVersion=$version" "packaging\windows\DrumAgent.iss"  # /Q: not every compressed file in the log
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
           Get-Item dist\DrumAgent-Setup.exe | Format-List Name, Length
 
