@@ -155,6 +155,13 @@ reports `bundled`, the Windows smoke test and the image test require it, and the
 test fails on a model download in the server's log. Both passed on 8f5106a (image run
 40907355545; Windows run 40907355638, published as release `app-windows-14`).
 
+The temporary live studio now builds and runs the same image and tests itself through its
+public address before posting it (run 40958429645, commit b5cde57): at 21:34 UTC the
+acceptance run through https://attended-headquarters-causing-ticket.trycloudflare.com
+passed, F 0.897 (P 0.85, R 0.949, 8.8 ms; 13 of 257 strokes missed, 43 extra). The image
+now also has the sampled drums (fluidsynth and the FluidR3 GM soundfont; image run
+40958429692).
+
 Still blocked (section 6): a hosting account for the permanent address (the deploy job
 needs the repository secret `HF_TOKEN`), and the YouTube Data API key and Spotify client
 credentials.
