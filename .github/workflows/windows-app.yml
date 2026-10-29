@@ -103,7 +103,15 @@ jobs:
           }
           if (-not $url) { Get-Content "$env:DRUM_AGENT_DATA_DIR\logs\drum-agent.log" -ErrorAction SilentlyContinue; throw "the installed app did not start" }
           Write-Host "the installed app is running at $url"
-          Start-Sleep 12
+          # The first start engraves the example chart, then the window opens the studio: time it.
+          $t0 = Get-Date
+          foreach ($i in 1..180) {
+            try { $songs = (Invoke-WebRequest "$url/api/songs" -UseBasicParsing -TimeoutSec 5).Content | ConvertFrom-Json } catch { $songs = $null }
+            if ($songs -and ($songs.songs | Where-Object { $_.chart })) { break }
+            Start-Sleep 1
+          }
+          Write-Host ("the example chart was in place after {0:N0} s" -f ((Get-Date) - $t0).TotalSeconds)
+          Start-Sleep 8
           # A screenshot of the screen (the app's window), printed small, to be checked by eye.
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
           $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
