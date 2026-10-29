@@ -114,10 +114,14 @@ def main() -> None:
     opts = {"bpm": a.bpm, "separate": a.separate}
     if a.jobs > 1:
         import multiprocessing
-        # Fresh worker processes (not forks of this one): a fork of a process whose libraries
-        # started threads (OpenMP, BLAS) can die at once ("BrokenProcessPool").
+        # The first run goes alone: it compiles librosa's numba functions into numba's cache.
+        # Workers compiling that cache at the same time segfault ("BrokenProcessPool") on a
+        # machine that has no cache yet (a fresh CI runner). The workers are fresh processes,
+        # not forks of this one, whose first run may have started PyTorch's threads.
+        results = [run_one(*jobs[0], opts)]
+        rest = jobs[1:]
         with ProcessPoolExecutor(a.jobs, mp_context=multiprocessing.get_context("spawn")) as ex:
-            results = list(ex.map(run_one, [c for c, _ in jobs], [k for _, k in jobs], [opts] * len(jobs)))
+            results += ex.map(run_one, [c for c, _ in rest], [k for _, k in rest], [opts] * len(rest))
     else:
         results = [run_one(c, k, opts) for c, k in jobs]
     for r in results:
