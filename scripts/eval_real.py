@@ -13,6 +13,8 @@ Usage:
   python scripts/eval_real.py --download            # once, about 200 MB
   python scripts/eval_real.py --split train --jobs 4
   python scripts/eval_real.py --split test --mix both
+  python scripts/eval_real.py --split train --mix both --separate   # also "sep": the band mix,
+      drums separated with HTDemucs first (needs `pip install demucs`; drum_agent/audio/separate.py)
 Writes tests/_artifacts/eval_real_<split>.json.
 """
 
@@ -131,13 +133,23 @@ def run_one(job: tuple[str, str, str]) -> tuple[str, str, dict, float]:
     import soundfile as sf
     from drum_agent.audio.detect import DetectOptions, detect
     p = _paths(track)
-    y, sr = sf.read(p[mix], dtype="float32", always_2d=True)
+    y, sr = sf.read(p["mix" if mix == "sep" else mix], dtype="float32", always_2d=True)
     y = y.mean(axis=1)
     if sr != 44100:
         import librosa
         y = librosa.resample(y, orig_sr=sr, target_sr=44100)
     t0 = time.time()
-    drums_only = mix == "drums"
+    if mix == "sep":  # the band mix, with the drums pulled out first (cached: separation is slow)
+        import numpy as np
+        stem = CACHE / "separated" / f"{track}_{_separator()}.npy"
+        if stem.is_file():
+            y = np.load(stem)
+        else:
+            from drum_agent.audio.separate import separate_drums
+            y = separate_drums(y, 44100)
+            stem.parent.mkdir(parents=True, exist_ok=True)
+            np.save(stem, y)
+    drums_only = mix in ("drums", "sep")
     if pipeline == "detect":
         det = detect(y, DetectOptions(drums_only=drums_only))
         est = [(h.time, OURS_TO_MDB.get(h.inst, "OT")) for h in det.hits]
@@ -147,6 +159,11 @@ def run_one(job: tuple[str, str, str]) -> tuple[str, str, dict, float]:
         est = [(h.time, OURS_TO_MDB.get(h.inst, "OT")) for _, _, h in score.iter_hits() if h.time is not None]
     ref = read_annotations(p["class"])
     return track, mix, score_track(ref, est), time.time() - t0
+
+
+def _separator() -> str:
+    from drum_agent.audio.separate import MODEL
+    return MODEL
 
 
 def summarize(rows: dict[tuple[str, str], dict]) -> dict:
@@ -191,6 +208,8 @@ def main() -> None:
     ap.add_argument("--pipeline", default="detect", choices=["detect", "transcribe"],
                     help="score the detector's strokes, or the strokes left in the finished score")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
+    ap.add_argument("--separate", action="store_true",
+                    help="also score 'sep': the band mix with the drums separated by HTDemucs first")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
     if a.download:
@@ -201,6 +220,11 @@ def main() -> None:
     if missing:
         raise SystemExit(f"dataset not in {CACHE} ({', '.join(missing[:3])}...): run with --download first")
     mixes = ["drums", "mix"] if a.mix == "both" else [a.mix]
+    if a.separate:
+        from drum_agent.audio.separate import available
+        if not available():
+            raise SystemExit("--separate needs the demucs package: pip install demucs")
+        mixes.append("sep")
     jobs = [(t, m, a.pipeline) for t in tracks for m in mixes]
     rows: dict[tuple[str, str], dict] = {}
     t0 = time.time()

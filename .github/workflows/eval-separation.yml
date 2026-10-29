@@ -1,0 +1,39 @@
+# Temporary: measures whether separating the drums (HTDemucs) before detection improves
+# transcription of band mixes on MDB Drums (train split; the test split stays held out).
+# The model weights can't be downloaded in the development container, so this runs here.
+name: Measure drum separation (temporary)
+
+on:
+  push:
+    branches: [claude/peaceful-noether-qz2xmc]
+    paths: [".github/workflows/eval-separation.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (CPU PyTorch, demucs)
+        run: |
+          python -m pip install -q --upgrade pip
+          python -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -q -e . demucs mir_eval
+          python -c "import torch, demucs; print('torch', torch.__version__, 'demucs', demucs.__version__)"
+      - name: Download MDB Drums
+        run: python scripts/eval_real.py --download
+      - name: Train split, drums / band mix / separated band mix
+        env:
+          DRUM_AGENT_TORCH_THREADS: "2"
+        run: python scripts/eval_real.py --split train --mix both --separate --jobs 2
+      - name: The same through the whole transcription (strokes left in the score)
+        env:
+          DRUM_AGENT_TORCH_THREADS: "2"
+        run: python scripts/eval_real.py --split train --mix both --separate --pipeline transcribe --jobs 2
