@@ -439,9 +439,10 @@ def _public_song(s: dict) -> dict:
 
 
 def _separation() -> dict:
-    """Is the drum separation (HTDemucs) installed? Band mixes are then separated before detection."""
-    from ..audio.separate import MODEL, available
-    return {"available": available(), "model": MODEL}
+    """Is the drum separation (HTDemucs) installed? Band mixes are then separated before detection.
+    `bundled`: its model is a copy shipped with the app or image (loaded without a download)."""
+    from ..audio.separate import MODEL, available, shipped
+    return {"available": available(), "model": MODEL, "bundled": shipped() is not None}
 
 
 def _rights_options() -> dict:

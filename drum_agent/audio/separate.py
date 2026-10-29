@@ -3,8 +3,10 @@
 HTDemucs (Rouard, Massa and Défossez, "Hybrid Transformers for Music Source Separation",
 ICASSP 2023; MIT licence, https://github.com/adefossez/demucs) splits a mix into drums,
 bass, vocals and other. Transcribing its drum stem instead of the mix keeps guitars, bass
-and voices from being heard as strokes. The model (about 80 MB) is downloaded by demucs
-the first time it is used and cached (torch hub); it runs on the CPU.
+and voices from being heard as strokes. It runs on the CPU. The Windows app and the server
+image ship the model (about 80 MB) in $TORCH_HOME/hub/checkpoints, and it is loaded from
+there; elsewhere demucs downloads it the first time it is used (from the Hugging Face Hub,
+or its older address) and caches it.
 
 Optional: `available()` is False without the `demucs` package. Whether it is used is
 decided by measurement on real recordings (scripts/eval_real.py --separate, docs/MODELS.md),
@@ -15,11 +17,26 @@ from __future__ import annotations
 
 import importlib.util
 import os
+from pathlib import Path
 
 import numpy as np
 
 MODEL = "htdemucs"
+# The weights as demucs' model list names them (the dash is followed by the start of their
+# SHA-256), shipped beside `htdemucs.yaml`, the one-model bag: models: ['955717e8'].
+WEIGHTS = "955717e8-8726e21a.th"
 _model = None
+
+
+def shipped() -> Path | None:
+    """The folder holding a shipped copy of the model ($TORCH_HOME/hub/checkpoints), if complete.
+
+    demucs looks for the model on the Hugging Face Hub first and downloads it from there
+    whatever is on disk, so a shipped copy is loaded from its own folder (`get_model(repo=)`,
+    which checks the weights' SHA-256): no download, and it works offline."""
+    home = os.environ.get("TORCH_HOME") or Path(os.environ.get("XDG_CACHE_HOME") or "~/.cache").expanduser() / "torch"
+    folder = Path(home) / "hub" / "checkpoints"
+    return folder if (folder / WEIGHTS).is_file() and (folder / f"{MODEL}.yaml").is_file() else None
 
 
 def available() -> bool:
@@ -34,7 +51,8 @@ def _get():
         threads = int(os.environ.get("DRUM_AGENT_TORCH_THREADS", "0"))
         if threads > 0:
             torch.set_num_threads(threads)
-        _model = get_model(MODEL)
+        folder = shipped()
+        _model = get_model(MODEL, repo=folder) if folder else get_model(MODEL)
         _model.eval()
     return _model
 

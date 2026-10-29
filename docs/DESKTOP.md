@@ -17,7 +17,9 @@ dropped in. Download: the release "Drum Agent for Windows"
 - **Music folders**: `~/Music` (on Windows `C:\Users\<you>\Music`) and the folders named in
   `DRUM_AGENT_MUSIC_DIRS`, read only (`drum_agent/web/library.py`).
 - **Drum separation** inside the app: PyTorch (CPU) and demucs, with the HTDemucs weights
-  in `tools/torch` (`TORCH_HOME`), so the first song downloads no model. A band
+  and their bag file in `tools/torch/hub/checkpoints` (`TORCH_HOME`). They are loaded from
+  there (`separate.shipped()`; demucs would otherwise download its model from the Hugging
+  Face Hub), so no song downloads a model and the separation works offline. A band
   recording's drums are separated before they are transcribed; it takes about as long as
   the song on a two-thread CPU, less on a bigger one. Measured in `docs/MODELS.md`.
 - **Data** in `%LOCALAPPDATA%\Drum Agent` (a Mac: `~/Library/Application Support/Drum

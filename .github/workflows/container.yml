@@ -69,6 +69,13 @@ jobs:
         if: always()
         run: docker logs studio 2>&1 | tail -60
 
+      - name: No model was downloaded at run time
+        run: |
+          if docker logs studio 2>&1 | grep -E "huggingface\.co|fbaipublicfiles|Downloading"; then
+            echo "the server downloaded a model while running"; exit 1
+          fi
+          echo "the separation used the model inside the image"
+
       - name: Publish the tested image
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}:latest"

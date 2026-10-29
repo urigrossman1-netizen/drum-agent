@@ -119,6 +119,7 @@ def run(app: App, track: str, search: str | None, expect_separation: bool = Fals
     print(f"   mode {h['mode']}; drum separation {'installed' if h['separation']['available'] else 'not installed'}")
     if expect_separation:
         check(h["separation"]["available"], f"the drum separation is installed ({h['separation'].get('model')})")
+        check(h["separation"].get("bundled"), "its model is the copy shipped with the app (no download)")
 
     if search:  # 1. search: real catalog providers (MusicBrainz, iTunes, Deezer; Spotify, YouTube with keys)
         r = app.call("GET", "/api/search?q=" + urllib.parse.quote(search))

@@ -25,12 +25,17 @@ RUN apt-get update \
 COPY scripts/install_lilypond.sh /tmp/install_lilypond.sh
 RUN LILYPOND_VERSION=${LILYPOND_VERSION} PREFIX=/opt bash /tmp/install_lilypond.sh && rm /tmp/install_lilypond.sh
 
-# The drum separation: CPU PyTorch (not the CUDA build), demucs and its model, fetched now.
-# numpy first: demucs imports it without declaring it, and the PyTorch index doesn't bring it.
+# The drum separation: CPU PyTorch (not the CUDA build), demucs and its model, fetched now
+# into $TORCH_HOME/hub/checkpoints with its bag file, where drum_agent/audio/separate.py
+# loads it from (demucs checks the weights' SHA-256 here). numpy first: demucs imports it
+# without declaring it, and the PyTorch index doesn't bring it.
 RUN pip install numpy \
  && pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
  && pip install demucs \
- && python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+ && mkdir -p /opt/torch/hub/checkpoints && cd /opt/torch/hub/checkpoints \
+ && curl -fsSLO https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th \
+ && echo "models: ['955717e8']" > htdemucs.yaml \
+ && python -c "from pathlib import Path; from demucs.pretrained import get_model; get_model('htdemucs', repo=Path('.'))"
 
 WORKDIR /app
 COPY pyproject.toml README.md ./

@@ -106,6 +106,8 @@ def fetch_separation(dest: Path) -> None:
     out = dest / "torch" / "hub" / "checkpoints"
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, out / src.name)
+    # demucs loads a model from a folder by its bag file (drum_agent/audio/separate.py, shipped())
+    (out / "htdemucs.yaml").write_text(f"models: ['{src.name.split('-')[0]}']\n", encoding="utf-8")
 
 
 def fetch(platform: str, dest: Path) -> None:

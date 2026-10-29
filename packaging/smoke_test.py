@@ -92,6 +92,7 @@ def run(app: App, take: Path, expect_separation: bool = False, search: bool = Fa
     check(h["library"]["available"], f"songs can be found in the music folders ({h['library']['detail']})")
     if expect_separation:
         check(h["separation"]["available"], f"the drum separation is installed ({h['separation']['model']})")
+        check(h["separation"].get("bundled"), "its model is the copy shipped with the app (no download)")
 
     r = app.call("POST", "/api/beats", json_body={"prompt": "A rock beat at 120 BPM, 4 bars, crash on the one"})
     job = app.wait(r["job"])
