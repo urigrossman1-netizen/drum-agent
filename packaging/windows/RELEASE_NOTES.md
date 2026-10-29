@@ -11,7 +11,7 @@ notes") and get an original chart.
    signed yet: click **More info**, then **Run anyway**.
 3. Click through the installer. Drum Agent opens, and it's in the Start menu.
 
-Windows 10 or 11, 64-bit. No administrator rights needed. About 1 GB on disk.
+Windows 10 or 11, 64-bit. No administrator rights needed. About {size_gb} GB on disk.
 
 ### Good to know
 - Charts of songs from YouTube are for your own practice. They are marked "Transcribed for
@@ -20,9 +20,12 @@ Windows 10 or 11, 64-bit. No administrator rights needed. About 1 GB on disk.
 - Everything happens on your computer. The app connects to the internet only to identify
   songs (MusicBrainz, iTunes, Deezer), to search and download from YouTube, and to keep its
   YouTube downloader (yt-dlp) up to date.
+- In a full band recording, Drum Agent first separates the drums from the other instruments
+  (the HTDemucs model, on your computer), then writes out what it hears. The app shows each
+  step while it works.
 - Automatic transcription is not perfect: bars it is unsure about are marked for you to
   check by ear.
 - Your charts are kept in `%LOCALAPPDATA%\Drum Agent` (they stay if you uninstall).
 
-Ships with LilyPond (GPL), FFmpeg (LGPL), yt-dlp (Unlicense) and Deno (MIT): see
-`tools\NOTICES.txt` in the install folder.
+Ships with LilyPond (GPL), FFmpeg (LGPL), yt-dlp (Unlicense), Deno (MIT) and the HTDemucs
+model (MIT, run with PyTorch, BSD): see `tools\NOTICES.txt` in the install folder.

@@ -130,7 +130,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(python -c "import drum_agent; print(drum_agent.__version__)")
-          gh release delete app-windows --cleanup-tag --yes 2>/dev/null || true
-          gh release create app-windows dist/DrumAgent-Setup.exe --target "$GITHUB_SHA" --latest \
-            --title "Drum Agent $version for Windows" --notes-file packaging/windows/RELEASE_NOTES.md
+          gb=$(python -c "print(round($(du -sm dist/DrumAgent | cut -f1) / 1024, 1))")
+          sed "s/{size_gb}/$gb/" packaging/windows/RELEASE_NOTES.md > "$RUNNER_TEMP/notes.md"
+          # The new release, under this run's own tag, goes up first; the older ones are deleted
+          # only then, so the download link never breaks. (GitHub refuses the tag when a later
+          # push changed a workflow file: then the previous release simply stays.)
+          tag="app-windows-$GITHUB_RUN_NUMBER"
+          gh release create "$tag" dist/DrumAgent-Setup.exe --target "$GITHUB_SHA" --latest \
+            --title "Drum Agent $version for Windows" --notes-file "$RUNNER_TEMP/notes.md"
+          for old in $(gh release list --limit 100 --json tagName --jq '.[].tagName | select(startswith("app-windows"))'); do
+            [ "$old" = "$tag" ] || gh release delete "$old" --cleanup-tag --yes
+          done
           echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/DrumAgent-Setup.exe" >> "$GITHUB_STEP_SUMMARY"

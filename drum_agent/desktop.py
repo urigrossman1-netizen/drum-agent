@@ -208,6 +208,17 @@ border:3px solid #2a3350;border-top-color:#2ee6a6;border-radius:50%;animation:r 
 </div></body></html>"""
 
 
+WINDOW = (1360, 900)
+
+
+def window_size(screens) -> dict:
+    """The window opens at 1360 x 900, or maximized when the main screen has less room than that
+    (title bar and taskbar included): a 1366 x 768 laptop, or 1920 x 1080 at 125 % scaling."""
+    w, h = WINDOW
+    roomy = bool(screens) and screens[0].width >= w + 40 and screens[0].height >= h + 100
+    return {"width": w, "height": h, "maximized": not roomy}
+
+
 def show_window(url: str, ready) -> bool:
     """The studio in its own window (pywebview). Blocks until the window is closed; False without one."""
     try:
@@ -215,8 +226,12 @@ def show_window(url: str, ready) -> bool:
     except ImportError:
         return False
     try:
-        win = webview.create_window(TITLE, html=LOADING, width=1360, height=900, min_size=(900, 640),
-                                    background_color="#0b1020")
+        try:
+            screens = webview.screens
+        except Exception:  # noqa: BLE001 - no screen information: window_size() maximizes
+            screens = []
+        win = webview.create_window(TITLE, html=LOADING, min_size=(900, 640), background_color="#0b1020",
+                                    **window_size(screens))
 
         def load():
             if ready():

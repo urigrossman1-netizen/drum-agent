@@ -57,6 +57,17 @@ def test_yt_dlp_is_copied_once_and_an_updated_copy_is_kept(tmp_path):
     assert desktop.install_ytdlp(tmp_path / "other", None) is None  # nothing shipped, nothing copied
 
 
+def test_the_window_is_maximized_on_a_small_screen():
+    class Screen:
+        def __init__(self, width, height):
+            self.width, self.height = width, height
+
+    assert desktop.window_size([Screen(1920, 1080)]) == {"width": 1360, "height": 900, "maximized": False}
+    for small in (Screen(1366, 768), Screen(1536, 864), Screen(1024, 768)):
+        assert desktop.window_size([small])["maximized"]
+    assert desktop.window_size([])["maximized"]  # no screen information
+
+
 def test_headless_app_serves_the_personal_studio_once(tmp_path):
     data = tmp_path / "data"
     port = desktop.free_port()
