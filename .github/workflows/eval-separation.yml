@@ -1,8 +1,8 @@
 # Temporary: measures drum separation (HTDemucs) before detection.
-# Round 1 (train split of MDB Drums): band mixes all-5 F 0.696 -> 0.774. Round 2, here: the
-# held-out test split (run once for this model), and the synthetic evaluations with and
-# without separation (CLAUDE.md: both eval scripts before and after; jazz and brush kits).
-# The model weights can't be downloaded in the development container, so this runs here.
+# Round 1, MDB Drums train split: band mixes all-5 onset F 0.696 -> 0.774. Round 2, the held-out
+# test split (run once for this model): 0.591 -> 0.733 (track mean 0.654 -> 0.828; the drum-only
+# stems score 0.830). Round 3, here: the synthetic evaluations with and without separation
+# (CLAUDE.md: both eval scripts before and after; jazz and brush kits, band mixes).
 name: Measure drum separation (temporary)
 
 on:
@@ -36,12 +36,6 @@ jobs:
           python -m pip install -q torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -q -e . demucs mir_eval
           sudo scripts/install_lilypond.sh
-      - name: Download MDB Drums
-        run: python scripts/eval_real.py --download
-      - name: Held-out test split (once), drums / band mix / separated band mix
-        env:
-          DRUM_AGENT_TORCH_THREADS: "2"
-        run: python scripts/eval_real.py --split test --mix both --separate --jobs 2
       - name: Synthetic notation evaluation, separation off
         run: python scripts/eval_notation.py --jobs 4 --separate off
       - name: Synthetic notation evaluation, separation on (band conditions; drums-only never separated)

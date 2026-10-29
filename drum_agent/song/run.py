@@ -171,7 +171,8 @@ def _choose_audio(query: str, args, ident: SongCandidate | None) -> AudioChoice:
         search = _search_text(query, args.artist, ident)
         print(f"2. Audio: nothing in your library ({where}); searching video sites with yt-dlp for {search!r}")
         videos = fetch.search_videos(search, args.candidates, ident.duration_s if ident else None,
-                                     asked=f"{query} {args.artist or ''}", ytdlp=exe)
+                                     asked=f"{query} {args.artist or ''}", ytdlp=exe,
+                                     artist=args.artist or (ident.artist if ident else None))
         if not videos:
             raise _fail(f"the video search found nothing for {search!r}; give a file with --audio")
         choices = [AudioChoice("video", v.url, video=v) for v in videos]

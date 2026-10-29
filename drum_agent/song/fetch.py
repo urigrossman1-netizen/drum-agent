@@ -59,8 +59,9 @@ VIDEO_PENALTY_WORDS = ("live", "cover", "drum cover", "remix", "karaoke", "lesso
 # A copy without the drums (or without the song) is useless for a drum transcription.
 NO_DRUMS_WORDS = ("drumless", "no drums", "without drums", "minus drums", "drums removed", "backing track",
                   "drum backing", "play along", "playalong")
-_OFFICIAL_TAG = re.compile(r"[(\[]?\s*official\s+(?:audio|video|music\s+video|lyric\s+video|visualizer)\s*[)\]]?",
-                           re.IGNORECASE)
+_OFFICIAL_TAG = re.compile(r"[(\[]?\s*official\s+(?:[\w-]+\s+){0,2}?(?:audio|video|music\s+video|lyric\s+video|"
+                           r"visualizer)\s*[)\]]?", re.IGNORECASE)  # "(Official Audio)", "(Official 4K Video)"
+_CHANNEL_SUFFIX = re.compile(r"\s*(?:-\s*topic|vevo|official)\s*$", re.IGNORECASE)
 
 YTDLP_MISSING = ("yt-dlp is not installed. Drum Agent does not include it; to use audio from a video site, "
                  "install it yourself: pip install yt-dlp")
@@ -438,27 +439,46 @@ def _parse_infos(stdout: str) -> list[VideoCandidate]:
     return out
 
 
+def _compact(text: str | None) -> str:
+    return text_key(text).replace(" ", "")
+
+
 def rank_videos(videos: list[VideoCandidate], query: str, expected_duration: float | None = None,
-                asked: str | None = None) -> list[VideoCandidate]:
-    """Best first: title match, a length within 10 % of the identified recording, and no
-    "live", "cover", "remix"... in the title unless the user's own words (`asked`) contain it."""
+                asked: str | None = None, artist: str | None = None) -> list[VideoCandidate]:
+    """Best first: title (with the channel's name, which often is the artist) against the query,
+    a length within 10 % of the identified recording, and no "live", "cover", "remix"... in the
+    title unless the user's own words (`asked`) contain it. Then the trusted copies: the
+    platform's own copy of the album track (a "- Topic" channel), the artist's own channel,
+    an "official" audio or video."""
     asked = asked if asked is not None else query
     for v in videos:
-        s = similarity(query, _OFFICIAL_TAG.sub(" ", v.title))
+        title = _OFFICIAL_TAG.sub(" ", v.title)
+        channel = str(v.channel or v.uploader or "")
+        name = _CHANNEL_SUFFIX.sub("", channel).strip()
+        s = max(similarity(query, title), similarity(query, f"{name} {title}") if name else 0.0)
         if expected_duration and v.duration_s:
             off = abs(v.duration_s - expected_duration) / expected_duration
             s += 0.3 if off <= DURATION_TOLERANCE else -min(0.3, off)
         s -= version_penalty(v.title, asked, VIDEO_PENALTY_WORDS, per_word=0.3)
         s -= version_penalty(v.title, asked, NO_DRUMS_WORDS, per_word=1.0)
-        if re.search(r"\bofficial (?:audio|video|music video)\b", text_key(v.title)) or \
-                str(v.channel or v.uploader or "").endswith(" - Topic"):
-            s += 0.05  # the label's upload or the platform's own audio track
+        # The version the user asked for ("live", "acoustic"...) comes before the album track.
+        t, q = f" {text_key(v.title)} ", f" {text_key(asked)} "
+        s += 0.5 * sum(1 for w in VIDEO_PENALTY_WORDS if f" {text_key(w)} " in t and f" {text_key(w)} " in q)
+        if re.search(r"-\s*topic\s*$", channel, re.IGNORECASE):
+            s += 0.2  # the platform's own copy of the album track
+        elif artist and name and _compact(name) == _compact(artist):
+            s += 0.1  # the artist's (or their label's VEVO) channel
+        key = text_key(v.title)
+        if re.search(r"\bofficial (?:\w+ ){0,2}audio\b", key):
+            s += 0.1
+        elif re.search(r"\bofficial (?:\w+ ){0,2}(?:video|music video|visualizer)\b", key):
+            s += 0.05
         v.score = round(s, 3)
     return sorted(videos, key=lambda v: -v.score)
 
 
 def search_videos(query: str, n: int = 5, expected_duration: float | None = None, *, asked: str | None = None,
-                  ytdlp: list[str] | None = None, flat: bool = False,
+                  ytdlp: list[str] | None = None, flat: bool = False, artist: str | None = None,
                   timeout: float = YTDLP_SEARCH_TIMEOUT) -> list[VideoCandidate]:
     """Ranked video candidates from `yt-dlp --dump-json "ytsearchN:QUERY"` (metadata only, nothing downloaded).
 
@@ -472,7 +492,7 @@ def search_videos(query: str, n: int = 5, expected_duration: float | None = None
     videos = _parse_infos(proc.stdout)
     if not videos and proc.returncode != 0:
         raise FetchError(f"yt-dlp search failed: {_tail(proc.stderr)}")
-    return rank_videos(videos, query, expected_duration, asked)
+    return rank_videos(videos, query, expected_duration, asked, artist)
 
 
 def video_info(url: str, *, ytdlp: list[str] | None = None, timeout: float = YTDLP_SEARCH_TIMEOUT) -> VideoCandidate:

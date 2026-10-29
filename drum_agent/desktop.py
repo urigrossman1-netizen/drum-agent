@@ -78,6 +78,22 @@ def configure(data: Path, tools: Path | None) -> None:
     os.environ["PATH"] = os.pathsep.join([*paths, os.environ.get("PATH", "")])
 
 
+def hide_console_windows() -> None:
+    """Windows: the tools (LilyPond, FFmpeg, yt-dlp) are console programs, and a windowed app that
+    starts one gets a black console window popping up every time. Start them all without one."""
+    if os.name != "nt" or getattr(subprocess.Popen, "no_window", False):
+        return
+    flag = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
+    class Popen(subprocess.Popen):
+        no_window = True
+
+        def __init__(self, *args, **kwargs):
+            kwargs["creationflags"] = kwargs.get("creationflags", 0) | flag
+            super().__init__(*args, **kwargs)
+    subprocess.Popen = Popen  # subprocess.run and friends look it up here
+
+
 def install_ytdlp(data: Path, tools: Path | None) -> Path | None:
     """The shipped yt-dlp, copied into the user's folder once (an installed copy can't update itself
     there without administrator rights). Returns its path, or None when none is shipped."""
@@ -254,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-update", action="store_true", help="don't update yt-dlp")
     args = p.parse_args(argv)
 
+    hide_console_windows()
     data = data_dir()
     data.mkdir(parents=True, exist_ok=True)
     _logging(data)

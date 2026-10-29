@@ -5,7 +5,8 @@
 1. health: every tool ready (LilyPond, ffmpeg, ffprobe, the classifier, the database), the
    personal mode, and songs findable online (yt-dlp found);
 2. a beat from a description, engraved (a PDF comes back);
-3. a recording uploaded with a rights basis, transcribed and engraved;
+3. a recording uploaded with a rights basis, transcribed (the drums separated from the band
+   first, with --expect-separation) and engraved;
 4. a YouTube search for a song (titles and lengths only);
 5. finding and charting that song. On a home connection it is charted. GitHub's servers are
    refused by YouTube ("Sign in to confirm you're not a bot"): that must come back as a
@@ -77,12 +78,14 @@ def multipart(fields: dict[str, str], name: str, filename: str, content: bytes) 
     return b"".join(parts), {"Content-Type": f"multipart/form-data; boundary={b}"}
 
 
-def run(app: App, take: Path, expect_download: bool) -> None:
+def run(app: App, take: Path, expect_download: bool, expect_separation: bool = False) -> None:
     h = app.call("GET", "/api/health")
     for name, c in h["checks"].items():
         check(c["ok"], f"{name} ready {c.get('version') or ''}".strip())
     check(h["mode"] == "personal", "the app runs in personal mode")
     check(h["online"]["available"], f"songs can be found online ({h['online']['detail']})")
+    if expect_separation:
+        check(h["separation"]["available"], f"the drum separation is installed ({h['separation']['model']})")
 
     r = app.call("POST", "/api/beats", json_body={"prompt": "A rock beat at 120 BPM, 4 bars, crash on the one"})
     job = app.wait(r["job"])
@@ -92,9 +95,15 @@ def run(app: App, take: Path, expect_download: bool) -> None:
     song = app.call("POST", "/api/songs", json_body={"title": "Smoke Test Take", "artist": "Drum Agent"})["song"]
     body, headers = multipart({"rights": "own"}, "file", "take.wav", take.read_bytes())
     r = app.call("POST", f"/api/songs/{song['id']}/upload", data=body, headers=headers)
+    t0 = time.time()
     job = app.wait(r["job"])
-    check(job["status"] == "succeeded", f"an uploaded recording is transcribed ({job.get('error') or 'ok'})")
+    check(job["status"] == "succeeded", f"an uploaded recording is transcribed ({job.get('error') or 'ok'}, "
+                                        f"{time.time() - t0:.0f} s)")
     chart = app.call("GET", f"/api/charts/{job['chart_id']}")
+    if expect_separation:
+        notes = chart["summary"].get("notes") or []
+        check(bool(notes) and notes[0].startswith("The drums were separated from the band"),
+              "the drums were separated from the band first (HTDemucs ran in the app)")
     check(chart["bars"] >= 4 and app.pdf(chart["id"])[:4] == b"%PDF",
           f"its chart is engraved: {chart['bars']} bars, status {chart['status']}")
 
@@ -122,9 +131,10 @@ def main() -> int:
     p.add_argument("base", help="e.g. http://127.0.0.1:8765")
     p.add_argument("--take", type=Path, required=True, help="a WAV recording of drums to upload")
     p.add_argument("--expect-download", action="store_true", help="the YouTube download must work here")
+    p.add_argument("--expect-separation", action="store_true", help="the drum separation must be installed and run")
     args = p.parse_args()
     try:
-        run(App(args.base), args.take, args.expect_download)
+        run(App(args.base), args.take, args.expect_download, args.expect_separation)
     except Failed as exc:
         print(f"FAILED - {exc}", flush=True)
         return 1

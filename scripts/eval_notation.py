@@ -113,7 +113,10 @@ def main() -> None:
             raise SystemExit(f"unknown condition {k}; choose from {', '.join(CONDITIONS)}")
     opts = {"bpm": a.bpm, "separate": a.separate}
     if a.jobs > 1:
-        with ProcessPoolExecutor(a.jobs) as ex:
+        import multiprocessing
+        # Fresh worker processes (not forks of this one): a fork of a process whose libraries
+        # started threads (OpenMP, BLAS) can die at once ("BrokenProcessPool").
+        with ProcessPoolExecutor(a.jobs, mp_context=multiprocessing.get_context("spawn")) as ex:
             results = list(ex.map(run_one, [c for c, _ in jobs], [k for _, k in jobs], [opts] * len(jobs)))
     else:
         results = [run_one(c, k, opts) for c, k in jobs]

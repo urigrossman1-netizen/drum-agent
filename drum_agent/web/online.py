@@ -52,7 +52,7 @@ def _asked(song: dict) -> str:
 def candidates(song: dict, n: int = SEARCH_RESULTS) -> list[VideoCandidate]:
     """Ranked uploads of this song, best first (metadata only; nothing is downloaded)."""
     return fetch.search_videos(search_query(song), n, song.get("duration_s"), asked=_asked(song), flat=True,
-                               timeout=SEARCH_TIMEOUT_S)
+                               artist=song["artist"], timeout=SEARCH_TIMEOUT_S)
 
 
 def public(v: VideoCandidate, expected_s: float | None) -> dict:

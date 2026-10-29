@@ -1127,3 +1127,26 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
     mine = AudioSource(Path("/music/x.wav"), "file")
     mine_cmd = run._rerun_command(given, mine).replace("BASIS", "own")
     assert parser.parse_args(shlex.split(mine_cmd)[3:]).audio == "/music/x.wav"
+
+
+def test_ranking_prefers_the_album_track_and_the_artists_own_uploads():
+    """Titles, channels and lengths as YouTube's search returned them for "Back in Black" (Oct 2026),
+    plus the kinds of upload that must never win."""
+    vids = [VideoCandidate(url=f"u{k}", title=t, channel=c, duration_s=d) for k, (t, c, d) in enumerate([
+        ("AC/DC - Back In Black (Official 4K Video)", "AC/DC", 254),
+        ("AC/DC - Back In Black (Lyrics)", "7clouds Rock", 252),
+        ("AC/DC - Back In Black", "Rock And Metal Tv", 256),
+        ("Back In Black", "AC/DC - Topic", 255),
+        ("AC/DC - Back In Black (Live At River Plate, December 2009)", "AC/DC", 270),
+        ("AC/DC - Back In Black (Drum Cover)", "Drummer Kid", 255),
+        ("Back In Black - Drumless Backing Track", "Backing Tracks", 255),
+    ])]
+    ranked = fetch.rank_videos(vids, "AC/DC Back in Black", 255, asked="Back in Black AC/DC", artist="AC/DC")
+    assert [v.channel for v in ranked[:3]] == ["AC/DC - Topic", "AC/DC", "Rock And Metal Tv"]
+    assert [v.title for v in ranked[-3:]] == ["AC/DC - Back In Black (Live At River Plate, December 2009)",
+                                              "AC/DC - Back In Black (Drum Cover)",
+                                              "Back In Black - Drumless Backing Track"]
+    # Asked for the live version: the live upload is no longer pushed down.
+    live = fetch.rank_videos(vids, "AC/DC Back in Black live", None, asked="Back in Black live River Plate",
+                             artist="AC/DC")
+    assert live[0].title.startswith("AC/DC - Back In Black (Live At River Plate")
