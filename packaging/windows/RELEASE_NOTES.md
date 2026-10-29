@@ -1,0 +1,28 @@
+## Drum Agent for Windows
+
+Type a song and get its drum chart. Drum Agent finds the song on YouTube, listens to the
+drums and writes them out as real drum sheet music you can play along with, print and
+export (PDF, MusicXML, MIDI). Or describe a beat ("a funky groove at 96 BPM with ghost
+notes") and get an original chart.
+
+### Install
+1. Download **DrumAgent-Setup.exe** below.
+2. Open it. Windows may say "Windows protected your PC" because the app is new and not
+   signed yet: click **More info**, then **Run anyway**.
+3. Click through the installer. Drum Agent opens, and it's in the Start menu.
+
+Windows 10 or 11, 64-bit. No administrator rights needed. About 1 GB on disk.
+
+### Good to know
+- Charts of songs from YouTube are for your own practice. They are marked "Transcribed for
+  personal practice. Not for distribution." Posting them publicly needs the music
+  publisher's permission. Beats you make, and charts of your own songs, are yours to share.
+- Everything happens on your computer. The app connects to the internet only to identify
+  songs (MusicBrainz, iTunes, Deezer), to search and download from YouTube, and to keep its
+  YouTube downloader (yt-dlp) up to date.
+- Automatic transcription is not perfect: bars it is unsure about are marked for you to
+  check by ear.
+- Your charts are kept in `%LOCALAPPDATA%\Drum Agent` (they stay if you uninstall).
+
+Ships with LilyPond (GPL), FFmpeg (LGPL), yt-dlp (Unlicense) and Deno (MIT): see
+`tools\NOTICES.txt` in the install folder.

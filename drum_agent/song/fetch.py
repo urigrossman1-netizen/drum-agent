@@ -396,7 +396,8 @@ def find_ytdlp() -> list[str] | None:
     exe = shutil.which("yt-dlp")
     if exe:
         return [exe]
-    if importlib.util.find_spec("yt_dlp") is not None:
+    # In the packaged app sys.executable is the app itself, not Python: only a yt-dlp program will do.
+    if not getattr(sys, "frozen", False) and importlib.util.find_spec("yt_dlp") is not None:
         return [sys.executable, "-m", "yt_dlp"]
     return None
 

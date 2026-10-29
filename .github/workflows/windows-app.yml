@@ -1,0 +1,135 @@
+# Builds the Drum Agent app for Windows (DrumAgent-Setup.exe), tests the built app and the
+# installed app, and publishes the installer as the release "Drum Agent for Windows":
+#   https://github.com/<owner>/<repo>/releases/latest/download/DrumAgent-Setup.exe
+#
+# The test (packaging/smoke_test.py) runs the packaged app: every tool ready, a beat, an
+# uploaded recording transcribed, a YouTube search, and a song charted from its name. YouTube
+# refuses downloads from GitHub's servers, so here that last step must fail cleanly; on a home
+# connection it charts the song.
+name: Windows app
+
+on:
+  push:
+    branches: [claude/peaceful-noether-qz2xmc]
+    paths: ["drum_agent/**", "packaging/**", "pyproject.toml", ".github/workflows/windows-app.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-app-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # publishing the release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the app and the build tools
+        run: |
+          python -m pip install -q --upgrade pip
+          python -m pip install -q ".[desktop]" pyinstaller pillow
+          python -m pip uninstall -y -q yt-dlp  # the app ships yt-dlp.exe, which can update itself
+
+      - name: Draw the icon
+        run: python packaging/make_icon.py
+
+      - name: Build the app (PyInstaller)
+        timeout-minutes: 30
+        run: pyinstaller packaging/drum_agent.spec --noconfirm --clean --log-level WARN
+
+      - name: Add the tools (LilyPond, FFmpeg, yt-dlp, Deno)
+        timeout-minutes: 15
+        run: python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools
+
+      - name: Test the built app
+        timeout-minutes: 30
+        run: |
+          python -c "from drum_agent.charts import load_any; from drum_agent.synth import synthesize; synthesize(load_any('examples/specs/01_basic_rock_beat.yaml'), 'take.wav', method='numpy')"
+          export DRUM_AGENT_DATA_DIR="$RUNNER_TEMP/drum-agent-data"
+          ./dist/DrumAgent/DrumAgent.exe --headless --port 8765 &
+          for _ in $(seq 1 180); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/health || true)
+            [ "$code" = "200" ] || [ "$code" = "503" ] && break
+            sleep 1
+          done
+          python packaging/smoke_test.py http://127.0.0.1:8765 --take take.wav
+
+      - name: The app's log
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP/drum-agent-data/logs/drum-agent.log" || true
+          taskkill //F //IM DrumAgent.exe || true
+
+      - name: Build the installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          $version = python -c "import drum_agent; print(drum_agent.__version__)"
+          & $iscc "/DAppVersion=$version" "packaging\windows\DrumAgent.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Get-Item dist\DrumAgent-Setup.exe | Format-List Name, Length
+
+      - name: Install it, and open the installed app in its window
+        shell: pwsh
+        run: |
+          Start-Process -Wait -FilePath dist\DrumAgent-Setup.exe -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"
+          $exe = "$env:LOCALAPPDATA\Programs\Drum Agent\DrumAgent.exe"
+          if (-not (Test-Path $exe)) { throw "not installed at $exe" }
+          $env:DRUM_AGENT_DATA_DIR = "$env:RUNNER_TEMP\installed-data"
+          $app = Start-Process -FilePath $exe -PassThru
+          $url = $null
+          foreach ($i in 1..120) {
+            Start-Sleep 1
+            if (Test-Path "$env:DRUM_AGENT_DATA_DIR\app.json") {
+              $port = (Get-Content "$env:DRUM_AGENT_DATA_DIR\app.json" | ConvertFrom-Json).port
+              try { $r = Invoke-WebRequest "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 3; $url = "http://127.0.0.1:$port"; break } catch { }
+            }
+          }
+          if (-not $url) { Get-Content "$env:DRUM_AGENT_DATA_DIR\logs\drum-agent.log" -ErrorAction SilentlyContinue; throw "the installed app did not start" }
+          Write-Host "the installed app is running at $url"
+          Start-Sleep 12
+          # A screenshot of the screen (the app's window), printed small, to be checked by eye.
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $shot = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($shot).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $small = New-Object System.Drawing.Bitmap $shot, 1280, ([int](1280 * $b.Height / $b.Width))
+          $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
+          $q = New-Object System.Drawing.Imaging.EncoderParameters 1
+          $q.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality), 60L
+          $small.Save("$env:RUNNER_TEMP\window.jpg", $codec, $q)
+          Write-Host ("SCREENSHOT:" + [Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:RUNNER_TEMP\window.jpg")))
+          Get-Content "$env:DRUM_AGENT_DATA_DIR\logs\drum-agent.log" -ErrorAction SilentlyContinue | Select-Object -Last 20
+          Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+          Get-Process DrumAgent -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DrumAgent-Setup
+          path: dist/DrumAgent-Setup.exe
+          retention-days: 14
+
+      - name: Publish "Drum Agent for Windows"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python -c "import drum_agent; print(drum_agent.__version__)")
+          gh release delete app-windows --cleanup-tag --yes 2>/dev/null || true
+          gh release create app-windows dist/DrumAgent-Setup.exe --target "$GITHUB_SHA" --latest \
+            --title "Drum Agent $version for Windows" --notes-file packaging/windows/RELEASE_NOTES.md
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/DrumAgent-Setup.exe" >> "$GITHUB_STEP_SUMMARY"

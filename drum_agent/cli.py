@@ -366,6 +366,18 @@ def cmd_doctor(args) -> int:
     return run_doctor()
 
 
+def cmd_app(args) -> int:
+    try:
+        import fastapi  # noqa: F401
+        import uvicorn  # noqa: F401
+    except ImportError:
+        print("error: the app needs the web dependencies: pip install -e '.[desktop]'", file=sys.stderr)
+        return 1
+    from .desktop import main as app_main
+    return app_main([*(["--headless"] if args.headless else []), *(["--port", str(args.port)] if args.port else []),
+                     *(["--no-update"] if args.no_update else [])])
+
+
 def cmd_serve(args) -> int:
     try:
         import fastapi  # noqa: F401
@@ -569,6 +581,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("doctor", help="check dependencies")
     p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser("app", help="Drum Agent on your own computer: the studio in its own window; a song typed by "
+                                   "name is found on YouTube and charted for your own practice")
+    p.add_argument("--headless", action="store_true", help="no window: serve on 127.0.0.1 until stopped (for tests)")
+    p.add_argument("--port", type=int, default=0, help="port (default: a free one)")
+    p.add_argument("--no-update", action="store_true", help="don't update yt-dlp at start")
+    p.set_defaults(func=cmd_app)
 
     p = sub.add_parser("serve", help="run the web app (search, upload, transcribe, view, print)")
     p.add_argument("--host", default="127.0.0.1")
