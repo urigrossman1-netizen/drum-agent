@@ -26,7 +26,9 @@ COPY scripts/install_lilypond.sh /tmp/install_lilypond.sh
 RUN LILYPOND_VERSION=${LILYPOND_VERSION} PREFIX=/opt bash /tmp/install_lilypond.sh && rm /tmp/install_lilypond.sh
 
 # The drum separation: CPU PyTorch (not the CUDA build), demucs and its model, fetched now.
-RUN pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+# numpy first: demucs imports it without declaring it, and the PyTorch index doesn't bring it.
+RUN pip install numpy \
+ && pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
  && pip install demucs \
  && python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
 

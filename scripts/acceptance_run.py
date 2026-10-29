@@ -110,13 +110,15 @@ def accuracy(ref: list[tuple[float, str]], est: list[tuple[float, str]]) -> dict
             "annotated": n_ref, "timing_ms": round(err / tp, 1) if tp else None}
 
 
-def run(app: App, track: str, search: str | None) -> None:
+def run(app: App, track: str, search: str | None, expect_separation: bool = False) -> None:
     paths = _paths(track)
     check(paths["mix"].is_file() and paths["class"].is_file(),
           f"the recording and its annotations are in the cache ({paths['mix'].name}; eval_real.py --download)")
     h = app.call("GET", "/api/health")
     check(h["ok"], "the app is up: " + ", ".join(f"{k} {'ok' if v['ok'] else 'MISSING'}" for k, v in h["checks"].items()))
     print(f"   mode {h['mode']}; drum separation {'installed' if h['separation']['available'] else 'not installed'}")
+    if expect_separation:
+        check(h["separation"]["available"], f"the drum separation is installed ({h['separation'].get('model')})")
 
     if search:  # 1. search: real catalog providers (MusicBrainz, iTunes, Deezer; Spotify, YouTube with keys)
         r = app.call("GET", "/api/search?q=" + urllib.parse.quote(search))
@@ -142,6 +144,10 @@ def run(app: App, track: str, search: str | None) -> None:
 
     # 6. the chart
     chart = app.call("GET", f"/api/charts/{job['chart_id']}")
+    if expect_separation:
+        notes = chart["summary"].get("notes") or []
+        check(bool(notes) and notes[0].startswith("The drums were separated from the band"),
+              "the drums were separated from the band first (HTDemucs ran on the server)")
     score = app.call("GET", chart["files"]["chart.json"])
     hits = sum(len(m["hits"]) for m in score["measures"])
     insts = sorted({h["inst"] for m in score["measures"] for h in m["hits"]})
@@ -190,9 +196,10 @@ def main() -> int:
     p.add_argument("base", help="e.g. http://127.0.0.1:8000")
     p.add_argument("--track", default="Britpop", choices=TRAIN, help="an MDB Drums development track (default Britpop)")
     p.add_argument("--search", help="also a real catalog search for this text (needs the internet)")
+    p.add_argument("--expect-separation", action="store_true", help="the drum separation must be installed and run")
     args = p.parse_args()
     try:
-        run(App(args.base), args.track, args.search)
+        run(App(args.base), args.track, args.search, args.expect_separation)
     except Failed as exc:
         print(f"FAILED - {exc}", flush=True)
         return 1
