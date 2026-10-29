@@ -118,13 +118,13 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
                 report.files["engraved_midi"] = res.midi
         else:
             p = out / f"{stem}.ly"
-            p.write_text(ly)
+            p.write_text(ly, encoding="utf-8")
             report.files["ly"] = p
 
     xml_path = None
     if "musicxml" in opts.formats:
         xml_path = out / f"{stem}.musicxml"
-        xml_path.write_text(to_musicxml(score, kit, plan))
+        xml_path.write_text(to_musicxml(score, kit, plan), encoding="utf-8")
         report.files["musicxml"] = xml_path
         if opts.verify:
             report.musicxml_errors = validate_musicxml(xml_path)
@@ -139,9 +139,9 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
     if opts.verify:
         report.comparisons = verify_exports(score, ly_midi, xml_path, midi_path, kit)
     report_path = out / f"{stem}.report.md"
-    report_path.write_text(render_report(score, report))
+    report_path.write_text(render_report(score, report), encoding="utf-8")
     report.files["report"] = report_path
-    (out / f"{stem}.report.json").write_text(json.dumps(report_json(score, report), indent=1) + "\n")
+    (out / f"{stem}.report.json").write_text(json.dumps(report_json(score, report), indent=1) + "\n", encoding="utf-8")
     report.files["report_json"] = out / f"{stem}.report.json"
     if opts.verify and not report.rendering_ok:
         raise ExportError("exports disagree with the IR or MusicXML is invalid:\n" + render_report(score, report))

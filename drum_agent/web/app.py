@@ -291,7 +291,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
     def chart(chart_id: str):
         c = _chart(store, chart_id)
         d = Path(c["dir"])
-        view = json.loads((d / "view.json").read_text())
+        view = json.loads((d / "view.json").read_text(encoding="utf-8"))
         song_row = store.get_song(c["song_id"])
         return {**_public_chart(c), "song": _public_song(song_row), "view": view,
                 "versions": [_public_chart(v) for v in store.charts_for(c["song_id"])],

@@ -234,7 +234,7 @@ def preview(body: ScoreIn, request: Request):
                 tmp = out.with_name(key + ".part")
                 shutil.rmtree(tmp, ignore_errors=True)
                 view = render_preview(score, tmp)
-                (tmp / "view.json").write_text(json.dumps(view))
+                (tmp / "view.json").write_text(json.dumps(view), encoding="utf-8")
                 shutil.rmtree(out, ignore_errors=True)
                 tmp.rename(out)
             except RenderError as exc:
@@ -244,7 +244,7 @@ def preview(body: ScoreIn, request: Request):
         _prune(store.root / "previews")
     else:
         (out / "view.json").touch()
-    view = json.loads((out / "view.json").read_text())
+    view = json.loads((out / "view.json").read_text(encoding="utf-8"))
     return {"key": key, "view": view, "validation": validation}
 
 

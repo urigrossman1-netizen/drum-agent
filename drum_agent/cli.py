@@ -107,7 +107,7 @@ def _channel(text: str) -> int:
 
 def _is_score_json(path: Path) -> bool:
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
     return isinstance(data, dict) and "measures" in data

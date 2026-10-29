@@ -76,7 +76,8 @@ def find_lilypond() -> str:
 
 def lilypond_version(exe: str) -> tuple[tuple[int, int, int], str]:
     try:
-        out = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=60).stdout
+        out = subprocess.run([exe, "--version"], capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=60).stdout
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RenderError(f"could not run {exe}: {exc}") from exc
     m = re.search(r"GNU LilyPond (\d+)\.(\d+)\.(\d+)", out)
@@ -96,7 +97,7 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     ly_path = out_dir / f"{stem}.ly"
-    ly_path.write_text(ly_source)
+    ly_path.write_text(ly_source, encoding="utf-8")
     for old in _pages(out_dir, stem) + [out_dir / f"{stem}.pdf", out_dir / f"{stem}.midi"]:
         if old.exists():
             old.unlink()
@@ -105,14 +106,15 @@ def render(ly_source: str, out_dir: str | Path, stem: str, png: bool = True,
         cmd[2:2] = ["--png", f"-dresolution={resolution}"]
     cmd.append(str(ly_path))
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=out_dir)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=timeout, cwd=out_dir)
     except subprocess.TimeoutExpired as exc:
         raise RenderError(f"LilyPond timed out after {timeout}s") from exc
     log = proc.stderr + proc.stdout
     warnings = [line.strip() for line in log.splitlines() if "warning:" in line or "error:" in line]
     fatal = [w for w in warnings if "error:" in w or any(f in w.lower() for f in _FATAL_WARNINGS)]
     if proc.returncode != 0 or fatal:
-        (out_dir / f"{stem}.log").write_text(log)
+        (out_dir / f"{stem}.log").write_text(log, encoding="utf-8")
         raise RenderError(f"LilyPond failed (exit {proc.returncode}): {fatal[:5] or 'see log'} "
                           f"(full log: {out_dir / (stem + '.log')})", log)
     pdf = out_dir / f"{stem}.pdf"

@@ -377,7 +377,7 @@ def _text(value: Any, what: str) -> str | None:
 
 def load_spec(path: str | Path, kit: Kit = DEFAULT_KIT) -> Score:
     path = Path(path)
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     if path.suffix.lower() in (".yaml", ".yml"):
         try:
             import yaml
@@ -399,7 +399,7 @@ def load_any(path: str | Path, kit: Kit = DEFAULT_KIT) -> Score:
     path = Path(path)
     if path.suffix.lower() == ".json":
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except ValueError as exc:
             raise ChartSpecError(f"{path}: not valid JSON: {exc}") from None
         if not isinstance(data, dict):

@@ -31,16 +31,17 @@ STAFF_HALF = 2.0  # half the staff height in staff spaces (the SVG unit at the s
 
 
 def render_svg_pages(ly_path: Path, out_dir: Path, timeout: int = 600) -> list[Path]:
-    ly = ly_path.read_text()
+    ly = ly_path.read_text(encoding="utf-8")
     if "    \\Score\n" not in ly:
         raise RenderError("the chart's LilyPond file has no \\Score layout block to tag")
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("page*.svg"):
         old.unlink()
     src = out_dir / "tagged.ly"
-    src.write_text(ly.replace("    \\Score\n", "    \\Score\n" + TAG, 1))
+    src.write_text(ly.replace("    \\Score\n", "    \\Score\n" + TAG, 1), encoding="utf-8")
     proc = subprocess.run([find_lilypond(), "-dbackend=svg", "-dno-point-and-click", "-o", str(out_dir / "page"),
-                           str(src)], capture_output=True, text=True, timeout=timeout, cwd=out_dir, check=False)
+                           str(src)], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          timeout=timeout, cwd=out_dir, check=False)
     src.unlink()
     pages = sorted(out_dir.glob("page*.svg"), key=lambda p: int(re.sub(r"\D", "", p.stem) or 1))
     if proc.returncode != 0 or not pages:
@@ -85,7 +86,7 @@ def page_map(pages: list[Path]) -> tuple[list[dict], dict[int, dict]]:
     the x position of each stroke position in it."""
     sizes, boxes = [], {}  # a bar split by a line break (a start-repeat) keeps its wider part
     for page_no, p in enumerate(pages):
-        text = p.read_text()
+        text = p.read_text(encoding="utf-8")
         (w, h), systems = _systems(text)
         notes: dict[int, dict[str, list[float]]] = {}
         for m in _NOTE.finditer(text):
@@ -128,7 +129,7 @@ def render_preview(score: Score, out_dir: Path, kit=None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     plan = plan_layout(score)
     ly = out_dir / "chart.ly"
-    ly.write_text(to_lilypond(score, kit, plan))
+    ly.write_text(to_lilypond(score, kit, plan), encoding="utf-8")
     return build_view(score, plan, ly, out_dir)
 
 

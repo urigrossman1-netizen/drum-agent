@@ -55,7 +55,7 @@ def asset_manifest() -> list[dict]:
     if root is None or not (root / "assets.json").is_file():
         return []
     try:
-        entries = json.loads((root / "assets.json").read_text())
+        entries = json.loads((root / "assets.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     out = []

@@ -85,14 +85,15 @@ def install_ytdlp(data: Path, tools: Path | None) -> Path | None:
         return target if target.is_file() else None
     stamp = data / "bin" / "yt-dlp.shipped"
     mark = f"{shipped.stat().st_size}:{int(shipped.stat().st_mtime)}"
-    if not target.is_file() or (stamp.is_file() and stamp.read_text() != mark and _older(target, shipped)):
+    updated = stamp.is_file() and stamp.read_text(encoding="utf-8") != mark and _older(target, shipped)
+    if not target.is_file() or updated:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(shipped, target)
         if os.name != "nt":
             target.chmod(0o755)
-        stamp.write_text(mark)
+        stamp.write_text(mark, encoding="utf-8")
     elif not stamp.is_file():
-        stamp.write_text(mark)
+        stamp.write_text(mark, encoding="utf-8")
     return target
 
 
@@ -108,10 +109,11 @@ def update_ytdlp(exe: Path, data: Path) -> None:
 
     def run():
         try:
-            out = subprocess.run([str(exe), "-U"], capture_output=True, text=True, timeout=300,
+            out = subprocess.run([str(exe), "-U"], capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=300,
                                  creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             log.info("yt-dlp -U: %s", " ".join((out.stdout + out.stderr).split())[-300:])
-            stamp.write_text(str(time.time()))
+            stamp.write_text(str(time.time()), encoding="utf-8")
         except (OSError, subprocess.SubprocessError) as exc:
             log.warning("could not update yt-dlp: %s", exc)
     threading.Thread(target=run, name="yt-dlp-update", daemon=True).start()
@@ -137,7 +139,7 @@ def healthy(url: str, timeout: float = 2.0) -> bool:
 def running_instance(data: Path) -> str | None:
     """The URL of this user's app if it is already running."""
     try:
-        info = json.loads((data / "app.json").read_text())
+        info = json.loads((data / "app.json").read_text(encoding="utf-8"))
         url = f"http://127.0.0.1:{int(info['port'])}"
     except (OSError, ValueError, KeyError, TypeError):
         return None
@@ -270,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
     url = f"http://127.0.0.1:{port}"
     server = start_server(port)
     seed_examples()
-    (data / "app.json").write_text(json.dumps({"port": port, "pid": os.getpid()}))
+    (data / "app.json").write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
     log.info("%s %s on %s (tools: %s)", TITLE, _version(), url, tools)
     try:
         if args.headless:

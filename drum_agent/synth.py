@@ -114,7 +114,8 @@ def synthesize(score: Score, out: str | Path, method: str = "fluidsynth", kit_pr
         mpath = Path(td) / "in.mid"
         mid.save(str(mpath))
         cmd = ["fluidsynth", "-ni", "-q", "-g", str(gain), "-r", str(SR), "-F", str(out), find_soundfont(), str(mpath)]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=600)
         if proc.returncode != 0 or not out.exists():
             raise RuntimeError(f"fluidsynth failed: {proc.stderr[-500:]}")
     return out

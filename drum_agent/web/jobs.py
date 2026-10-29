@@ -295,10 +295,10 @@ class JobRunner:
             step("view")
             view = build_view(score, report.plan, out / "chart.ly", out / "view")
             step("save")
-            (out / "view.json").write_text(_json(view))
+            (out / "view.json").write_text(_json(view), encoding="utf-8")
             status = chart_status(validation, report.rendering_ok)
             summary = chart_summary(score, report, view)
-            (out / "validation.json").write_text(_json(validation.to_dict()))
+            (out / "validation.json").write_text(_json(validation.to_dict()), encoding="utf-8")
             return self.store.add_chart(chart_id=chart_id, song_id=song["id"], status=status, origin=origin,
                                         bars=len(score.measures), validation=validation.to_dict(), summary=summary,
                                         job_id=job["id"] if job else None,

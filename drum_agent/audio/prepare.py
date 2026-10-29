@@ -90,7 +90,8 @@ def probe(path: Path) -> dict:
     """Container and first audio stream properties from ffprobe."""
     try:
         r = subprocess.run([_tool("ffprobe"), "-v", "error", "-print_format", "json", "-show_format",
-                            "-show_streams", str(path)], capture_output=True, text=True, timeout=60, check=False)
+                            "-show_streams", str(path)], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60, check=False)
     except subprocess.TimeoutExpired:
         raise AudioError("unreadable", "reading the file's properties timed out") from None
     if r.returncode != 0:
@@ -194,8 +195,8 @@ def prepare(src: str | Path, out_wav: str | Path, *, original_name: str | None =
     try:
         r = subprocess.run([_tool("ffmpeg"), "-nostdin", "-v", "error", "-y", "-i", str(src), "-map", "0:a:0",
                             "-vn", "-ac", str(INTERNAL_CHANNELS), "-ar", str(INTERNAL_SR), "-c:a", "pcm_s16le",
-                            "-f", "wav", str(tmp)], capture_output=True, text=True, timeout=DECODE_TIMEOUT,
-                           check=False)
+                            "-f", "wav", str(tmp)], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=DECODE_TIMEOUT, check=False)
     except subprocess.TimeoutExpired:
         tmp.unlink(missing_ok=True)
         raise AudioError("decode_failed", "decoding the file timed out") from None

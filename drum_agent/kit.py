@@ -198,7 +198,7 @@ class Kit:
         can't silently produce a different chart.
         """
         try:
-            data = json.loads(Path(path).read_text())
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise KitError(f"kit file {path}: {exc}") from None
         overrides = data.get("instruments", {}) if isinstance(data, dict) else None

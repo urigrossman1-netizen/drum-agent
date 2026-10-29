@@ -27,8 +27,11 @@ a = Analysis(  # noqa: F821
     noarchive=False,
 )
 pyz = PYZ(a.pure)  # noqa: F821
+# Python's UTF-8 mode: files and tool output are UTF-8 whatever the Windows code page (the code
+# also says so everywhere; this covers the libraries).
+options = [("X utf8", None, "OPTION")]
 exe = EXE(  # noqa: F821
-    pyz, a.scripts, [], exclude_binaries=True, name="DrumAgent", console=False,
+    pyz, a.scripts, options, exclude_binaries=True, name="DrumAgent", console=False,
     icon=ICON if os.path.isfile(ICON) else None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="DrumAgent")  # noqa: F821
