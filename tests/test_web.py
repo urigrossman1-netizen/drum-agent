@@ -698,6 +698,25 @@ def visit(client, token: str) -> None:
     client.cookies.set(owners.COOKIE, token)
 
 
+def test_the_same_recording_from_two_visitors_is_two_jobs(client, tmp_path):
+    """Found on the live studio: a visitor uploading a recording another visitor had already
+    uploaded got that visitor's job back, then "no such job" when following it."""
+    from drum_agent.synth import synthesize
+    take = synthesize(song_spec(bars=4, tempo=100), tmp_path / "take.wav", method="fluidsynth").read_bytes()
+    jobs = {}
+    for who in (VISITOR_A, VISITOR_B):
+        visit(client, who)
+        sid = _song(client, "Test Groove", "The Placeholders")["song"]["id"]
+        r = client.post(f"/api/songs/{sid}/upload", files={"file": ("take.wav", take, "audio/wav")},
+                        data={"rights": "original"})
+        assert r.status_code == 200 and r.json()["created"] is True, r.text
+        jobs[who] = r.json()["job"]["id"]
+        assert client.app_state.runner.wait(jobs[who], timeout=300)["status"] == "succeeded"
+        assert client.get(f"/api/jobs/{jobs[who]}").status_code == 200
+    assert jobs[VISITOR_A] != jobs[VISITOR_B]
+    assert client.get(f"/api/jobs/{jobs[VISITOR_A]}").status_code == 404  # B still can't see A's
+
+
 def test_a_new_visitor_gets_a_private_owner_cookie(client):
     from drum_agent.web import owners
     client.cookies.clear()

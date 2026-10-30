@@ -96,11 +96,14 @@ class JobRunner:
 
     # ---- API -------------------------------------------------------------
     def submit(self, song_id: str, source_id: str) -> tuple[dict, bool]:
-        """(job, created): the existing job for this recording and engine when there is one."""
+        """(job, created): the existing job for this song, recording and engine when there is one.
+
+        The key includes the song: the same recording uploaded to another song (another
+        visitor's, on a shared server) is that song's own job, never a job it can't see."""
         source = self.store.get_source(source_id)
         if source is None or source["song_id"] != song_id:
             raise KeyError("source not found for this song")
-        key = f"{source['sha256']}|{ENGINE}"
+        key = f"{song_id}|{source['sha256']}|{ENGINE}"
         existing = self.store.job_by_key(key)
         if existing is not None:
             return existing, False
