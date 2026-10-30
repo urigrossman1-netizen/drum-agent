@@ -6,7 +6,8 @@
 # reopened, exported, scored against its annotations) and only then posts the link. Charts made
 # in one run are cached for the next.
 #
-# Start it: Actions -> "Live studio" -> Run workflow (or push a change to .github/live-studio).
+# Start it: change the date in .github/live-studio and commit (GitHub's web editor will do, on a
+# phone too). "Run workflow" in the Actions tab works only once this file is on the default branch.
 name: Live studio
 
 on:
@@ -17,7 +18,7 @@ on:
     inputs:
       hours:
         description: "Hours to keep the studio online (at most 5.5)"
-        default: "5"
+        default: "5.5"
 
 concurrency:
   group: live-studio
@@ -37,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 355
     env:
-      HOURS: ${{ inputs.hours || '5' }}
+      HOURS: ${{ inputs.hours || '5.5' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -107,7 +108,7 @@ jobs:
             echo
             echo "$checked"
           } | tee -a "$GITHUB_STEP_SUMMARY" > link.md
-          printf '\nTo start it again later: Actions -> "Live studio" -> Run workflow.\n' >> link.md
+          printf '\nTo start it again later: open %s, change the date and click "Commit changes".\n' "https://github.com/${{ github.repository }}/edit/${{ github.ref_name }}/.github/live-studio" >> link.md
           { echo "STUDIO_URL=$url"; echo "STUDIO_UNTIL=$until_utc"; } >> "$GITHUB_ENV"
 
       # The result goes into the issue either way; a failure is reported there and marks the step.
@@ -172,7 +173,7 @@ jobs:
         run: |
           docker stop studio > /dev/null 2>&1 || true
           if [ -n "${STUDIO_ISSUE:-}" ]; then
-            printf '## Drum Agent Studio is offline\n\nThe last link has stopped working. To start it again: Actions -> "Live studio" -> Run workflow.\n' > link.md
+            printf '## Drum Agent Studio is offline\n\nThe last link has stopped working. To start it again: open %s, change the date and click "Commit changes".\n' "https://github.com/${{ github.repository }}/edit/${{ github.ref_name }}/.github/live-studio" > link.md
             gh issue edit "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file link.md || true
             gh issue close "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --comment "Offline now." || true
           fi
