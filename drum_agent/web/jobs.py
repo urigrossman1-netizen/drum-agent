@@ -302,6 +302,13 @@ class JobRunner:
             status = chart_status(validation, report.rendering_ok)
             summary = chart_summary(score, report, view)
             (out / "validation.json").write_text(_json(validation.to_dict()), encoding="utf-8")
+            if score.detections is None and parent_id:
+                # An edited, renamed or restored version keeps what the detector heard: the
+                # machine's original evidence is never lost to an edit.
+                parent = self.store.get_chart(parent_id)
+                log = Path(parent["dir"]) / "chart.detections.json" if parent else None
+                if log is not None and log.is_file():
+                    shutil.copy2(log, out / "chart.detections.json")
             return self.store.add_chart(chart_id=chart_id, song_id=song["id"], status=status, origin=origin,
                                         bars=len(score.measures), validation=validation.to_dict(), summary=summary,
                                         job_id=job["id"] if job else None,

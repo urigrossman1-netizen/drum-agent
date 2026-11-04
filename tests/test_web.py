@@ -416,6 +416,26 @@ def test_api_upload_transcribe_view_download_review(client, tmp_path):
     r = client.post(f"/api/charts/{chart['id']}/suggest-sections")
     assert r.status_code == 503 and r.json()["error"] == "not_configured"
 
+    # What the detector heard is kept beside the chart, and every later version keeps it.
+    log = client.get(chart["files"]["chart.detections.json"]).json()
+    assert log["summary"]["strokes"] > 0 and "unaccounted" not in log["summary"]["fates"]
+    assert "chart.detections.json" in client.get(f"/api/charts/{v2['id']}").json()["files"]
+    # A person's change is marked; the other notes keep their link to the detector's strokes.
+    score = client.get(chart["files"]["chart.json"]).json()
+    bar1 = score["measures"][0]
+    taken = {(h["pos"], h["inst"]) for h in bar1["hits"]}
+    pos = next(p for p in ("0", "1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8") if (p, "tom1") not in taken)
+    for h in bar1["hits"]:
+        h.pop("raw", None)  # an editor that doesn't carry provenance: the server restores it
+    bar1["hits"].append({"pos": pos, "inst": "tom1"})
+    r = client.post(f"/api/projects/{sid}/versions", json={"score": score, "base_chart_id": chart["id"]})
+    assert r.status_code == 200, r.text
+    v4 = r.json()
+    saved = client.get(f"/api/charts/{v4['id']}/files/chart.json").json()["measures"][0]["hits"]
+    assert [h.get("edited", False) for h in saved if (h["pos"], h["inst"]) == (pos, "tom1")] == [True]
+    assert all(h.get("raw") and not h.get("edited") for h in saved if (h["pos"], h["inst"]) != (pos, "tom1"))
+    assert "chart.detections.json" in client.get(f"/api/charts/{v4['id']}").json()["files"]
+
 
 @needs_ffmpeg
 def test_jobs_cancel_retry_and_recover(tmp_path):

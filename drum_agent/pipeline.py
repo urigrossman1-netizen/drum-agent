@@ -82,6 +82,10 @@ def export_all(score: Score, out_dir: str | Path, stem: str = "score", kit: Kit 
         p = out / f"{stem}.json"
         score.save(p)
         report.files["json"] = p
+        if score.detections is not None:  # what the detector heard, beside the chart (audio/detections.py)
+            p = out / f"{stem}.detections.json"
+            p.write_text(json.dumps(score.detections, separators=(",", ":")) + "\n", encoding="utf-8")
+            report.files["detections"] = p
 
     ly_midi = None
     if "pdf" in opts.formats or "ly" in opts.formats:

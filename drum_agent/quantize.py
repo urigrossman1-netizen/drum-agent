@@ -32,6 +32,7 @@ class Onset:
     ghost: bool = False
     flam: bool = False
     drag: bool = False
+    ids: tuple[int, ...] = ()  # the detector's stroke ids behind this onset (audio/detections.py)
 
 
 @dataclass
@@ -66,6 +67,9 @@ class QuantizeResult:
     bar_tempi: list[float] = field(default_factory=list)
     mean_abs_offset_ms: float = 0.0
     dropped: int = 0  # onsets outside the beat grid (reported by callers)
+    # What happened to onsets that didn't become a note of their own: (their stroke ids,
+    # "merged" | "off_grid" | "hihat_conflict", the ids of the note they gave way to).
+    trace: list[tuple[tuple[int, ...], str, tuple[int, ...]]] = field(default_factory=list)
 
 
 _BINARY_COST = {1: 0.0, 2: 0.5, 4: 2.0, 3: 3.0, 6: 5.0, 8: 6.5, 12: 9.0}
@@ -169,10 +173,13 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
     per_beat: list[list[tuple[Onset, float]]] = [[] for _ in range(n_beats)]
     guards = [beat_times[k] - durations[k] / 16 for k in range(n_beats)]
     dropped = 0
+    trace: list[tuple[tuple[int, ...], str, tuple[int, ...]]] = []
     for o in sorted(onsets, key=lambda o: o.time):
         k = bisect.bisect_right(guards, o.time) - 1
         if k < 0 or k >= n_beats:
             dropped += 1
+            if o.ids:
+                trace.append((tuple(o.ids), "off_grid", ()))
             continue
         rel = (o.time - beat_times[k]) / durations[k]
         per_beat[k].append((o, rel))
@@ -264,7 +271,7 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
             hit = Hit(pos=pos, inst=o.inst, velocity=max(1, min(127, int(o.velocity))),
                       accent=o.accent, ghost=o.ghost and not o.accent, flam=o.flam, drag=o.drag and not o.flam,
                       confidence=round(min(1.0, max(0.0, o.confidence)), 3),
-                      time=round(o.time, 4), offset_ms=round(offset_ms, 1))
+                      time=round(o.time, 4), offset_ms=round(offset_ms, 1), raw=tuple(o.ids) or None)
             key = (tb, pos, o.inst)
             if key in placed:
                 merged += 1
@@ -272,6 +279,11 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
                 if hit.velocity > old.velocity:
                     hit.confidence = max(hit.confidence, old.confidence)
                     placed[key] = (hit, o.time)
+                    gone, kept = old, hit
+                else:
+                    gone, kept = hit, old
+                if gone.raw:
+                    trace.append((gone.raw, "merged", kept.raw or ()))
             else:
                 placed[key] = (hit, o.time)
         if residuals and statistics.mean(residuals) > 1.6:
@@ -288,6 +300,8 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         if len(keys) > 1:
             keys.sort(key=lambda k: (placed[k][0].confidence, placed[k][0].velocity), reverse=True)
             for k in keys[1:]:
+                if placed[k][0].raw:
+                    trace.append((placed[k][0].raw, "hihat_conflict", placed[keys[0]][0].raw or ()))
                 del placed[k]
                 merged += 1
 
@@ -324,7 +338,7 @@ def quantize(onsets: list[Onset], beat_times: list[float], bars: list[BarDef],
         measures[0].tempo_text = "Swing"
     return QuantizeResult(measures, feel, round(swing_pos, 3) if swing_pos else None, merged, grid_counts,
                           [round(t, 2) for t in bar_tempi],
-                          round(statistics.mean(abs_offsets), 1) if abs_offsets else 0.0, dropped)
+                          round(statistics.mean(abs_offsets), 1) if abs_offsets else 0.0, dropped, trace)
 
 
 def _apply_tempo_marks(measures: list[Measure], bar_tempi: list[float], opts: QuantizeOptions) -> None:

@@ -41,6 +41,8 @@ class DrumHit:
     ghost: bool = False
     accent: bool = False
     ride_vs_hat: tuple[float, float] | None = None  # (ride evidence, hi-hat evidence) for cymbal strokes
+    rid: int = -1  # this stroke's id in the detection log (audio/detections.py)
+    also: tuple[int, ...] = ()  # other strokes this one stands for (a flam's grace note)
 
 
 @dataclass
@@ -64,6 +66,7 @@ class Detection:
     duration: float
     activations: dict[str, np.ndarray] = field(default_factory=dict)
     stats: dict = field(default_factory=dict)
+    log: object | None = None  # the DetectionLog (audio/detections.py)
 
 
 # Each class is judged inside the frequency region where it is distinctive.
@@ -299,9 +302,10 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
 
 def _finish(hits: list[DrumHit], fe: FrontEnd, stats: dict) -> Detection:
     """Post-processing shared by the detectors, then the Detection."""
-    hits = _merge_flams(hits)
-    hits = _drop_flam_crashes(hits)
-    _smooth_cymbals(hits)
+    log = stats.pop("log", None)
+    hits = _merge_flams(hits, log)
+    hits = _drop_flam_crashes(hits, log)
+    _smooth_cymbals(hits, log=log)
     _dynamics(hits)
     pad_frames = int(round(PAD / FRAME))
     return Detection(
@@ -311,6 +315,7 @@ def _finish(hits: list[DrumHit], fe: FrontEnd, stats: dict) -> Detection:
         duration=fe.duration,
         activations=stats.pop("activations", {}),
         stats=stats,
+        log=log,
     )
 
 
@@ -405,12 +410,16 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
     # even when the NMF lets free components absorb its wash in a band mix.
     hf_energy = M_full[band_centers() > 6000].sum(axis=0)
 
+    from .detections import DetectionLog
+    log = DetectionLog(detector="nmf", classes=list(classes))
     hits: list[DrumHit] = []
     debug: list[tuple[float, dict]] = []
     for k, t in enumerate(cand):
         time = float(t * FRAME) - PAD
         if time < -0.02:
+            log.candidate(time, gate="before the recording starts")
             continue
+        cid = log.candidate(time)
         dbg = {c: (round(float(r_cls[c][k] / (r_tot[c][k] + 1e-9)), 2),
                    round(float(r_cls[c][k] / region_ref[c]), 2)) for c in classes}
         debug.append((time, dbg))
@@ -424,6 +433,7 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
             evidence[c] = min(share / thr_share, loud / thr_loud)
             if share >= thr_share and loud >= thr_loud:
                 score[c] = (share, loud, evidence[c])
+        heard = set(score)  # every class over its thresholds, before the rules below
         # Cymbals: hi-hat and ride are never struck at the same instant (one hand
         # each would be needed, and their templates overlap on real cymbals), so
         # keep the stronger. A crash may sound with either only on strong evidence.
@@ -483,6 +493,8 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
         hands = sorted((c for c in score if c not in FEET), key=lambda c: -score[c][2])
         for c in hands[2:]:
             score.pop(c)
+        for c in sorted(heard - set(score) - {"hihat", "hihat_open"}):
+            log.reject(cid, c, "removed by a rule (one hi-hat state, two hands, bleed between drums)")
         for c, (share, loud, margin) in score.items():
             flam = False
             conf = float(1 / (1 + np.exp(-3.0 * (margin - 1.3))))
@@ -496,7 +508,8 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
             vel = int(np.clip(35 + 75 * min(loud, 1.5) / 1.5, 1, 127))
             hits.append(DrumHit(time, c, round(float(loud), 3), vel, round(conf, 3), flam=flam,
                                 ride_vs_hat=(evidence["ride"], evidence["hihat"] + evidence["hihat_open"])
-                                if c in ("hihat", "ride") else None))
+                                if c in ("hihat", "ride") else None,
+                                rid=log.stroke(time, c, loud, vel, conf, cand=cid)))
 
     # Flams: a grace bump before the stroke, looking back no further than the
     # previous detected stroke on the same drum (the grace itself is often an
@@ -509,11 +522,11 @@ def _detect_nmf(fe: FrontEnd, opts: DetectOptions) -> Detection:
             last_frame[h.inst] = f
     pad_frames = int(round(PAD / FRAME))
     return _finish(hits, fe, {"detector": "nmf", "free_components": free, "templates": K0, "frames": int(T),
-                              "debug": debug,
+                              "debug": debug, "log": log,
                               "activations": {c: a[pad_frames:] for c, a in {**A, "_free": A_free}.items()}})
 
 
-def _drop_flam_crashes(hits: list[DrumHit]) -> list[DrumHit]:
+def _drop_flam_crashes(hits: list[DrumHit], log=None) -> list[DrumHit]:
     """Remove "crashes" made by flams.
 
     In the stacked frames, a flam's grace note sees the main stroke's attack
@@ -532,6 +545,9 @@ def _drop_flam_crashes(hits: list[DrumHit]) -> list[DrumHit]:
             follows = any(0.012 <= d.time - h.time <= 0.060 for d in drums)
             flammed = any(d.flam and abs(d.time - h.time) <= 0.015 for d in drums)
             if follows or flammed:
+                if log is not None:
+                    for sid in (h.rid, *h.also):
+                        log.fate(sid, "dropped", "a flam's grace note, heard as a crash")
                 continue
         out.append(h)
     return out
@@ -589,7 +605,7 @@ def _adaptive_floor(values: np.ndarray, base: float) -> float:
     return base
 
 
-def _smooth_cymbals(hits: list[DrumHit], window: float = 2.0) -> None:
+def _smooth_cymbals(hits: list[DrumHit], window: float = 2.0, log=None) -> None:
     """Keep time-keeping cymbal strokes on one instrument within a phrase.
 
     Drummers ride one cymbal (hi-hat or ride) for a passage. A stroke whose
@@ -616,9 +632,11 @@ def _smooth_cymbals(hits: list[DrumHit], window: float = 2.0) -> None:
     for h, maj in changes:
         h.inst = maj
         h.confidence = round(h.confidence * 0.85, 3)
+        if log is not None:
+            log.relabel(h.rid, maj)
 
 
-def _merge_flams(hits: list[DrumHit]) -> list[DrumHit]:
+def _merge_flams(hits: list[DrumHit], log=None) -> list[DrumHit]:
     """Two strokes on the same drum 12-45 ms apart, first softer -> one flam."""
     out: list[DrumHit] = []
     by_inst: dict[str, list[DrumHit]] = {}
@@ -632,6 +650,10 @@ def _merge_flams(hits: list[DrumHit]) -> list[DrumHit]:
                     and a.strength < 0.8 * b.strength:
                 b.flam = True
                 skip.add(i)
+                if a.rid >= 0:  # the grace stroke lives on in the flam it became
+                    b.also = (*b.also, a.rid, *a.also)
+                    if log is not None:
+                        log.fate(a.rid, "flam_grace", into=(b.rid,))
         out += [h for i, h in enumerate(hs) if i not in skip]
     return out
 

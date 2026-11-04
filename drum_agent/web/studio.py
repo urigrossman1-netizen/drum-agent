@@ -331,6 +331,11 @@ def save_version(project_id: str, body: VersionIn, request: Request):
     base = store.get_chart(body.base_chart_id) if body.base_chart_id else store.latest_chart(project_id)
     if base is not None and base["song_id"] != project_id:
         raise HTTPException(422, "that version belongs to another project")
+    if base is not None and (Path(base["dir"]) / "chart.json").is_file():
+        # Mark what the person added or changed, and keep every unchanged note's link to
+        # the detector's strokes (edit.mark_edits).
+        from ..edit import mark_edits
+        mark_edits(score, Score.load(Path(base["dir"]) / "chart.json"))
     if s.get("kind") == "beat":
         score.title = s["title"]
     src = store.get_source(base["source_id"]) if base and base.get("source_id") else None

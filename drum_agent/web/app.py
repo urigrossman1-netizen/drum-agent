@@ -15,7 +15,8 @@ Routes (all JSON unless noted):
   GET  /api/jobs/{id}                      stages, status, error
   POST /api/jobs/{id}/cancel | /retry
   GET  /api/charts/{id}                    chart version, validation, summary, bar map
-  GET  /api/charts/{id}/files/{name}       chart.pdf | chart.musicxml | chart.mid | chart.json | page-N.svg
+  GET  /api/charts/{id}/files/{name}       chart.pdf | chart.musicxml | chart.mid | chart.json |
+                                           chart.detections.json | page-N.svg
   GET  /api/charts/{id}/audio              the chart's source audio, for playback-follow (if any)
   POST /api/charts/{id}/suggest-sections   Claude's section names (a suggestion; changes nothing)
   POST /api/charts/{id}/sections           apply section names: a new chart version
@@ -52,7 +53,9 @@ STATIC = Path(__file__).parent / "static"
 ID = {"song": re.compile(r"s_[0-9a-f]{16}"), "job": re.compile(r"job_[0-9a-f]{16}"),
       "chart": re.compile(r"ch_[0-9a-f]{16}"), "source": re.compile(r"src_[0-9a-f]{16}")}
 FILES = {"chart.pdf": "application/pdf", "chart.musicxml": "application/vnd.recordare.musicxml+xml",
-         "chart.mid": "audio/midi", "chart.json": "application/json"}
+         "chart.mid": "audio/midi", "chart.json": "application/json",
+         # what the detector heard (audio transcriptions; every later version keeps its first one's)
+         "chart.detections.json": "application/json"}
 PAGE = re.compile(r"page-([1-9][0-9]{0,2})\.svg")
 
 

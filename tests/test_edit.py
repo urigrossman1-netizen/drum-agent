@@ -130,6 +130,7 @@ def test_relabel_everywhere_counts_and_changes_only_that_instrument():
         for h in m["hits"]:
             if h["inst"] == "ride":
                 h["inst"] = "hihat"
+                h["edited"] = True  # a person changed it (Hit.edited)
     assert s.to_dict() == canon(expected)
     s.validate()
 
@@ -142,7 +143,7 @@ def test_relabel_limited_to_bars():
     after = s.to_dict()
     assert same_except_bars(before, after, [2, 3])
     for bar in (2, 3):
-        exp = [dict(h, inst="hihat") if h["inst"] == "ride" else h for h in hits(before, bar)]
+        exp = [dict(h, inst="hihat", edited=True) if h["inst"] == "ride" else h for h in hits(before, bar)]
         assert sorted(hits(after, bar), key=json.dumps) == sorted(exp, key=json.dumps)
     assert {h.inst for h in s.measures[0].hits} == {"ride", "snare", "kick"}
     assert {h.inst for h in s.measures[3].hits} == {"ride", "snare", "kick"}
@@ -156,6 +157,7 @@ def test_relabel_single_bar_keeps_flags_confidence_and_timing():
     for h in hits(expected, 3):
         if h["inst"] == "snare":
             h["inst"] = "rimshot"
+            h["edited"] = True
     assert s.to_dict() == canon(expected)
     assert hit(s, 3, "1/4", "rimshot").accent and hit(s, 3, "3/4", "rimshot").ghost
     assert hit(s, 3, "1/4", "rimshot").confidence == 0.6
@@ -273,7 +275,7 @@ def test_add_puts_exactly_one_hit(spec, expected):
     before = snap(s)
     E.add(s, spec)
     exp = copy.deepcopy(before)
-    hits(exp, 2).append(expected)
+    hits(exp, 2).append({**expected, "edited": True})  # added by a person (Hit.edited)
     assert s.to_dict() == canon(exp)
     s.validate()
 
@@ -335,6 +337,7 @@ def test_set_flags_replaces_flags_on_one_hit():
     h = find(exp, 2, "3/4", "snare")
     del h["ghost"]
     h["accent"] = True
+    h["edited"] = True
     assert s.to_dict() == exp
     s.validate()
 
@@ -347,6 +350,8 @@ def test_set_flags_without_flags_clears_everything_including_rolls():
     exp = copy.deepcopy(before)
     del find(exp, 5, "3/4", "snare")["roll"]
     del find(exp, 1, "1/4", "snare")["accent"]
+    find(exp, 5, "3/4", "snare")["edited"] = True
+    find(exp, 1, "1/4", "snare")["edited"] = True
     assert s.to_dict() == exp
 
 

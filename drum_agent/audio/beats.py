@@ -315,7 +315,14 @@ def estimate_grid(hits: list[DrumHit], onset_env: np.ndarray, duration: float, b
                   feel: str | None = None) -> BeatGrid:
     notes: list[str] = []
     env = drum_envelope(hits, len(onset_env)) if hits else onset_env
-    tempo, beats, tnotes = track_beats(env, duration, bpm_hint, hits)
+    # --bpm is in quarter notes per minute; in a compound meter given with --time-signature
+    # (6/8, 9/8, 12/8) the tracked beat is the dotted quarter, 1.5 quarter notes long.
+    beat_hint = bpm_hint
+    if bpm_hint and time_signature:
+        n, d = (int(x) for x in time_signature.split("/"))
+        if d == 8 and n % 3 == 0 and n >= 6:
+            beat_hint = bpm_hint / 1.5
+    tempo, beats, tnotes = track_beats(env, duration, beat_hint, hits)
     notes += tnotes
     if not hits:
         raise ValueError("no drum strokes detected")

@@ -351,6 +351,14 @@ def cmd_edit(args) -> int:
             setattr(score, name, getattr(args, name))
             log.append(f"{name} = {getattr(args, name)}")
     score.validate(kit)
+    if out.resolve() == src.resolve():
+        # Editing in place: the score as it was before the first edit is kept beside it, once,
+        # so the machine's transcription (or any earlier state) is never lost.
+        import shutil
+        keep = src.with_name(f"{src.stem}.original.json")
+        if not keep.exists():
+            shutil.copy2(src, keep)
+            log.append(f"kept the unedited score as {keep.name}")
     score.save(out)
     for line in log:
         print(line)
@@ -358,6 +366,11 @@ def cmd_edit(args) -> int:
     if args.render:
         from .pipeline import ExportOptions, export_all
         report = export_all(score, args.render, out.stem, kit, ExportOptions())
+        detections = src.with_name(f"{src.stem}.detections.json")  # what the detector heard
+        target = Path(args.render) / f"{out.stem}.detections.json"
+        if detections.is_file() and detections.resolve() != target.resolve():
+            import shutil
+            shutil.copy2(detections, target)
         return _print_report(report, Path(args.render))
     return 0
 

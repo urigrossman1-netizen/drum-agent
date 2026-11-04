@@ -177,6 +177,12 @@ class Hit:
     sticking: str | None = None  # hand(s) to play it with, printed under the staff: R, L, B (both), RL...
     time: float | None = None  # performed onset in seconds (audio/MIDI sources)
     offset_ms: float | None = None  # performed time minus quantized time
+    # Provenance. raw: ids of the detector's strokes this note came from (in the chart's
+    # detection log, <stem>.detections.json; audio sources only). edited: a person added or
+    # changed this note (the edit command, the studio's editor); the machine's original stays
+    # in the log and in the first chart version.
+    raw: tuple[int, ...] | None = None
+    edited: bool = False
 
     def key(self) -> tuple[Fraction, str]:
         return (self.pos, self.inst)
@@ -198,14 +204,22 @@ class Hit:
             d["time"] = round(self.time, 4)
         if self.offset_ms is not None:
             d["offset_ms"] = round(self.offset_ms, 1)
+        if self.raw:
+            d["raw"] = list(self.raw)
+        if self.edited:
+            d["edited"] = True
         return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Hit":
         unknown = set(d) - {"pos", "inst", "velocity", "accent", "ghost", "flam", "drag", "roll",
-                            "choke", "confidence", "sticking", "time", "offset_ms"}
+                            "choke", "confidence", "sticking", "time", "offset_ms", "raw", "edited"}
         if unknown:
             raise ScoreError(f"unknown hit fields {sorted(unknown)}")
+        raw = d.get("raw")
+        if raw is not None and (not isinstance(raw, (list, tuple))
+                                or not all(isinstance(x, int) and not isinstance(x, bool) and x >= 0 for x in raw)):
+            raise ScoreError(f"hit field raw must be a list of stroke ids (non-negative integers), got {raw!r}")
         return cls(
             pos=frac(d["pos"]),
             inst=d["inst"],
@@ -220,6 +234,8 @@ class Hit:
             sticking=d.get("sticking"),
             time=d.get("time"),
             offset_ms=d.get("offset_ms"),
+            raw=tuple(raw) if raw else None,
+            edited=bool(d.get("edited", False)),
         )
 
 
@@ -305,6 +321,9 @@ class Score:
     feel_note: str | None = None
     copyright: str | None = None
     analysis: dict[str, Any] = field(default_factory=dict)  # transcription diagnostics
+    # The detection log of an audio transcription (audio/detections.py), written beside the
+    # chart as <stem>.detections.json; never part of score.json.
+    detections: dict[str, Any] | None = field(default=None, repr=False, compare=False)
 
     # ---- derived helpers -------------------------------------------------
     @property

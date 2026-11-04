@@ -263,6 +263,7 @@ def name_toms(fe, opts, frames: list[int]) -> list[str]:
 def classify_hits(fe, opts) -> tuple[list, dict]:
     """DrumHits for every candidate the classifier accepts (see detect.detect)."""
     from .detect import FLAM_DRUMS, PAD, DrumHit, _has_grace
+    from .detections import DetectionLog
     model = load_model()
     X = onset_features(fe.M_full, fe.M_perc, fe.flux, fe.cand)
     P = model.predict(X) if len(X) else np.zeros((0, len(model.classes)), dtype=np.float32)
@@ -271,7 +272,9 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     thr = np.clip(model.thresholds / sens, 0.03, 0.97)
     E = _region_energy(fe.M_perc)
     T = fe.M_perc.shape[1]
-    raw: list[tuple[int, str, float, float, float]] = []  # (frame, class, p, margin, confidence)
+    log = DetectionLog(detector=f"classifier {model.version}", classes=list(model.classes),
+                       thresholds={c: float(thr[ci[c]]) for c in model.classes})
+    raw: list[tuple[int, str, float, float, float, int]] = []  # (frame, class, p, margin, confidence, candidate id)
     # Strokes the network almost heard: a class above NEAR_MISS of its threshold that was
     # not accepted, or one a rule removed. A bar holding one may be missing a stroke, which
     # hit confidences can't show (a missed stroke has no confidence).
@@ -280,9 +283,15 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     local_max = maximum_filter1d(fe.flux, size=2 * int(LOCAL_S / FRAME) + 1)
     for k, t in enumerate(fe.cand):
         time = float(t * FRAME) - PAD
-        if time < -0.02 or fe.flux[t] < LOCAL_FLUX_GATE * local_max[t]:
-            continue
         p = P[k]
+        probs = {c: float(p[ci[c]]) for c in model.classes}
+        if time < -0.02:
+            log.candidate(time, probs, gate="before the recording starts")
+            continue
+        if fe.flux[t] < LOCAL_FLUX_GATE * local_max[t]:
+            log.candidate(time, probs, gate="weak onset next to a stronger one")
+            continue
+        cid = log.candidate(time, probs)
         for c in model.classes:
             ratio = float(p[ci[c]] / thr[ci[c]])
             if c != "other" and NEAR_MISS <= ratio < 1.0:
@@ -293,15 +302,21 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
         margin = {c: acc[c] / thr[ci[c]] for c in acc}
         for a, b in (("hihat", "hihat_open"), ("ride", "ride_bell")):
             if a in acc and b in acc:
-                acc.pop(a if margin[a] < margin[b] else b)
+                lost = a if margin[a] < margin[b] else b
+                acc.pop(lost)
+                log.reject(cid, lost, f"{a} and {b} can't sound at once; {b if lost == a else a} was stronger")
         if "hihat_pedal" in acc and ({"hihat", "hihat_open"} & set(acc)):
             acc.pop("hihat_pedal")  # a stick on the closed hat sounds the same instant
+            log.reject(cid, "hihat_pedal", "a stick stroke on the hi-hat at the same instant")
         if "hihat" in acc and "ride" in acc and min(margin["hihat"], margin["ride"]) < 1.6:
-            acc.pop("hihat" if margin["hihat"] < margin["ride"] else "ride")  # rarely both at once
+            lost = "hihat" if margin["hihat"] < margin["ride"] else "ride"
+            acc.pop(lost)  # rarely both at once
+            log.reject(cid, lost, "hi-hat and ride rarely sound at once; the other was stronger")
         hands = sorted((c for c in acc if c in HANDS), key=lambda c: -margin[c])
         for c in hands[2:]:
             acc.pop(c)
             near.append((time, c, 1.0))  # heard, but a third hand: one of them is wrong
+            log.reject(cid, c, "a third hand stroke at one instant (two hands only)")
         for c, pc in acc.items():
             th = float(thr[ci[c]])
             conf = 0.5 + 0.5 * (pc - th) / max(1e-6, 1 - th)
@@ -309,7 +324,7 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
             if rival:
                 amb = min(1.0, max(rival))
                 conf *= 1.0 - 0.6 * amb ** 2
-            raw.append((int(t), c, pc, margin[c], float(np.clip(conf, 0.0, 1.0))))
+            raw.append((int(t), c, pc, margin[c], float(np.clip(conf, 0.0, 1.0)), cid))
     # Loudness relative to each class's typical stroke in this recording.
     rises = {}
     for t, c, *_ in raw:
@@ -319,7 +334,7 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     tom_names = name_toms(fe, opts, tom_frames)
     tom_iter = iter(tom_names)
     hits = []
-    for t, c, pc, m, conf in raw:
+    for t, c, pc, m, conf, cid in raw:
         inst = next(tom_iter) if c == "tom" else c
         strength = _rise(E[c], t) / typical[c]
         vel = int(np.clip(35 + 75 * min(strength, 1.5) / 1.5, 1, 127))
@@ -327,8 +342,9 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
         if inst in ("hihat", "ride"):
             k = int(np.searchsorted(fe.cand, t))
             rv = (float(P[k, ci["ride"]] / thr[ci["ride"]]), float(P[k, ci["hihat"]] / thr[ci["hihat"]]))
-        hits.append(DrumHit(float(t * FRAME) - PAD, inst, round(float(strength), 3), vel, round(conf, 3),
-                            ride_vs_hat=rv))
+        time = float(t * FRAME) - PAD
+        hits.append(DrumHit(time, inst, round(float(strength), 3), vel, round(conf, 3), ride_vs_hat=rv,
+                            rid=log.stroke(time, inst, strength, vel, conf, cand=cid)))
     # Flams whose grace note is too close to be its own candidate.
     last: dict[str, int] = {}
     for h in sorted(hits, key=lambda h: h.time):
@@ -337,4 +353,4 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
             region = E["tom"] if h.inst.startswith(("tom", "floor")) else E["snare"]
             h.flam = _has_grace(region, f, last.get(h.inst, -10 ** 9), T)
             last[h.inst] = f
-    return hits, {"detector": f"classifier {model.version}", "frames": int(T), "near_misses": near}
+    return hits, {"detector": f"classifier {model.version}", "frames": int(T), "near_misses": near, "log": log}
