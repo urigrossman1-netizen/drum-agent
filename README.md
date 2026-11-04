@@ -43,6 +43,21 @@ Optional: `ffmpeg` (MP3/M4A input), `fluidsynth` + `fluid-soundfont-gm`
 (synthesizing audio fixtures for tests and evaluation). If LilyPond lives
 somewhere else, set `DRUM_AGENT_LILYPOND=/path/to/lilypond`.
 
+### On Windows, from the repository
+
+One command sets up everything on Windows. It creates a Python 3.12 environment in `.venv`
+with CPU PyTorch and demucs. It also puts LilyPond 2.26, FFmpeg, FluidSynth, the FluidR3
+soundfont and the HTDemucs model in `tools\` (pinned downloads), then creates `.env`:
+
+```bat
+py -3.12 scripts\dev_setup.py --shortcut
+scripts\windows\drum_agent.cmd     & rem the app in its own window
+scripts\windows\studio.cmd         & rem the studio at http://127.0.0.1:8000
+```
+
+API keys (YouTube, Spotify, Anthropic) go in `.env`, which git never commits. A plain-language
+guide is in [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md).
+
 ## Use
 
 ```bash
@@ -186,3 +201,10 @@ python scripts/eval_real.py --split train  # real recordings (MDB Drums, cached 
 - [docs/SONG_LOOKUP.md](docs/SONG_LOOKUP.md): from a song's name to a chart
 - [docs/GAMECHARTS.md](docs/GAMECHARTS.md): Rock Band / Clone Hero import
 - [docs/AUDIT.md](docs/AUDIT.md): the starting point and the plan
+- [docs/HOW_TO_USE.md](docs/HOW_TO_USE.md): using the app, in plain words
+- [docs/AUDIO_TRANSCRIPTION_PIPELINE.md](docs/AUDIO_TRANSCRIPTION_PIPELINE.md): every stage of transcription, with sample rates and code locations
+- [docs/TESTING_AND_BENCHMARKS.md](docs/TESTING_AND_BENCHMARKS.md): the test suites, how to run them, recorded results
+- [docs/DEPENDENCY_AND_MODEL_LICENSE_AUDIT.md](docs/DEPENDENCY_AND_MODEL_LICENSE_AUDIT.md): licences of every package, program, model and dataset
+- [docs/DEVELOPMENT_PROGRESS.md](docs/DEVELOPMENT_PROGRESS.md): what's done, with evidence; the current round's log
+- [docs/PROJECT_RECOVERY_REPORT.md](docs/PROJECT_RECOVERY_REPORT.md): the project's history, recovered
+- [docs/AVAILABLE_TOOLS_AND_SKILLS.md](docs/AVAILABLE_TOOLS_AND_SKILLS.md): the Claude tools and skills used to build it
