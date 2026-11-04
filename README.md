@@ -94,8 +94,11 @@ python -m drum_agent edit out/song/song.json --relabel ride=hihat --bars 9-16 \
 ```
 
 Each run writes `<stem>.pdf`, `<stem>.png` (or `-pageN.png`), `<stem>.musicxml`,
-`<stem>.mid`, `<stem>.ly`, `<stem>.json` (the score) and `<stem>.report.md`. It
-never writes over its input (pick another `-o` folder or `--stem`).
+`<stem>.mid`, `<stem>.ly`, `<stem>.json` (the score) and `<stem>.report.md`; a
+transcription also writes `<stem>.detections.json`, everything the detector heard and
+what became of each stroke. It never writes over its input (pick another `-o` folder
+or `--stem`). `edit` in place first keeps the unedited score as
+`<stem>.original.json`.
 
 Other commands: `synth` (chart to audio), `evaluate` (compare a transcription
 with a known chart), `verify` (re-check exported files; pass the same `--kit` if

@@ -86,3 +86,33 @@ Run 3: **807 passed, 1 skipped, 0 failed** (4 min 21 s).
 - A synthesized recording is easier than a real one; real band mixes measure 0.73 (`docs/LIMITATIONS.md`).
 
 **Bug found and fixed: a folder named "~".** `.env.example` sets `DRUM_AGENT_DATA_DIR=~/.drum_agent/web`. A shell expands the `~`; the new `.env` reader didn't, and neither did the store, so the studio wrote its data into a folder literally named "~" inside the repository. Both now expand a leading "~" (`envfile._expand_home`, `store.default_data_dir`), with tests.
+
+### 2026-11-04: phase 1, keep every prediction; measure truthfully
+
+**The detection log** (`drum_agent/audio/detections.py`), written beside every transcription as `<stem>.detections.json`. It holds:
+- every onset candidate the detector looked at, with the onset classifier's 11 probabilities, the classes rules removed (and why) or why it was skipped;
+- every stroke it accepted, and its fate: notated (bar, position), a flam's grace, merged into a slot already taken, or dropped with the reason.
+
+It is carried through the whole pipeline:
+- `_merge_flams`, `_drop_flam_crashes` and `_smooth_cymbals` in `audio/detect.py`;
+- the quantizer's merges, off-grid onsets and hi-hat conflicts (`QuantizeResult.trace`);
+- roll notation.
+
+Tests require that no stroke is left "unaccounted".
+
+**Each note's provenance.** `Hit.raw` (the stroke ids behind it) and `Hit.edited` (a person added or changed it). Both are optional fields, so schema 1 is unchanged and old charts load.
+- `edit` (CLI) marks what it changes. When it overwrites a score in place it first keeps `<stem>.original.json`, once.
+- The studio marks edits when a version is saved (`edit.mark_edits` against the parent version) and copies the detection log into every later version.
+
+**Fixes.**
+- A separation failure falls back to the band mix with a note (it aborted the job before).
+- `--bpm` is converted to the dotted-quarter beat for compound meters (6/8 at quarter = 120 charted at 180 before).
+- The report shows merged and dropped strokes (`pipeline.py` read a key that audio never set).
+
+**The real-recording benchmark** (`scripts/eval_real.py`) now reports:
+- F at 30 ms as well as 50 ms;
+- recall in fast passages (strokes no more than 100 ms apart on one drum);
+- a confusion matrix: what was written instead of each missed stroke, plus extra strokes;
+- `--detector`.
+
+Each run is kept in `benchmarks/results/<date>_<label>.json/.md` with its commit, classifier version and machine. Chart-level runs (`--pipeline transcribe`) no longer separate "mix" behind the user's back.

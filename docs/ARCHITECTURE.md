@@ -34,7 +34,10 @@
 - `Hit`: position as an exact `Fraction` of a whole note from the start of
   the bar, instrument id, velocity, accent/ghost/flam/drag/roll/choke,
   confidence, and the performed time and offset (for audio and MIDI
-  sources).
+  sources). Provenance: `raw`, the ids of the detector strokes behind the
+  note in the transcription's detection log (`<stem>.detections.json`,
+  `audio/detections.py`), and `edited`, set when a person added or changed
+  it. Both are optional, so older score.json files read unchanged.
 
 Floats are rejected for positions. `Score.validate()` enforces the invariants:
 positions inside the bar, no duplicate strokes, no conflicting hi-hat states
@@ -144,6 +147,13 @@ as the foot closes it); in transcriptions those bars are flagged.
 | Grid | `beats.py` | drum-weighted beat tracking, tempo candidates scored by grid fit, backbeat and prior (roll and grace strokes don't count as pulse; near ties are ranked by a constant grid when the winning beats had to bend); meter by repetition; downbeat by kick/crash/backbeat placement |
 | Quantization | `quantize.py` | per-beat grid choice by timing error plus complexity, swing/triplet feel, tempo map, uncertain-bar flags |
 | Structure | `structure.py`, `transcribe.py` | sections at groove/meter changes, 12/8 section refinement, roll notation, bass-bleed warning |
+
+Every stroke the detector accepts, and every candidate it looked at (with the
+classifier's probabilities), goes into the detection log, together with what became of
+the stroke: notated, a flam's grace, merged into a slot already taken, or dropped and
+why. It is written beside the chart and kept through every later version, so the
+machine's evidence survives quantization, rules and edits. Details:
+`docs/AUDIO_TRANSCRIPTION_PIPELINE.md`.
 
 Templates are rebuilt by `scripts/build_templates.py`. Accuracy is measured,
 not assumed: `scripts/eval_detection.py` (onset level) and
