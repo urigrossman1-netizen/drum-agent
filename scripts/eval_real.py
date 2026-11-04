@@ -356,26 +356,49 @@ def render(summary: dict, title: str) -> str:
     return "\n".join(lines)
 
 
+def _git_exe() -> str | None:
+    """Git, found even when it is not on PATH (a background shell on Windows often lacks it)."""
+    import shutil
+    found = shutil.which("git")
+    if found:
+        return found
+    for var, sub in (("ProgramFiles", "Git"), ("ProgramW6432", "Git"), ("LOCALAPPDATA", "Programs/Git")):
+        base = os.environ.get(var)
+        if base and (Path(base) / sub / "cmd" / "git.exe").is_file():
+            return str(Path(base) / sub / "cmd" / "git.exe")
+    return None
+
+
+# What the numbers depend on: a change here, uncommitted, makes the recorded commit not the whole story.
+SOURCES = ("drum_agent", "scripts/eval_real.py")
+
+
 def _meta(a, tracks, elapsed: float) -> dict:
     import platform
     import subprocess
-    try:
-        commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True,
-                                text=True, timeout=10).stdout.strip() or None
-        dirty = bool(subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "drum_agent"],
-                                    capture_output=True, text=True, timeout=10).stdout.strip())
-    except (OSError, subprocess.SubprocessError):
-        commit, dirty = None, None
+    git, commit, dirty = _git_exe(), None, None
+    if git:
+        try:
+            commit = subprocess.run([git, "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True,
+                                    text=True, timeout=10).stdout.strip() or None
+            if commit:
+                dirty = bool(subprocess.run([git, "-C", str(ROOT), "status", "--porcelain", "--", *SOURCES],
+                                            capture_output=True, text=True, timeout=10).stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            commit = None
     model = None
     try:
         from drum_agent.audio.classifier import load_model
         model = load_model().version
     except Exception:  # noqa: BLE001 - no weights: the NMF detector is what ran
         pass
-    return {"date": time.strftime("%Y-%m-%d %H:%M"), "commit": commit, "uncommitted_changes": dirty,
+    meta = {"date": time.strftime("%Y-%m-%d %H:%M"), "commit": commit, "uncommitted_changes": dirty,
             "classifier": model, "separation": _separator() if a.separate else None, "tracks": list(tracks),
             "machine": f"{platform.system()} {platform.release()}, {platform.processor() or platform.machine()}, "
                        f"Python {platform.python_version()}", "seconds": round(elapsed)}
+    if commit is None:  # say why, so a record without its commit is not mistaken for one with nothing to say
+        meta["commit_unknown"] = "git not found" if git is None else "git could not read the repository"
+    return meta
 
 
 def _meta_md(meta: dict) -> str:

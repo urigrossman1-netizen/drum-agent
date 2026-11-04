@@ -39,3 +39,22 @@ def test_scores_confusions_misses_extras_timing_and_fast_passages(ev):
     assert summary["SD"]["F30"] < summary["SD"]["F"] and summary["SD"]["R_fast"] == pytest.approx(2 / 3, abs=1e-3)
     text = ev.render({"mix": summary}, "toy")
     assert "fast-passage R" in text and "missed" in text and "extra KD 1" in text
+
+
+def test_a_record_names_its_commit_or_says_why_not(ev, monkeypatch, tmp_path):
+    import shutil
+    import types
+
+    args = types.SimpleNamespace(separate=False)
+    if ev._git_exe() is not None and (ROOT / ".git").exists():
+        meta = ev._meta(args, ["t"], 1.0)
+        assert meta["commit"] and all(c in "0123456789abcdef" for c in meta["commit"])
+        assert meta["uncommitted_changes"] in (True, False) and "commit_unknown" not in meta
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)  # no git on PATH, none installed
+    for var in ("ProgramFiles", "ProgramW6432", "LOCALAPPDATA"):
+        monkeypatch.setenv(var, str(tmp_path))
+    assert ev._git_exe() is None
+    meta = ev._meta(args, ["t"], 1.0)
+    assert meta["commit"] is None and meta["uncommitted_changes"] is None
+    assert meta["commit_unknown"] == "git not found"
