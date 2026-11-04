@@ -12,9 +12,15 @@ Claude cannot add, move or remove a boundary, change a note or a tempo. A sugges
 changes nothing by itself: applying it makes a new chart version.
 
 Configuration (server side only; never sent to the browser):
-  ANTHROPIC_API_KEY             the API key
-  DRUM_AGENT_ANTHROPIC_MODEL    the model id to use (required; see docs/WEB_APP.md)
+  ANTHROPIC_API_KEY             the API key (the only required setting)
+  DRUM_AGENT_ANTHROPIC_MODEL    the model id (default: claude-opus-5-5)
+  DRUM_AGENT_ANTHROPIC_EFFORT   low | medium | high | xhigh | max (default: low; these are short
+                                structured answers)
   DRUM_AGENT_ANTHROPIC_BASE_URL optional; defaults to the public API
+
+Every request runs with server-side refusal fallbacks ("default" routing): if the model's
+safety classifier declines, the API retries on a substitute model instead of failing. Thinking
+is on (it can't be switched off on current models), so answers get room for it in max_tokens.
 """
 
 from __future__ import annotations
@@ -27,8 +33,14 @@ from collections import Counter
 from ..model import Score
 
 DEFAULT_BASE_URL = "https://api.anthropic.com"
-TIMEOUT_S = 45.0
-MAX_TOKENS = 4000
+DEFAULT_MODEL = "claude-opus-5-5"
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+DEFAULT_EFFORT = "low"
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
+TIMEOUT_S = 60.0
+# Thinking counts against max_tokens and can't be turned off on current models: leave room for
+# it so a short JSON answer is never cut off (only generated tokens are billed, not the cap).
+MAX_TOKENS = 16000
 NAMES = ("Intro", "Verse", "Pre-Chorus", "Chorus", "Post-Chorus", "Bridge", "Solo", "Interlude",
          "Breakdown", "Build", "Drop", "Instrumental", "Fill", "Outro", "Tag", "Coda", "Section")
 NAME_RE = re.compile(r"(" + "|".join(re.escape(n) for n in NAMES) + r")( [1-9])?")
@@ -66,9 +78,13 @@ class ClaudeUnavailable(RuntimeError):
 
 
 def config() -> dict:
-    key, model = os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("DRUM_AGENT_ANTHROPIC_MODEL")
-    missing = [n for n, v in (("ANTHROPIC_API_KEY", key), ("DRUM_AGENT_ANTHROPIC_MODEL", model)) if not v]
-    return {"configured": not missing, "missing": missing, "model": model}
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    model = os.environ.get("DRUM_AGENT_ANTHROPIC_MODEL") or DEFAULT_MODEL
+    effort = os.environ.get("DRUM_AGENT_ANTHROPIC_EFFORT", "").strip().lower() or DEFAULT_EFFORT
+    if effort not in EFFORTS:
+        effort = DEFAULT_EFFORT
+    missing = [] if key else ["ANTHROPIC_API_KEY"]
+    return {"configured": not missing, "missing": missing, "model": model, "effort": effort}
 
 
 def describe_sections(score: Score) -> list[dict]:
@@ -146,10 +162,11 @@ def _ask(prompt: str, schema: dict, client=None, max_tokens: int = MAX_TOKENS) -
                                      base_url=os.environ.get("DRUM_AGENT_ANTHROPIC_BASE_URL") or DEFAULT_BASE_URL,
                                      timeout=TIMEOUT_S, max_retries=1)
     try:
-        response = client.messages.create(
+        response = client.beta.messages.create(
             model=cfg["model"], max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
-            output_config={"format": {"type": "json_schema", "schema": schema}},
+            output_config={"format": {"type": "json_schema", "schema": schema}, "effort": cfg["effort"]},
+            betas=[FALLBACK_BETA], fallbacks="default",
         )
     except anthropic.AuthenticationError:
         raise ClaudeUnavailable("auth", "the Anthropic API rejected the server's API key") from None
@@ -254,7 +271,7 @@ def interpret_beat(prompt: str, client=None) -> dict:
         "fill length in beats (8 = a two-bar fill in 4/4). bars is the total length (1..64). "
         "Do not copy any existing song; this is an original groove.\n\nStyles: " + styles +
         "\n\nRequest: " + prompt[:2000] + "\n\nsummary: one sentence describing the beat you configured.")
-    data, response = _ask(text, beat_schema(), client, max_tokens=1500)
+    data, response = _ask(text, beat_schema(), client)
     summary = str(data.pop("summary", ""))[:300]
     return {"spec": data, "summary": summary, "model": getattr(response, "model", config()["model"]),
             "usage": _usage(response)}
@@ -281,7 +298,7 @@ def edit_to_commands(command: str, summary: dict, examples: list[str], client=No
         "\n\nRewrite the user's request as one or more such commands (same phrasing style, bar numbers from 1). "
         "If the request asks for something the editor cannot do, set unsupported to true and explain briefly what "
         "is possible instead.\n\nRequest: " + command[:1000])
-    data, response = _ask(text, EDIT_SCHEMA, client, max_tokens=800)
+    data, response = _ask(text, EDIT_SCHEMA, client)
     cmds = [str(c)[:200] for c in data.get("commands", []) if isinstance(c, str)][:6]
     return {"commands": cmds, "unsupported": bool(data.get("unsupported")),
             "explanation": str(data.get("explanation", ""))[:400], "usage": _usage(response)}

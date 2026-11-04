@@ -224,9 +224,17 @@ class FakeMessages:
 
     def create(self, **kw):
         self.calls.append(kw)
+        thinking = type("T", (), {"type": "thinking", "thinking": ""})()  # current models always think
         block = type("B", (), {"type": "text", "text": self.text})()
         usage = type("U", (), {"input_tokens": 300, "output_tokens": 80})()
-        return type("R", (), {"content": [block], "stop_reason": self.stop_reason, "usage": usage, "model": kw["model"]})()
+        return type("R", (), {"content": [thinking, block], "stop_reason": self.stop_reason, "usage": usage,
+                              "model": kw["model"]})()
+
+
+def fake_client(text, stop_reason="end_turn"):
+    """A stand-in for anthropic.Anthropic: requests go through client.beta.messages (fallbacks)."""
+    messages = FakeMessages(text, stop_reason)
+    return type("C", (), {"beta": type("Beta", (), {"messages": messages})(), "messages": messages})()
 
 
 def test_claude_suggestion_is_structured_and_validated(monkeypatch):
@@ -236,24 +244,39 @@ def test_claude_suggestion_is_structured_and_validated(monkeypatch):
     answer = {"sections": [{"first_bar": 1, "name": "Verse 1", "reason": "groove"},
                            {"first_bar": 5, "name": "Chorus", "reason": "same groove, later"}],
               "confidence": "low", "comment": "Two identical sections."}
-    fake = type("C", (), {"messages": FakeMessages(json.dumps(answer))})()
+    fake = fake_client(json.dumps(answer))
     out = claude.suggest_section_names(s, client=fake)
     assert [x["name"] for x in out["sections"]] == ["Verse 1", "Chorus"]
-    sent = fake.messages.calls[0]
+    sent = fake.beta.messages.calls[0]
     assert sent["model"] == "test-model" and sent["output_config"]["format"]["type"] == "json_schema"
+    assert sent["output_config"]["effort"] == "low" and sent["max_tokens"] >= 16000  # room for thinking
+    assert sent["fallbacks"] == "default" and claude.FALLBACK_BETA in sent["betas"]
     assert "test-key" not in json.dumps(sent)  # the key goes in the client, never in the prompt
 
     moved = {**answer, "sections": [{**answer["sections"][0]}, {**answer["sections"][1], "first_bar": 4}]}
-    fake = type("C", (), {"messages": FakeMessages(json.dumps(moved))})()
     with pytest.raises(claude.ClaudeUnavailable) as e:
-        claude.suggest_section_names(s, client=fake)
+        claude.suggest_section_names(s, client=fake_client(json.dumps(moved)))
     assert e.value.code == "invalid_answer"
     bad = {**answer, "sections": [{**answer["sections"][0], "name": "Banana"}, answer["sections"][1]]}
     with pytest.raises(claude.ClaudeUnavailable):
-        claude.suggest_section_names(s, client=type("C", (), {"messages": FakeMessages(json.dumps(bad))})())
+        claude.suggest_section_names(s, client=fake_client(json.dumps(bad)))
     with pytest.raises(claude.ClaudeUnavailable) as e:
-        claude.suggest_section_names(s, client=type("C", (), {"messages": FakeMessages("", "refusal")})())
+        claude.suggest_section_names(s, client=fake_client("", "refusal"))
     assert e.value.code == "refused"
+
+
+def test_claude_defaults_to_the_current_model_and_needs_only_a_key(monkeypatch):
+    monkeypatch.delenv("DRUM_AGENT_ANTHROPIC_MODEL", raising=False)
+    monkeypatch.delenv("DRUM_AGENT_ANTHROPIC_EFFORT", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg = claude.config()
+    assert cfg["configured"] is False and cfg["missing"] == ["ANTHROPIC_API_KEY"]
+    assert cfg["model"] == "claude-opus-5-5" and cfg["effort"] == "low"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.setenv("DRUM_AGENT_ANTHROPIC_EFFORT", "HIGH")
+    assert claude.config()["configured"] and claude.config()["effort"] == "high"
+    monkeypatch.setenv("DRUM_AGENT_ANTHROPIC_EFFORT", "turbo")  # not a level: the default
+    assert claude.config()["effort"] == "low"
 
 
 def test_claude_not_configured_and_api_errors_are_reported(monkeypatch):
@@ -361,8 +384,9 @@ def test_api_upload_transcribe_view_download_review(client, tmp_path):
     job = r.json()["job"]
     done = client.app_state.runner.wait(job["id"], timeout=300)
     assert done["status"] == "succeeded", done
-    assert [s["name"] for s in done["stages"]] == ["prepare", "detect", "beats", "measures", "sections", "validate",
-                                                   "render", "view", "save"]
+    from drum_agent.audio import separate  # with demucs installed, the drums are separated first
+    assert [s["name"] for s in done["stages"]] == ["prepare", *(["separate"] if separate.available() else []), "detect",
+                                                   "beats", "measures", "sections", "validate", "render", "view", "save"]
     # The same recording again: no second analysis.
     r2 = client.post(f"/api/songs/{sid}/upload", files={"file": ("take.wav", data, "audio/wav")}, data={"rights": "original"})
     assert r2.json()["job"]["id"] == job["id"] and r2.json()["created"] is False
@@ -535,7 +559,7 @@ def personal(monkeypatch):
 
 
 @pytest.fixture
-def music(tmp_path, monkeypatch):
+def music(tmp_path, monkeypatch, fake_home):
     """The user's music folder: the song as a download would be named, and a live take of it."""
     from drum_agent.synth import synthesize
     folder = tmp_path / "Music"
@@ -543,8 +567,7 @@ def music(tmp_path, monkeypatch):
     wav = synthesize(song_spec(bars=8, tempo=100), folder / "The Placeholders - Test Groove.wav", method="numpy")
     shutil.copy(wav, folder / "Live" / "The Placeholders - Test Groove (Live).wav")
     (folder / "notes.txt").write_text("not audio")
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))  # not the test machine's own ~/Music
-    monkeypatch.setenv("DRUM_AGENT_MUSIC_DIRS", str(folder))
+    monkeypatch.setenv("DRUM_AGENT_MUSIC_DIRS", str(folder))  # fake_home: not the machine's own ~/Music
     return {"folder": folder, "wav": wav, "seconds": sf.info(str(wav)).duration}
 
 
@@ -573,8 +596,7 @@ def test_shared_server_never_reads_its_disk_or_accepts_personal_charts(client, t
         assert client.get(f"/api/songs/{sid}/{old}").status_code in (404, 405)
 
 
-def test_personal_app_without_a_music_folder_says_so(client, personal, monkeypatch, tmp_path):
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+def test_personal_app_without_a_music_folder_says_so(client, personal, monkeypatch, fake_home):
     monkeypatch.delenv("DRUM_AGENT_MUSIC_DIRS", raising=False)
     body = client.get("/api/health").json()
     assert body["mode"] == "personal" and "personal" in body["rights_options"]
