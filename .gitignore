@@ -6,6 +6,12 @@ build/
 dist/
 /out/
 /tmp/
+# local development on Windows: the virtual environment and the tools
+# packaging/fetch_tools.py downloads (LilyPond, FFmpeg, the HTDemucs weights)
+/.venv/
+/tools/
+# model weights and datasets downloaded for benchmarks (drum_agent/models_cache.py)
+/.cache/
 tests/_artifacts/
 examples/output/**/*.midi
 .claude/worktrees/

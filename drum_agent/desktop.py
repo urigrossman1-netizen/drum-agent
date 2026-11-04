@@ -71,9 +71,12 @@ def configure(data: Path, tools: Path | None) -> None:
         lily = tools / "lilypond" / "bin" / f"lilypond{EXE}"
         if lily.is_file():
             os.environ["DRUM_AGENT_LILYPOND"] = str(lily)
-        paths += [str(p) for p in (tools / "ffmpeg" / "bin",) if p.is_dir()]
+        paths += [str(p) for p in (tools / "ffmpeg" / "bin", tools / "fluidsynth" / "bin") if p.is_dir()]
         if (tools / "torch").is_dir():  # the drum separation model, shipped: no download on the first song
             os.environ.setdefault("TORCH_HOME", str(tools / "torch"))
+        sf2 = tools / "soundfonts" / "FluidR3_GM.sf2"
+        if sf2.is_file():  # real sampled drums for the player (drum_agent/web/samples.py)
+            os.environ.setdefault("DRUM_AGENT_SOUNDFONT", str(sf2))
     os.environ["PATH"] = os.pathsep.join([*paths, os.environ.get("PATH", "")])
 
 
@@ -254,6 +257,9 @@ def main(argv: list[str] | None = None) -> int:
     data = data_dir()
     data.mkdir(parents=True, exist_ok=True)
     _logging(data)
+    from .envfile import default_env_file, load_env_file
+    settings = load_env_file(default_env_file(data / "settings.env"))  # API keys etc.; never logged
+    log.info("settings: %s", settings.summary())
     tools = tools_dir()
     configure(data, tools)
     if not args.headless:

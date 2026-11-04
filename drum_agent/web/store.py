@@ -350,4 +350,5 @@ class Store:
 
 
 def default_data_dir() -> Path:
-    return Path(os.environ.get("DRUM_AGENT_DATA_DIR") or Path.home() / ".drum_agent" / "web")
+    # expanduser: a "~/..." from a settings file is the home folder, never a folder named "~"
+    return Path(os.environ.get("DRUM_AGENT_DATA_DIR") or Path.home() / ".drum_agent" / "web").expanduser()

@@ -385,6 +385,10 @@ def cmd_serve(args) -> int:
     except ImportError:
         print("error: the web app needs its extra dependencies: pip install -e '.[web]'", file=sys.stderr)
         return 1
+    from .envfile import default_env_file, load_env_file
+    settings = load_env_file(default_env_file(Path.cwd() / ".env"))
+    if settings.path is not None:
+        print(f"settings: {settings.summary()}", file=sys.stderr)
     from .web.app import serve
     if args.personal:
         if args.host not in ("127.0.0.1", "localhost", "::1"):
