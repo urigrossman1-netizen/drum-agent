@@ -28,7 +28,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Missing: velocity, change instrument, move, a per-hit "edited" flag, and keeping the raw predictions |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29). First Windows baseline: see the 2026-11-04 log entry. `docs/TESTING_AND_BENCHMARKS.md` |
+| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 807 passed, 1 skipped (2026-11-04); benchmarks per backend come in phase 2. `docs/TESTING_AND_BENCHMARKS.md` |
 | Security | upload and API protection | **Partially implemented** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Missing: rate limits, CSRF guard, streaming size cap, Host allowlist, decode outside the request |
 
 ## Log
@@ -67,6 +67,12 @@ Run 1: 785 passed, 15 failed. Wall time was inflated because the laptop slept ov
 | My new `test_tools_lookup` leaked `DRUM_AGENT_MODE=personal` into later tests (this caused the ten web failures) | my own test bug | restore through `monkeypatch.setenv` before `delenv` |
 
 Run 2: 805 passed, 1 failed (the stage-list test, fixed above), 1 skipped (symlinks).
+Run 3: **807 passed, 1 skipped, 0 failed** (4 min 21 s).
+
+**Usable on this PC.**
+- The **Drum Agent (dev)** desktop shortcut (`scripts/dev_setup.py --shortcut`) starts the app window in about 8 s: personal mode, every check OK, separation from the local weights, and the real sampled drums.
+- `scripts\windows\studio.cmd` serves the same studio at http://127.0.0.1:8000.
+- Phase 0 is complete except for two things that need the owner: the API keys go into `.env`, and GitHub needs a sign-in before the first push.
 
 **Claude integration made ready for current models (`web/claude.py`).** Default model `claude-opus-5-5` (`DRUM_AGENT_ANTHROPIC_MODEL` only overrides it, so the key is the only required setting), effort `low`, `max_tokens` 16,000 (thinking can't be turned off and counts against the cap), and server-side refusal fallbacks (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) through `client.beta.messages.create`. Tests updated. The SDK's mapping of 401/404/429/500 errors still works.
 

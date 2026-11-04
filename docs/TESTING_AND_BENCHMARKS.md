@@ -51,4 +51,6 @@ $env:PYTHONUTF8 = "1"
 |---|---|---|---|
 | 2026-11-04 | phase 0, before fixes | fast tests, first run on Windows | 785 passed, 15 failed, 7 skipped. Causes in `docs/DEVELOPMENT_PROGRESS.md`: 3 real bugs, the rest test portability and one leaking new test |
 | 2026-11-04 | phase 0, most fixes | fast tests | 805 passed, 1 failed (a stage-list assumption, then fixed), 1 skipped (symlinks need Developer Mode). 6 min 42 s: LilyPond engraving is slower on Windows, and the studio was transcribing at the same time |
+| 2026-11-04 | phase 0, all fixes (`a52328f`) | fast tests | **807 passed, 1 skipped** (symlinks), 0 failed, 4 min 21 s; the later settings-file tests (10) pass on their own |
+| 2026-11-04 | phase 0 | Windows app from the desktop shortcut (`scripts\windows\drum_agent.cmd`) | up in about 8 s: personal mode, every check OK, separation from the shipped weights, sampled drums on |
 | 2026-11-04 | phase 0 | studio end to end on Windows: "Northbound" (repository's own song) synthesized as a 3-minute band mix, uploaded, transcribed with drum separation | notation F 0.984 (P 0.982, R 0.986), 60/60 bars, tempo and meter right; all 8 export checks OK; job 4 min 37 s on a shared CPU |

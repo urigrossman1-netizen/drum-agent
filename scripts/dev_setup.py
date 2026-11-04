@@ -68,7 +68,7 @@ def tool_env() -> dict:
 def make_shortcut() -> None:
     """A desktop shortcut to scripts/windows/drum_agent.cmd (Windows only)."""
     target = ROOT / "scripts" / "windows" / "drum_agent.cmd"
-    icon = ROOT / "build" / "drum_agent.ico"
+    icon = ROOT / "build" / "drum-agent.ico"  # packaging/make_icon.py's output
     if not icon.is_file():
         try:
             run([venv_python(), ROOT / "packaging" / "make_icon.py"], cwd=ROOT)
