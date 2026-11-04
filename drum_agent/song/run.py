@@ -247,7 +247,9 @@ def _rerun_command(args, audio: AudioSource) -> str:
     option the user gave. Values are joined to their flag and the song's name comes after
     "--", so that a value starting with "-" is still read as one."""
     cmd = ["python", "-m", "drum_agent", "song"]
-    cmd += ["--url", audio.url] if audio.url and audio.origin == "direct" else ["--audio", str(audio.path)]
+    # Forward slashes: the path reads the same in bash and PowerShell, and survives POSIX quoting
+    # (a Windows backslash would be taken as an escape character).
+    cmd += ["--url", audio.url] if audio.url and audio.origin == "direct" else ["--audio", audio.path.as_posix()]
     for flag, attr, default in _CARRIED:
         value = getattr(args, attr, default)
         if value is None or value == default:

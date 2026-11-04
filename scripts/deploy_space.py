@@ -60,7 +60,8 @@ def assemble(dest: Path, repo_url: str) -> list[str]:
         shutil.copy2(ROOT / rel, dest / rel)
     shutil.copytree(ROOT / "drum_agent", dest / "drum_agent", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     (dest / "README.md").write_text(CARD.format(repo=repo_url), encoding="utf-8")
-    return sorted(str(p.relative_to(dest)) for p in dest.rglob("*") if p.is_file())
+    # POSIX paths: the Space's repository paths, whatever system this runs on (Windows too)
+    return sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
 
 
 def address(api, repo_id: str) -> str:

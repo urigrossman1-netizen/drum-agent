@@ -476,7 +476,10 @@ def test_library_match_by_file_name(library, monkeypatch):
 def test_library_scan_is_bounded_and_survives_symlink_loops(library):
     for i in range(5):
         write_wav(library / "rips" / f"Test Groove take {i}.wav")
-    os.symlink(library, library / "rips" / "loop")  # a link back up the tree
+    try:
+        os.symlink(library, library / "rips" / "loop")  # a link back up the tree
+    except OSError as exc:  # Windows: symlinks need Developer Mode or administrator rights
+        pytest.skip(f"symbolic links can't be made here: {exc}")
     os.symlink(library / "rips", library / "again")  # the same folder twice
     found = local.find_local("Test Groove take 1", None, [library], time_limit=10)
     paths = [m.path for m in found]
@@ -487,12 +490,11 @@ def test_library_scan_is_bounded_and_survives_symlink_loops(library):
     assert local.find_local("Test Groove", None, [library / "nope"]).warnings[0].startswith("not a folder")
 
 
-def test_default_roots(tmp_path, monkeypatch):
-    home = tmp_path / "home"
+def test_default_roots(tmp_path, monkeypatch, fake_home):
+    home = fake_home
     (home / "Music").mkdir(parents=True)
     extra = tmp_path / "Bounces"
     extra.mkdir()
-    monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv(local.MUSIC_DIRS_ENV, os.pathsep.join([str(extra), str(tmp_path / "missing"), str(extra)]))
     assert local.default_roots() == [(home / "Music").resolve(), extra.resolve()]
 

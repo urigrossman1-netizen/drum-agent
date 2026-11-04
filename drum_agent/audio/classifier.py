@@ -82,12 +82,14 @@ class OnsetClassifier:
     (members stored with prefixes m0_, m1_, ...; thresholds are the ensemble's own)."""
 
     def __init__(self, path: Path = MODEL_PATH):
-        d = np.load(path, allow_pickle=False)
-        self.classes = tuple(str(c) for c in d["classes"])
-        prefixes = [f"m{j}_" for j in range(int(d["members"]))] if "members" in d else [""]
-        self.nets = [_Net(d, p) for p in prefixes]
-        self.thresholds = d["thresholds"].astype(np.float32)
-        self.version = str(d["version"]) if "version" in d else "?"
+        # Read everything, then close the file: an open .npz is locked on Windows, so a model
+        # file that was loaded could not be replaced or deleted (scripts/adt/train.py does both).
+        with np.load(path, allow_pickle=False) as d:
+            self.classes = tuple(str(c) for c in d["classes"])
+            prefixes = [f"m{j}_" for j in range(int(d["members"]))] if "members" in d else [""]
+            self.nets = [_Net(d, p) for p in prefixes]
+            self.thresholds = d["thresholds"].astype(np.float32)
+            self.version = str(d["version"]) if "version" in d else "?"
         for net in self.nets:
             if net.mu.shape[0] != FEATURE_DIM:
                 raise ValueError(f"{path.name}: model expects {net.mu.shape[0]} features, this code makes {FEATURE_DIM}")
