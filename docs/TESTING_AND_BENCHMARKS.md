@@ -54,3 +54,34 @@ $env:PYTHONUTF8 = "1"
 | 2026-11-04 | phase 0, all fixes (`a52328f`) | fast tests | **807 passed, 1 skipped** (symlinks), 0 failed, 4 min 21 s; the later settings-file tests (10) pass on their own |
 | 2026-11-04 | phase 0 | Windows app from the desktop shortcut (`scripts\windows\drum_agent.cmd`) | up in about 8 s: personal mode, every check OK, separation from the shipped weights, sampled drums on |
 | 2026-11-04 | phase 0 | studio end to end on Windows: "Northbound" (repository's own song) synthesized as a 3-minute band mix, uploaded, transcribed with drum separation | notation F 0.984 (P 0.982, R 0.986), 60/60 bars, tempo and meter right; all 8 export checks OK; job 4 min 37 s on a shared CPU |
+| 2026-11-04 | phase 1 (`0807c20`) | fast tests | **820 passed, 1 skipped**, 0 failed |
+| 2026-11-04 | phase 1 | A/B: the previous commit vs phase 1 on 5 recordings (4 test charts with a band, the 3-minute Northbound mix), both detectors | identical notes, bars and analysis: the provenance work changed no result |
+| 2026-11-04 | phase 1 (`9a7d6ae`) | `eval_real.py --split train --separate`, detector level (`benchmarks/results/2026-11-04_phase1-dev-detector`) | all 5 classes F: drum stems **0.856**, band mix 0.696, separated 0.773. Within 0.001 of the Linux numbers of October (0.856 / 0.696 / 0.774). New measures below |
+| 2026-11-04 | phase 1 (`9a7d6ae`) | same, chart level (`--pipeline transcribe`; `benchmarks/results/2026-11-04_phase1-dev-chart`) | the same pooled F (0.856 / 0.696 / 0.773), every class within 0.003 of the detector level. Below, point 7 |
+| 2026-11-04 | phase 1 (`9a7d6ae`) | both levels run a second time, after the records were fixed to name their commit | **every number identical** (2,005 and 2,008 values). The detector record's 13,653 s includes a pause of hours (the computer most likely slept); the chart run, which does more, took 148 s |
+
+### What the new measures show (MDB Drums development split, 2026-11-04)
+
+1. **Fast passages are the weakest point.** These are strokes no more than 100 ms apart on one drum: 16th-note hi-hats at fast tempi, rolls, fills. Their recall:
+
+   | Input | Fast-passage recall | All strokes |
+   |---|---|---|
+   | drum stems | 0.794 | 0.888 |
+   | band mix | 0.251 | 0.702 |
+   | band mix, separated | 0.265 | 0.769 |
+
+   Separation barely helps fast passages.
+2. **Snare written as hi-hat.** In separated band mixes, 223 of 1,304 snare strokes come out as hi-hat. A further 270 are missed.
+3. **Cymbals.** 60 of 267 cymbal strokes are written as hi-hat, and 112 are missed.
+4. **Strokes written where nothing was played.** About half are hi-hat: 240 of 498 in separated mixes, and 369 of 610 on drum stems. The "extra" in the summary lines is larger (detector level: 853 separated, 720 on stems) because it also counts strokes written on the wrong drum.
+5. **Timing.** Matches are tight: F at 30 ms is within 0.003–0.024 of F at 50 ms, and the mean error is 9–11 ms.
+6. **Toms.** The development split holds only 15 tom strokes, so tom numbers there are not meaningful. The held-out split has more.
+7. **The finished chart keeps what the detector found.** At chart level (`--pipeline transcribe`), every note in the finished chart is scored. Every class is within 0.003 F of the detector level, and the pooled F is the same: 0.856, 0.696 and 0.773. The notation steps (merging two strokes into one grid slot, flams, rolls, cymbal smoothing) cost only a few fast strokes: fast-passage recall is 0.003–0.007 lower.
+   - **Limit:** chart level scores each note at the time the detector heard it. It shows which strokes reach the chart and as which drum, but not whether each note sits in the right place on the grid. MDB Drums annotates stroke times without beats or bars, so grid placement on real recordings is not measured. It is measured on synthesized recordings, where the answer is exact (`eval_notation.py`).
+8. **An open question: 80sRock.** The annotations have kick (63), snare (35) and crash (5), with no hi-hat. The detector writes a hi-hat on almost every beat of the drum stem: 51 strokes, each within 30 ms of an annotated stroke. There are two possible explanations:
+   - the annotators left out a quarter-note hi-hat;
+   - the classifier hears this 1980s-style kick and snare attack as a hi-hat.
+
+   Telling them apart needs a listen. The track accounts for 51 of the 369 extra hi-hat strokes on drum stems.
+
+These set the targets for phase 2 (other transcription models and fusion): fast passages, snare against hi-hat, and cymbals.

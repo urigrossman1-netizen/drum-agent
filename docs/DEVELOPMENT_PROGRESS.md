@@ -19,16 +19,16 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | YouTube | song search and authorized playback | **Implemented, not fully verified** | Data API `search.list` / `videos.list` + `youtube-nocookie` embed (`web/providers.py`, `static/js/song.js`). Tested with recorded responses, never against the live API: needs `YOUTUBE_API_KEY` |
 | Audio uploads | functional and validated | **Complete and verified** | `audio/prepare.py`, `web/sources.py`; `tests/test_web.py`; CI acceptance run on a real recording (run 40905703452) |
 | Audio processing | real FFmpeg-based processing | **Complete and verified** | ffmpeg/ffprobe decode and validation (`audio/prepare.py`); FFmpeg ships with the app |
-| Drum separation | actual source separation | **Complete and verified** | HTDemucs (`audio/separate.py`); MDB band mixes 0.591 → 0.733 F with it. Runs on this PC from the local weights (`doctor`, 2026-11-04) |
+| Drum separation | actual source separation | **Complete and verified** | HTDemucs (`audio/separate.py`); MDB band mixes 0.591 → 0.733 F with it. Runs on this PC from the local weights (`doctor`, 2026-11-04). Since phase 1, a failure falls back to the band mix with a note instead of ending the job |
 | Transcription | actual model inference | **Complete and verified** | onset classifier (`audio/classifier.py`), measured on the MDB Drums held-out split. More models and a comparison are phase 2 |
 | Instrument detection | multiple individual drum classes | **Partially implemented** | 11 classes from audio. Never from audio: china, splash, crash2, rimshot, cowbell, half-open hi-hat. Cymbals 0.14 and toms 0.43 F on separated band mixes |
 | Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Missing: odd meters from audio, repeated-section recognition, fills marked on bars, web hints |
 | Arrangement | complete-song representation | **Partially implemented** | Every bar of the recording is charted, with sections and flags: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test. Repeats aren't labelled as repeats |
 | Chart generation | genuine drum notation | **Complete and verified** | LilyPond 2.26 engraving; MusicXML 4.0 (XSD); MIDI; three-way read-back on every export; 113-chart library |
 | Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
-| Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Missing: velocity, change instrument, move, a per-hit "edited" flag, and keeping the raw predictions |
+| Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Missing: velocity, change instrument, move |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 807 passed, 1 skipped (2026-11-04); benchmarks per backend come in phase 2. `docs/TESTING_AND_BENCHMARKS.md` |
+| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 820 passed, 1 skipped (2026-11-04, phase 1); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`; benchmarks per backend come in phase 2. `docs/TESTING_AND_BENCHMARKS.md` |
 | Security | upload and API protection | **Partially implemented** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Missing: rate limits, CSRF guard, streaming size cap, Host allowlist, decode outside the request |
 
 ## Log
@@ -116,3 +116,27 @@ Tests require that no stroke is left "unaccounted".
 - `--detector`.
 
 Each run is kept in `benchmarks/results/<date>_<label>.json/.md` with its commit, classifier version and machine. Chart-level runs (`--pipeline transcribe`) no longer separate "mix" behind the user's back.
+
+**Checks.**
+- Fast tests: 820 passed, 1 skipped.
+- Same results as before: the commit before phase 1 and phase 1 were run on 5 recordings with both detectors, and gave identical notes, bars and analysis.
+
+**Results on the MDB Drums development split** (12 real recordings; `benchmarks/results/2026-11-04_phase1-dev-*`). F for all 5 classes:
+
+| Input | Detector | Finished chart |
+|---|---|---|
+| drum stem | 0.856 | 0.856 |
+| band mix | 0.696 | 0.696 |
+| band mix, drums separated | 0.773 | 0.773 |
+
+Within 0.001 of the October numbers from Linux (0.856 / 0.696 / 0.774).
+
+What the new measures found (detail in `docs/TESTING_AND_BENCHMARKS.md`):
+- Fast passages are the weak spot: 0.79 recall on a drum stem, but 0.25–0.27 in a band mix, separated or not.
+- In separated band mixes, 223 of 1,304 snare strokes are written as hi-hat.
+- About half the strokes written where nothing was played are hi-hat.
+- The finished chart loses almost nothing to notation: within 0.003 F of the detector on every class.
+- Grid placement on real recordings is not measured, because the annotations have no beats or bars. That fits phase 3, alongside the second beat tracker.
+- An open question for phase 2: on 80sRock a hi-hat is written on almost every beat where the annotations have none.
+
+**Fixed along the way.** The first two records said "commit: None": the background shell had no `git` on its PATH. `eval_real.py` now finds Git in its standard install folders and, when it can't, says why (`9a7d6ae`). Both levels were then run again on `9a7d6ae`, and every number came out identical.

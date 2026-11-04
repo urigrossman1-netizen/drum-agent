@@ -53,6 +53,26 @@ the held-out numbers are the table above. Separation (the
 default when PyTorch and demucs are installed; the Windows app has them) is
 described and measured in [MODELS.md](MODELS.md).
 
+The development recordings were measured again on Windows on 2026-11-04
+(`benchmarks/results/2026-11-04_phase1-dev-*`). The numbers agree to within 0.001: separated
+band mixes 0.773, against 0.774 on Linux. Three new measures show where the errors are:
+- **Fast passages** are strokes no more than 100 ms apart on one drum: 16th-note hi-hats at
+  speed, rolls and fills. Their recall:
+  - drum stem 0.79;
+  - band mix 0.25;
+  - band mix with the drums separated 0.27, against 0.77 for all its strokes.
+- **Snare written as hi-hat.** In separated band mixes this happens to 223 of 1,304 snare
+  strokes, and 270 more are not written at all.
+- **Strokes written where nothing was played** are about half hi-hat: 240 of 498 in
+  separated band mixes, and 369 of 610 on drum stems.
+- **The finished chart keeps what the detector found.** Scored note by note, it is within
+  0.003 F of the detector's strokes on every class. The notation steps (merging, flams, rolls)
+  lose a few fast strokes: fast-passage recall is 0.003–0.007 lower.
+- **Grid placement on real recordings is not measured.** These annotations are stroke times
+  without beats or bars, so the benchmark checks when each note was heard. It does not check
+  whether the note sits in the right place on the grid. That is measured only on synthesized
+  recordings, where the answer is exact (below).
+
 What this means for a chart made from a real recording:
 - **Kick and snare** are mostly right on a drum stem (0.96, 0.87), and in a
   full band mix once the drums are separated (0.95, 0.82; about two in three
@@ -60,6 +80,9 @@ What this means for a chart made from a real recording:
 - **Hi-hat** is right about three times in four; open versus closed and
   hi-hat versus ride are the usual confusions, and brushes and dense jazz
   ride patterns produce extra hi-hat strokes.
+- **Fast passages in a band mix** are the weak spot: about one stroke in four of a
+  16th-note hi-hat at speed, a roll or a fast fill is written (four in five on a drum stem).
+  Check fills and rolls by ear.
 - **Toms** are found about half the time on a stem, and less often in a band
   mix (0.43 separated, 0.31 as given).
 - **Cymbals (crash, ride, china, splash) are the weakest class**: about one
@@ -168,7 +191,11 @@ Charts of non-commercial-licensed material are not committed.
     Windows app includes them). Without them a band mix is transcribed as
     given, which is much less accurate (above). Separation takes about as
     long as the recording on two CPU threads, and can lose quiet strokes in
-    soft jazz (`--separate off`).
+    soft jazz (`--separate off`). If separation fails, the band mix is
+    transcribed as given, and the report says so.
+11. **Fast passages** (16th-note hi-hats at speed, rolls, fast fills) in a
+    band mix: about one stroke in four is written, with or without
+    separation; on a drum stem, four in five.
 
 ## Notation limits
 - Rhythms finer than 32nds or sextuplets (quintuplets, 64ths) can't be
