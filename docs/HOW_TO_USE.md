@@ -74,7 +74,10 @@ Keep keys private: never paste them into a chat, a screenshot or a file you shar
 ## When something goes wrong
 
 - **"No drum strokes detected"**: is there a drum part? Try a different file.
-- **Wrong tempo or bar lines**: check the tempo on the chart. Re-transcribing with a tempo
-  hint is coming to the studio; for now the command line takes `--bpm`.
+- **Wrong tempo, time signature or bar 1**: open the chart's **Details** panel, fill in
+  what you know (tempo, time, where bar 1 starts in seconds, feel) and press **Chart
+  again**. You get a new version in seconds; the recording isn't processed again. It starts
+  from the detected strokes, so save your hand edits first if you want to keep them. When
+  uploading, you can give the same hints straight away.
 - **Anything else**: the app's log is in `%LOCALAPPDATA%\Drum Agent\logs` (the window app)
   or in the window where `studio.cmd` runs.

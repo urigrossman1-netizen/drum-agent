@@ -15,6 +15,7 @@ Companion documents:
 | Path | Entry | Notes |
 |---|---|---|
 | CLI | `cli.py` `cmd_transcribe` → `audio/transcribe.py:528 transcribe_file` → `load_audio` (`:39`) → `transcribe_audio` (`:76`) → `pipeline.export_all` | hints: `--bpm`, `--time-signature`, `--downbeat`, `--feel`, `--sections`, `--drums-only`, `--separate auto/on/off`, `--detector auto/classifier/nmf`, `--sensitivity`, `--start/--end` |
+| Chart again | CLI `rechart`, studio `POST /api/charts/{id}/rechart` → `transcribe.rechart` → `_chart` (stages 6–10) | the stored detection log (format 2: each stroke passed to notation keeps its final time, strength, velocity, confidence and flags in `hit`) with new hints; no audio is read |
 | Web studio and desktop app | upload → `web/sources.py prepare()` (validation, ffmpeg decode) → job `web/jobs.py _transcribe` → `load_audio` → `transcribe_audio(y, TranscribeOptions())` | the job always uses the default options: no hints yet |
 
 ## Stages

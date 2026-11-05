@@ -183,7 +183,9 @@ Charts of non-commercial-licensed material are not committed.
 5. **Tempo** can still come out doubled or halved on unusual material, and
    steady swing can be read at 3/4 of its tempo (swung 8ths line up with a
    16th grid there), as can, now and then, a take whose tempo drifts a lot.
-   The report says "tempo ambiguous" when it is close; pass `--bpm`.
+   The report says "tempo ambiguous" when it is close; pass `--bpm`, or chart
+   it again in seconds with the right tempo (`drum-agent rechart`, or "Chart
+   again" in the studio), which reuses the detected strokes.
 6. **Meter.** 4/4, 3/4, 6/8 and 12/8 are detected, along with a switch to
    12/8 for a section (the boundary can be a bar off) and short bars that
    shift the downbeat (2/4, 1/4, 3/4 inside 4/4, found from crash
@@ -195,8 +197,12 @@ Charts of non-commercial-licensed material are not committed.
 8. **Sparse passages.** Calibration is relative to the recording, so an
    isolated stroke after a long silence can be misread, and a long cymbal
    ring-out can create phantom strokes. Noise below -60 dBFS is ignored.
-9. **Section names** are letters (A, B, C); name them with `--sections` or
-   `edit --sections`.
+9. **Section names** are letters; a section whose bars match an earlier one's
+   takes its letter again, numbered (A, B, A2, B2, C). Similar but varied
+   sections can get a new letter. Name them with `--sections`, `edit
+   --sections` or the studio. **Fills** are marked "Fill" when a bar is busy
+   (toms, a snare run) and unlike its section's usual bar; a fill played with
+   few strokes isn't marked.
 10. **Drum separation needs PyTorch and demucs** (`pip install demucs`; the
     Windows app includes them). Without them a band mix is transcribed as
     given, which is much less accurate (above). Separation takes about as

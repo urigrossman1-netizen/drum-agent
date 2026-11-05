@@ -22,8 +22,8 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Drum separation | actual source separation | **Complete and verified** | HTDemucs (`audio/separate.py`); MDB band mixes 0.591 → 0.733 F with it. Runs on this PC from the local weights (`doctor`, 2026-11-04). Since phase 1, a failure falls back to the band mix with a note instead of ending the job |
 | Transcription | actual model inference | **Complete and verified** | onset classifier (`audio/classifier.py`), measured on the MDB Drums held-out split (re-measured on this PC in phase 2: drum stems 0.772, separated band mixes 0.732). Phase 2 measured two other models and a band-mix check; none was adopted (`scripts/eval_backends.py`, `docs/MODELS.md`) |
 | Instrument detection | multiple individual drum classes | **Partially implemented** | 11 classes from audio. Never from audio: china, splash, crash2, rimshot, cowbell, half-open hi-hat. Cymbals 0.14 and toms 0.43 F on separated band mixes |
-| Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Missing: odd meters from audio, repeated-section recognition, fills marked on bars, web hints |
-| Arrangement | complete-song representation | **Partially implemented** | Every bar of the recording is charted, with sections and flags: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test. Repeats aren't labelled as repeats |
+| Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Since phase 3: repeated sections recognized (A, B, A2), fills marked on bars, tempo/meter/downbeat/feel hints in the studio (upload, and "Chart again" in seconds from the stored strokes; `drum-agent rechart`). Missing: odd meters from audio (a second beat tracker, Beat This!, not yet tried) |
+| Arrangement | complete-song representation | **Complete and verified** | Every bar of the recording is charted, with sections, repeats (A2) and fills marked: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test; `tests/test_structure.py` (constructed bars and the library's fill chart g64; not measured on real recordings, whose annotations have no sections) |
 | Chart generation | genuine drum notation | **Complete and verified** | LilyPond 2.26 engraving; MusicXML 4.0 (XSD); MIDI; three-way read-back on every export; 113-chart library |
 | Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Missing: velocity, change instrument, move |
@@ -215,3 +215,30 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
   - Training on separated clips teaches false strokes.
   - The remaining gap is synthesized against real recordings. Closing it needs real annotated recordings; those we know of are licensed non-commercial or evaluation-only, which the project excluded.
 - **Kept:** the Windows training setup and the two build options, for a later round.
+
+### 2026-11-05: phase 3, musical understanding (part 1)
+
+**Charting again in seconds.**
+- The detection log (format 2) now keeps the detector's final strokes at full precision, plus the near misses.
+- `transcribe.rechart` charts a recording again from that log with other tempo, meter, downbeat or feel hints, without reading the audio. Separation and detection, the minutes of a job, aren't repeated.
+- Given the same hints, it produces the same chart (`tests/test_rechart.py`).
+- Ways to use it:
+  - CLI: `drum-agent rechart chart.json --bpm/--time-signature/--downbeat/--feel`.
+  - Studio: "Chart again" in a chart's Details panel makes a new version (`POST /api/charts/{id}/rechart`).
+  - Uploads take the same hints; they are part of the job's identity (`tests/test_web_rechart.py`).
+- Checked in the studio in the browser pane: a demo take charted again in 3/4 became version 2 (11 bars of 3/4 from 8 of 4/4).
+- Hand edits are not carried over, and the form says so.
+- Older charts (format 1 logs) don't offer it.
+
+**Sections and fills** (`audio/structure.py`, `tests/test_structure.py`).
+- A section whose bars match an earlier one's takes its letter again, numbered: A, B, A2, B2, C. The similarity is kept in the roadmap and the report.
+- A busy bar (toms, a snare run) unlike its section's usual kick, snare and tom pattern gets a "Fill" cue. A busy groove played throughout gets none.
+- On the library's fill chart g64, exactly its two fills are marked.
+- Rendered and looked at.
+- Fixed:
+  - A change of cymbal into a new section was missed when the fill bar before it had none.
+  - The studio's checks panel printed a stray "null".
+
+**Not done yet:** Beat This! as a second beat tracker, which would give odd meters from audio.
+
+**Tests:** 841 passed, 1 skipped.
