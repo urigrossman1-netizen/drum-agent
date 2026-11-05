@@ -25,9 +25,10 @@ SR = 44100
 ONESHOTS = Path(os.environ.get("DRUM_AGENT_DATA", Path.home() / ".cache" / "drum-agent")) / "adt" / "oneshots"
 # Band accompaniment: FluidR3 (MIT), MuseScore General (MIT), csound GM bank (public domain),
 # TimGM6mb (GPL-2; left out with DRUM_AGENT_PERMISSIVE=1, see oneshots.py --permissive-only).
-GM_SOUNDFONTS = ["/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/sounds/sf2/MuseScore_General_Full.sf2",
-                 "/usr/share/sounds/sf2/sf_GMbank.sf2"] + (
-    [] if os.environ.get("DRUM_AGENT_PERMISSIVE") else ["/usr/share/sounds/sf2/TimGM6mb.sf2"])
+# DRUM_AGENT_SAMPLE_ROOT: where the packages are installed ("/" on Linux; see fetch_sources.py).
+_SF2_DIR = Path(os.environ.get("DRUM_AGENT_SAMPLE_ROOT", "/")) / "usr" / "share" / "sounds" / "sf2"
+GM_SOUNDFONTS = [(_SF2_DIR / f).as_posix() for f in ("FluidR3_GM.sf2", "MuseScore_General_Full.sf2", "sf_GMbank.sf2")] + (
+    [] if os.environ.get("DRUM_AGENT_PERMISSIVE") else [(_SF2_DIR / "TimGM6mb.sf2").as_posix()])
 HAND = ("snare", "cross_stick", "hihat", "hihat_open", "ride", "ride_bell", "crash", "tom", "other")
 
 
@@ -158,8 +159,11 @@ def _vel(rng, base, spread=10):
 
 
 STYLES = ("rock", "pop", "funk", "disco", "jazz", "jazz_ballad", "shuffle", "metal", "punk", "reggae", "latin",
-          "hiphop", "halftime", "ballad", "train", "electronic", "isolated", "chaos", "toms")
-STYLE_WEIGHTS = (10, 8, 8, 4, 8, 4, 5, 6, 4, 4, 5, 5, 4, 5, 3, 3, 6, 4, 4)
+          "hiphop", "halftime", "ballad", "train", "electronic", "isolated", "chaos", "toms", "nohat")
+# "nohat" (kick and snare grooves without a time-keeping cymbal, or with one on the off-beats only)
+# has weight 0 here, so the default mix draws the same clips as before it existed; it is used
+# through DRUM_AGENT_STYLES for builds that teach a snare or kick heard without a hi-hat.
+STYLE_WEIGHTS = (10, 8, 8, 4, 8, 4, 5, 6, 4, 4, 5, 5, 4, 5, 3, 3, 6, 4, 4, 0)
 
 
 def style_mix() -> tuple[tuple[str, ...], tuple[float, ...]]:
@@ -208,8 +212,9 @@ def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -
         cym = "ride" if "ride" in has else "crash"
     hat_open_p = {"disco": 0.9, "funk": 0.15, "rock": 0.08, "pop": 0.1, "punk": 0.25}.get(style, 0.04)
     ghost_p = {"funk": 0.35, "rock": 0.08, "pop": 0.06, "hiphop": 0.15, "jazz": 0.25, "shuffle": 0.2,
-               "halftime": 0.25, "latin": 0.1, "ballad": 0.05}.get(style, 0.03)
+               "halftime": 0.25, "latin": 0.1, "ballad": 0.05, "nohat": 0.12}.get(style, 0.03)
     loud = rng.uniform(70, 118)
+    nohat = rng.choice(["none", "none", "offbeat"]) if style == "nohat" else None  # drawn only for this style
     # Tom grooves: an ostinato on the floor tom (or floor tom and the tom above),
     # with kick and snare landing on its strokes; the unisons are what make
     # kick-under-floor-tom and snare-over-floor-tom learnable.
@@ -262,6 +267,9 @@ def performance(rng: random.Random, kit: VirtualKit, style: str | None = None) -
                         add(t, cym, _vel(rng, loud - 10))
                 elif style == "train":
                     pass
+                elif style == "nohat":  # no cymbal on the snare and kick strokes: only off-beats, or none
+                    if nohat == "offbeat" and f == 0.5:
+                        add(t, cym, _vel(rng, loud - 10))
                 elif style == "toms":
                     if ostinato == "16ths" or (ostinato == "8ths" and eighth) or on_beat:
                         k = n_toms - 1 if not alternate or round(f * 4) % 2 == 0 else n_toms - 2

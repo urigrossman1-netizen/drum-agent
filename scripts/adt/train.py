@@ -55,11 +55,18 @@ def label_candidates(cand_times: np.ndarray, events: list[tuple[float, str]]) ->
     return Y
 
 
-def build_one(seed: int) -> tuple[np.ndarray, np.ndarray, int, dict] | None:
+def build_one(seed: int, mix_p: float = 0.6, separate: bool = False) -> tuple[np.ndarray, np.ndarray, int, dict] | None:
+    """One clip's candidates, features and labels. With `separate`, a clip with a band goes
+    through drum separation first and is then read as drums only, as the transcriber reads a
+    separated band recording (audio/transcribe.py)."""
     import generate as G
     from drum_agent.audio.detect import PAD, DetectOptions, front_end
-    clip = G.make_clip(seed)
-    fe = front_end(clip.audio, DetectOptions(drums_only=clip.drums_only))
+    clip = G.make_clip(seed, mix_p)
+    audio, drums_only, separated = clip.audio, clip.drums_only, False
+    if separate and not clip.drums_only:
+        from drum_agent.audio.separate import separate_drums
+        audio, drums_only, separated = separate_drums(clip.audio, 44100), True, True
+    fe = front_end(audio, DetectOptions(drums_only=drums_only))
     if fe is None or not len(fe.cand):
         return None
     X = onset_features(fe.M_full, fe.M_perc, fe.flux, fe.cand).astype(np.float16)
@@ -69,8 +76,8 @@ def build_one(seed: int) -> tuple[np.ndarray, np.ndarray, int, dict] | None:
     for t, _ in clip.events:
         if np.min(np.abs(ct - t)) > MATCH_S:
             missed += 1
-    return X, Y, int(clip.drums_only), {"seed": seed, "events": len(clip.events), "missed": missed,
-                                        "style": clip.info.get("style")}
+    return X, Y, int(drums_only), {"seed": seed, "events": len(clip.events), "missed": missed,
+                                   "style": clip.info.get("style"), "separated": separated}
 
 
 def cmd_build(a) -> None:
@@ -79,6 +86,8 @@ def cmd_build(a) -> None:
     seeds = list(range(a.start_seed, a.start_seed + a.clips))
     per_shard = 100
     t0 = time.time()
+    from functools import partial
+    one = partial(build_one, mix_p=a.mix_p, separate=a.separate)
     with ProcessPoolExecutor(max_workers=a.jobs) as ex:
         for s0 in range(0, len(seeds), per_shard):
             chunk = seeds[s0:s0 + per_shard]
@@ -86,7 +95,7 @@ def cmd_build(a) -> None:
             if path.exists():
                 continue
             Xs, Ys, clip_id, dry, meta = [], [], [], [], []
-            for res in ex.map(build_one, chunk):
+            for res in ex.map(one, chunk):
                 if res is None:
                     continue
                 X, Y, d, m = res
@@ -99,8 +108,10 @@ def cmd_build(a) -> None:
                      drums_only=np.concatenate(dry))
             ev = sum(m["events"] for m in meta)
             miss = sum(m["missed"] for m in meta)
-            print(f"{path.name}: {sum(len(x) for x in Xs)} candidates from {len(meta)} clips, "
-                  f"{miss}/{ev} strokes without a candidate ({time.time() - t0:.0f}s)", flush=True)
+            sep = sum(m["separated"] for m in meta)
+            print(f"{path.name}: {sum(len(x) for x in Xs)} candidates from {len(meta)} clips"
+                  + (f" ({sep} separated)" if a.separate else "")
+                  + f", {miss}/{ev} strokes without a candidate ({time.time() - t0:.0f}s)", flush=True)
 
 
 def load_shards(d: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -299,6 +310,10 @@ def main() -> None:
     b.add_argument("--start-seed", type=int, default=1)
     b.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
     b.add_argument("--out", default=str(DATA))
+    b.add_argument("--mix-p", type=float, default=0.6, help="chance that a clip has a band (default 0.6)")
+    b.add_argument("--separate", action="store_true",
+                   help="separate the drums of every clip with a band (HTDemucs) before reading it, as the "
+                        "transcriber does; set DRUM_AGENT_TORCH_THREADS to share the CPU between --jobs")
     t = sub.add_parser("train")
     t.add_argument("--data", default=str(DATA))
     t.add_argument("--epochs", type=int, default=25)
