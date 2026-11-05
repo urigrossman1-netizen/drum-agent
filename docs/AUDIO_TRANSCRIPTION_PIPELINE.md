@@ -23,7 +23,7 @@ Companion documents:
 |---|---|---|---|---|
 | 0 | Validate and decode (web) | `audio/prepare.py`, `web/sources.py` | any → 44.1 kHz, 2 ch, 16-bit WAV | extension whitelist, magic bytes, ffprobe, size and duration limits (200 MB, 5 s to 20 min by default), silence (−60 dBFS) and truncation checks; stored under its SHA-256 |
 | 1 | Load | `transcribe.py:39 load_audio` | → 44.1 kHz **mono** float | librosa (ffmpeg fallback). Stereo is averaged to mono here |
-| 2 | Separate | `audio/separate.py:60 separate_drums`, chosen by `transcribe.py use_separation` | mono duplicated to 2 ch at the model rate → drum stem → mono 44.1 kHz | HTDemucs (`htdemucs`, weights `955717e8`), CPU, `split=True, overlap=0.25`. Runs when torch and demucs are installed and the input is not marked drums-only. Weights load from `$TORCH_HOME/hub/checkpoints` when shipped (`shipped()`, `:31`). If separation fails under `--separate auto`, the band mix is transcribed as given and the report says why (`on` makes it an error). **The band mix is not used after this point** |
+| 2 | Separate | `audio/separate.py:60 separate_drums`, chosen by `transcribe.py use_separation` | mono duplicated to 2 ch at the model rate → drum stem → mono 44.1 kHz | HTDemucs (`htdemucs`, weights `955717e8`), CPU, `split=True, overlap=0.25`. Runs when torch and demucs are installed and the input is not marked drums-only. Weights load from `$TORCH_HOME/hub/checkpoints` when shipped (`shipped()`, `:31`). If separation fails under `--separate auto`, the band mix is transcribed as given and the report says why (`on` makes it an error). **The band mix is not used after this point** (checking the separated drums against it was tried in phase 2 and lost on the held-out recordings: `docs/MODELS.md`) |
 | 3 | Front end | `audio/detect.py:258 front_end` | 44.1 kHz; STFT 2048 / hop 256 (5.8 ms); 96 mel bands, 30 Hz to 17 kHz | peak-normalise, 0.25 s pad, HPSS for band mixes, superflux onset envelope, candidate onsets (high recall: 86–100% of every class on real recordings). STFT/HPSS are processed in 30 s chunks |
 | 4 | Classify | `detect.py:284 detect` → `audio/classifier.py:261 classify_hits` (default) or `detect.py:379 _detect_nmf` (`--detector nmf`) | 1,300 features per candidate | numpy MLP ensemble, 11 classes (kick, snare, cross-stick, closed/open/pedal hi-hat, ride, ride bell, crash, tom, other), per-class thresholds scaled by `--sensitivity`. Rules: one hi-hat state per instant, at most two hand strokes, pedal under a stick stroke dropped. Toms named by NMF evidence or by pitch clusters (`name_toms`, `:220`) |
 | 5 | Finish | `detect.py:300 _finish` | strokes | merge flams, drop flam-caused crashes, smooth cymbals, ghost/accent from each drum's typical strength (snare only, at least 8 strokes) |
@@ -91,6 +91,7 @@ detector heard is lost.
 - **Seam B.** Replace the `detect()` call in `transcribe_audio` with anything that returns a `Detection`. Two constraints:
   - `onset_env` must be at hop 256 / 44.1 kHz;
   - `strength` must be supplied.
+- **A second opinion (phase 2).** `detect(y, opts, evidence=classifier.Evidence(...))` takes another model's strokes as `(time, class)` pairs. Per drum family, the classifier's threshold is moved where that model agrees (`agree`) or is silent (`alone`), and strokes only it heard can be added (`add`). The detection log records the moved thresholds per candidate and the source of an added stroke. `scripts/eval_backends.py` uses it to measure other models (Onsets & Frames ONNX, ADT_STR) as second opinions. The transcription pipeline doesn't use it: nothing measured so far held up on the held-out recordings.
 - **Full mix.** A model that wants the band mix, or stereo, needs `transcribe_audio` to keep the pre-separation signal, which it currently overwrites.
 
 ## Measured accuracy (summary)
@@ -101,5 +102,7 @@ From `docs/LIMITATIONS.md`: MDB Drums, held-out test split, onset F at 50 ms, de
 |---|---|---|---|---|---|---|
 | Band mix, drums separated | 0.733 | 0.945 | 0.823 | 0.703 | 0.427 | 0.144 |
 | Drum stem | 0.772 | 0.963 | 0.866 | 0.723 | 0.495 | 0.270 |
+
+These are October's Linux numbers. Re-measured on the Windows PC in phase 2 (`benchmarks/results/2026-11-05_phase2-test-detector-no-band-check`): separated 0.732, drum stem 0.772.
 
 Synthetic charts with exact answers reach notation F 0.963–0.969.

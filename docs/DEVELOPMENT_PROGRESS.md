@@ -20,7 +20,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Audio uploads | functional and validated | **Complete and verified** | `audio/prepare.py`, `web/sources.py`; `tests/test_web.py`; CI acceptance run on a real recording (run 40905703452) |
 | Audio processing | real FFmpeg-based processing | **Complete and verified** | ffmpeg/ffprobe decode and validation (`audio/prepare.py`); FFmpeg ships with the app |
 | Drum separation | actual source separation | **Complete and verified** | HTDemucs (`audio/separate.py`); MDB band mixes 0.591 → 0.733 F with it. Runs on this PC from the local weights (`doctor`, 2026-11-04). Since phase 1, a failure falls back to the band mix with a note instead of ending the job |
-| Transcription | actual model inference | **Complete and verified** | onset classifier (`audio/classifier.py`), measured on the MDB Drums held-out split. More models and a comparison are phase 2 |
+| Transcription | actual model inference | **Complete and verified** | onset classifier (`audio/classifier.py`), measured on the MDB Drums held-out split (re-measured on this PC in phase 2: drum stems 0.772, separated band mixes 0.732). Phase 2 measured two other models and a band-mix check; none was adopted (`scripts/eval_backends.py`, `docs/MODELS.md`) |
 | Instrument detection | multiple individual drum classes | **Partially implemented** | 11 classes from audio. Never from audio: china, splash, crash2, rimshot, cowbell, half-open hi-hat. Cymbals 0.14 and toms 0.43 F on separated band mixes |
 | Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Missing: odd meters from audio, repeated-section recognition, fills marked on bars, web hints |
 | Arrangement | complete-song representation | **Partially implemented** | Every bar of the recording is charted, with sections and flags: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test. Repeats aren't labelled as repeats |
@@ -28,7 +28,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Missing: velocity, change instrument, move |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 820 passed, 1 skipped (2026-11-04, phase 1); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`; benchmarks per backend come in phase 2. `docs/TESTING_AND_BENCHMARKS.md` |
+| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 827 passed, 1 skipped (2026-11-05, phase 2); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
 | Security | upload and API protection | **Partially implemented** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Missing: rate limits, CSRF guard, streaming size cap, Host allowlist, decode outside the request |
 
 ## Log
@@ -132,11 +132,68 @@ Each run is kept in `benchmarks/results/<date>_<label>.json/.md` with its commit
 Within 0.001 of the October numbers from Linux (0.856 / 0.696 / 0.774).
 
 What the new measures found (detail in `docs/TESTING_AND_BENCHMARKS.md`):
-- Fast passages are the weak spot: 0.79 recall on a drum stem, but 0.25–0.27 in a band mix, separated or not.
+- Fast passages: 0.79 recall on a drum stem, but 0.25–0.27 in a band mix, separated or not. (Corrected in phase 2: 249 of the 287 fast strokes are in one bebop recording, so this is mostly that recording. The general weak spot is jazz.)
 - In separated band mixes, 223 of 1,304 snare strokes are written as hi-hat.
 - About half the strokes written where nothing was played are hi-hat.
 - The finished chart loses almost nothing to notation: within 0.003 F of the detector on every class.
 - Grid placement on real recordings is not measured, because the annotations have no beats or bars. That fits phase 3, alongside the second beat tracker.
 - An open question for phase 2: on 80sRock a hi-hat is written on almost every beat where the annotations have none.
 
-**Fixed along the way.** The first two records said "commit: None": the background shell had no `git` on its PATH. `eval_real.py` now finds Git in its standard install folders and, when it can't, says why (`9a7d6ae`). Both levels were then run again on `9a7d6ae`, and every number came out identical.
+**Fixed along the way (phase 1).** The first two records said "commit: None": the background shell had no `git` on its PATH. `eval_real.py` now finds Git in its standard install folders and, when it can't, says why (`9a7d6ae`). Both levels were then run again on `9a7d6ae`, and every number came out identical.
+
+### 2026-11-04/05: phase 2, other models and a second opinion
+
+The owner's target for this phase: charts at least 0.90 accurate.
+
+**Where the misses are.** The detection log shows what happened to every missed stroke.
+- Phantom strokes are the biggest precision loss. A hi-hat is added to a snare or kick 400 times on drum stems; the classifier is confidently wrong (half have probability above 0.76).
+- Separation loses snares. On separated band mixes, 508 of 1,304 snares are missed: 171 never become a candidate, 337 get a low snare probability.
+- Style matters most. Jazz recordings score far lower than the rest.
+- Measured threshold sweeps show the classifier's per-drum thresholds are already close to the best for overall F.
+
+**Models tried** (`scripts/eval_backends.py`; benchmark only, nothing ships):
+- **Onsets & Frames drums, ONNX** (E-GMD, Apache-2.0). Fast (51× real time).
+  - The only available conversion has two dead outputs (always exactly 0), one of them the closed hi-hat, so it has no hi-hat.
+  - Alone: 0.557 on drum stems, 0.495 separated (`phase2-dev-oaf-alone`).
+  - As a second opinion: kick on separated mixes +0.05, overall +0.007.
+- **ADT_STR** (transformer, CC BY-SA, sample rights unclear).
+  - Its decoder re-runs every token at each step: dense jazz took over 9 minutes for 103 s of audio. A cached decoder runs at about 1.5× real time.
+  - Its float mask (−1e4) lets earlier positions see later tokens with these weights. So the cached, strictly causal decoding isn't token-identical: on 4 recordings it scored the same on stems and 0.03 lower on separated mixes.
+  - Alone (cached decoding): 0.745 on drum stems, 0.731 separated (`phase2-dev-adt-str-alone`).
+  - As a second opinion: cymbals and toms on stems, kicks on separated mixes, about +0.01 overall.
+- **DrumScript** (rule-based, alpha, Python < 3.13) was not run. Neither learned model came close to the onset classifier.
+- **Not adopted.** Neither model improves on the onset classifier enough to justify a 289 MB download, an unclear licence (ADT_STR) or a conversion without a hi-hat (Onsets & Frames).
+
+**Tried, and taken out after the held-out test: the band mix as a second opinion.** After separation, the classifier first ran on the band mix as given; a hi-hat or kick heard only in the separated drums then had to clear twice its threshold. The idea: separation leaves snare residue that sounds like a hi-hat, and turns snare and bass into phantom kicks, while a real hi-hat or kick is in the mix too. It was committed (`fa16547`), measured, and reverted:
+
+| Separated band mixes | Without the check | With the check |
+|---|---|---|
+| development split (12), all 5 | 0.773 | 0.792 |
+| synthetic band mixes, notation F (20 runs) | 0.9643 | 0.9705 |
+| **held-out test split (11), all 5** | **0.732** | **0.723** |
+| held-out: hi-hat / kick | 0.700 / 0.945 | 0.676 / 0.932 |
+
+- **On the held-out recordings it lost.** In loud, guitar-heavy mixes the hi-hat is buried, so the band-mix pass doesn't hear it and the check deleted real hi-hats: Hendrix 0.888 → 0.696, Punk −0.052, Country1 −0.049, Gospel −0.031.
+- **Where it helped:** jazz (+0.006 to +0.021) and the Beatles track (+0.044).
+- **Decision:** the adoption rule fixed in the plan (overall F up, no class down more than 0.02 on the held-out split) fails, so the app keeps phase 1's behaviour.
+- **Kept:** the mechanism, `classifier.Evidence` (another model's strokes move the thresholds per drum family, or add strokes), used by `scripts/eval_backends.py` and available to future models.
+- **Records:** `benchmarks/results/2026-11-05_phase2-{dev,test}-*`.
+
+**Where the app stands** (held-out test split, this PC, no change from phase 1):
+
+| | Drum stems | Separated band mixes |
+|---|---|---|
+| all 11 recordings | 0.772 | 0.732 |
+| rock, pop, country, gospel, metal, punk (7) | 0.883 | 0.873 |
+| jazz (4) | 0.696 | 0.637 |
+
+On the development split, the same split by style: other styles 0.913 / 0.893, jazz 0.775 / 0.594.
+
+**On the 0.90 target.** Not reached:
+- **Other styles:** about 0.87–0.91.
+- **Jazz:** 0.59–0.78.
+- **What would get there:** a classifier that is better on real recordings. The errors left are its own: phantom hi-hats on snares, snares lost in separation, and jazz ride and comping.
+- **What is used up:** threshold tuning and second opinions were measured here and are nearly exhausted.
+- **Next lever:** retraining with data aimed at those errors.
+
+**Tests:** 827 passed, 1 skipped (`tests/test_evidence.py`, `tests/test_eval_backends.py` new).

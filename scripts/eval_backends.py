@@ -295,8 +295,7 @@ def main() -> None:
     report = ev.render(ev.summarize(rows), title)
     print("\n" + report)
     if a.label:
-        meta = ev._meta(argparse.Namespace(separate="sep" in inputs, no_band_check=True), tracks, time.time() - t0)
-        meta.pop("band_mix_check", None)
+        meta = ev._meta(argparse.Namespace(separate="sep" in inputs), tracks, time.time() - t0)
         meta.update({"model": a.model, "model_revision": MODELS[a.model]["rev"], "evidence": a.evidence})
         result = {"summary": ev.summarize(rows), "split": a.split,
                   "tracks": {f"{t}/{i}": r for (t, i), r in rows.items()}, "meta": meta}

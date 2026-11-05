@@ -61,6 +61,9 @@ band mixes 0.773, against 0.774 on Linux. Three new measures show where the erro
   - drum stem 0.79;
   - band mix 0.25;
   - band mix with the drums separated 0.27, against 0.77 for all its strokes.
+
+  However, 249 of the 287 fast strokes are in one recording (BebopJazz: a fast swung ride
+  pattern), so this mostly measures that recording, not fast playing in general.
 - **Snare written as hi-hat.** In separated band mixes this happens to 223 of 1,304 snare
   strokes, and 270 more are not written at all.
 - **Strokes written where nothing was played** are about half hi-hat: 240 of 498 in
@@ -80,9 +83,16 @@ What this means for a chart made from a real recording:
 - **Hi-hat** is right about three times in four; open versus closed and
   hi-hat versus ride are the usual confusions, and brushes and dense jazz
   ride patterns produce extra hi-hat strokes.
-- **Fast passages in a band mix** are the weak spot: about one stroke in four of a
-  16th-note hi-hat at speed, a roll or a fast fill is written (four in five on a drum stem).
-  Check fills and rolls by ear.
+- **Jazz is the weak spot.** On separated band mixes:
+
+  | | Jazz | Other styles |
+  |---|---|---|
+  | development split | 0.59 (bebop, cool and fusion jazz) | 0.89 (rock, pop, disco, funk, reggae…; 9 recordings) |
+  | held-out recordings | 0.64 (4 recordings) | 0.87 (7 recordings) |
+
+  On drum stems, other styles score 0.88–0.91 and jazz 0.70–0.78. Separation struggles with
+  soft jazz drumming under a band, and the classifier hears jazz snare comping and ride
+  patterns less reliably.
 - **Toms** are found about half the time on a stem, and less often in a band
   mix (0.43 separated, 0.31 as given).
 - **Cymbals (crash, ride, china, splash) are the weakest class**: about one
@@ -193,9 +203,10 @@ Charts of non-commercial-licensed material are not committed.
     long as the recording on two CPU threads, and can lose quiet strokes in
     soft jazz (`--separate off`). If separation fails, the band mix is
     transcribed as given, and the report says so.
-11. **Fast passages** (16th-note hi-hats at speed, rolls, fast fills) in a
-    band mix: about one stroke in four is written, with or without
-    separation; on a drum stem, four in five.
+11. **Jazz in a band mix** is charted less accurately than other styles
+    (separated: 0.59–0.64 against 0.87–0.89 on the development and held-out
+    recordings). Fast swung ride patterns lose the most strokes. A drum stem
+    helps most here.
 
 ## Notation limits
 - Rhythms finer than 32nds or sextuplets (quintuplets, 64ths) can't be

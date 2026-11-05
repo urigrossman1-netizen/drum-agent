@@ -13,6 +13,7 @@ commit.
 | Detection accuracy | `python scripts/eval_detection.py` | stroke-level onset F per instrument on synthesized charts (several kits, band mixes, humanized timing) | FluidSynth + soundfont |
 | Notation accuracy | `python scripts/eval_notation.py --jobs 4` | end to end: right bar, position and instrument, plus flag precision/recall | FluidSynth + soundfont |
 | Real recordings | `python scripts/eval_real.py --split train` (`--separate` for drums-first, `--pipeline transcribe` for the finished chart, `--detector`) | on MDB Drums (23 real multitracks, CC BY-NC-SA, about 330 MB in a local cache), per class: precision, recall and F at 50 and 30 ms, timing error, recall in fast passages, a confusion matrix of what was written instead, and extra strokes. Each run is kept in `benchmarks/results/`. The `test` split is held out: run it once per model version | network for the first download |
+| Other transcription models | `python scripts/eval_backends.py --model oaf\|adt_str` (`--download` first; `--evidence '<json>'` as a second opinion for the classifier) | the same MDB scoring for Onsets & Frames drums (ONNX) and ADT_STR, alone or as `classifier.Evidence`. Benchmark only | onnxruntime (oaf); torch, transformers, omegaconf, pretty_midi (adt_str); the separated stems from an `eval_real.py --separate` run |
 | Whole app on a real recording | `python scripts/acceptance_run.py` | the studio's API end to end on one MDB track: upload, job, chart, edit, save, reopen, export, and the chart's strokes scored against the annotations | a running studio |
 | Packaged Windows app | `packaging/smoke_test.py` (CI `windows-app.yml`) | the installed app: tools ready, a beat, an upload separated and transcribed, a song found in a music folder, real catalog search | the built app |
 
@@ -59,6 +60,11 @@ $env:PYTHONUTF8 = "1"
 | 2026-11-04 | phase 1 (`9a7d6ae`) | `eval_real.py --split train --separate`, detector level (`benchmarks/results/2026-11-04_phase1-dev-detector`) | all 5 classes F: drum stems **0.856**, band mix 0.696, separated 0.773. Within 0.001 of the Linux numbers of October (0.856 / 0.696 / 0.774). New measures below |
 | 2026-11-04 | phase 1 (`9a7d6ae`) | same, chart level (`--pipeline transcribe`; `benchmarks/results/2026-11-04_phase1-dev-chart`) | the same pooled F (0.856 / 0.696 / 0.773), every class within 0.003 of the detector level. Below, point 7 |
 | 2026-11-04 | phase 1 (`9a7d6ae`) | both levels run a second time, after the records were fixed to name their commit | **every number identical** (2,005 and 2,008 values). The detector record's 13,653 s includes a pause of hours (the computer most likely slept); the chart run, which does more, took 148 s |
+| 2026-11-05 | phase 2 (`fa16547`, then the revert) | fast tests | **827 passed, 1 skipped**, 0 failed, both before and after the band-mix check was taken out |
+| 2026-11-05 | phase 2 (`fa16547`, band-mix check on) | `eval_real.py --split train --separate`, detector and chart level (`phase2-dev-detector`, `phase2-dev-chart`) | separated band mixes 0.773 → 0.792 with the check (hi-hat 0.815 → 0.853, kick 0.847 → 0.880; precision 0.776 → 0.854, recall 0.769 → 0.739). Drum stems 0.856 and band mixes 0.696 unchanged |
+| 2026-11-05 | phase 2, without (`676cc5e`) and with the check (`fa16547`) | `eval_notation.py --conditions std_band,jazz_band_h` (20 synthetic band mixes, separated) | notation F 0.9643 → 0.9705: standard kit 0.961 → 0.969, held-out jazz kit (humanized) 0.967 → 0.972; two runs lower (−0.007, −0.010) |
+| 2026-11-05 | phase 2 (`fa16547`) | `eval_real.py --split test --separate`, held out, run once with the check and once without (`phase2-test-detector`, `phase2-test-detector-no-band-check`, `phase2-test-chart`) | **without 0.732, with 0.723**: hi-hat 0.700 → 0.676, kick 0.945 → 0.932. Loud band mixes lost real hi-hats (Hendrix 0.888 → 0.696). The check fails the adoption rule and was **reverted**. Drum stems 0.772 and band mixes 0.591, as in October |
+| 2026-11-05 | phase 2 (`fa16547`) | `eval_backends.py`: other models alone and as a second opinion (`phase2-dev-oaf-*`, `phase2-dev-adt-str-*`) | Onsets & Frames ONNX alone 0.557 / 0.495 (drum stems / separated); ADT_STR alone 0.745 / 0.731. Neither adopted; details in `docs/MODELS.md` |
 
 ### What the new measures show (MDB Drums development split, 2026-11-04)
 
@@ -71,6 +77,8 @@ $env:PYTHONUTF8 = "1"
    | band mix, separated | 0.265 | 0.769 |
 
    Separation barely helps fast passages.
+
+   **Corrected in phase 2:** 249 of the 287 fast strokes are in one recording (BebopJazz, a fast swung ride pattern). So this mostly measures that recording, not fast playing in general. What does hold generally is style: on separated band mixes the three jazz recordings score 0.59, the other nine 0.89.
 2. **Snare written as hi-hat.** In separated band mixes, 223 of 1,304 snare strokes come out as hi-hat. A further 270 are missed.
 3. **Cymbals.** 60 of 267 cymbal strokes are written as hi-hat, and 112 are missed.
 4. **Strokes written where nothing was played.** About half are hi-hat: 240 of 498 in separated mixes, and 369 of 610 on drum stems. The "extra" in the summary lines is larger (detector level: 853 separated, 720 on stems) because it also counts strokes written on the wrong drum.
@@ -84,4 +92,4 @@ $env:PYTHONUTF8 = "1"
 
    Telling them apart needs a listen. The track accounts for 51 of the 369 extra hi-hat strokes on drum stems.
 
-These set the targets for phase 2 (other transcription models and fusion): fast passages, snare against hi-hat, and cymbals.
+These set the targets for phase 2 (other transcription models and fusion): snare against hi-hat, cymbals, and fast passages (see the correction under point 1).

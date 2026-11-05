@@ -1,5 +1,7 @@
-"""A second opinion for the onset classifier (classifier.Evidence) and the transcriber's check of
-separated drums against the band mix they came from (transcribe.BAND_MIX_CHECK)."""
+"""A second opinion for the onset classifier: another model's strokes (classifier.Evidence).
+
+Used to measure other models (scripts/eval_backends.py). Checking separated drums against the
+band mix this way was measured and not adopted (docs/MODELS.md)."""
 
 import pytest
 
@@ -74,29 +76,8 @@ def test_a_stroke_only_the_other_model_heard_can_be_added(take):
     assert len(detect(take, opts, evidence=near).hits) == len(base.hits)
 
 
-def test_separated_drums_are_checked_against_the_band_mix(take, monkeypatch):
-    from drum_agent.audio import separate
-    from drum_agent.audio import transcribe as tx
-    seen = []
-    real_detect = tx.detect
-
-    def spy(y, options=None, evidence=None):
-        seen.append((options.drums_only, evidence))
-        return real_detect(y, options, evidence=evidence)
-
-    monkeypatch.setattr(separate, "available", lambda: True)
-    monkeypatch.setattr(separate, "separate_drums", lambda y, sr: y)  # "separated": the same audio
-    monkeypatch.setattr(tx, "detect", spy)
-    score = tx.transcribe_audio(take, tx.TranscribeOptions(separate="auto"), title="t")
-    assert score.analysis["separation"] == separate.MODEL
-    (mix_only, none), (stem_only, ev) = seen  # the band mix first, then the separated drums
-    assert mix_only is False and none is None and stem_only is True
-    assert isinstance(ev, Evidence) and ev.source == "band mix" and ev.alone == tx.BAND_MIX_CHECK
-    assert "band mix" in score.detections["detector"]
-
-    seen.clear()  # no separation: no band mix to check against
-    tx.transcribe_audio(take, tx.TranscribeOptions(separate="off"), title="t")
-    assert [e for _, e in seen] == [None]
-    seen.clear()  # the NMF detector takes no evidence
-    tx.transcribe_audio(take, tx.TranscribeOptions(separate="auto", detector="nmf"), title="t")
-    assert [e for _, e in seen] == [None]
+def test_the_nmf_detector_ignores_evidence(take):
+    from drum_agent.audio.detect import DetectOptions, detect
+    opts = DetectOptions(drums_only=True, method="nmf")
+    ev = Evidence([], source="deaf", alone={"HH": 2.0, "KD": 2.0, "SD": 2.0})
+    assert _strokes(detect(take, opts, evidence=ev)) == _strokes(detect(take, opts))

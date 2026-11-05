@@ -219,3 +219,67 @@ them by less than 0.005, and four higher; the open and closed hi-hat chart 0.958
 0.920). Per-chart numbers are in
 `docs/LIMITATIONS.md`. `scripts/eval_detection.py` measures `detect()` itself, which
 separation doesn't change; its results are unchanged.
+
+## A second opinion for the classifier (`classifier.Evidence`)
+
+`detect(y, opts, evidence=...)` takes another model's strokes as `(time, class)` pairs:
+- Per drum family, the classifier's threshold moves where that model also heard the family within 30 ms (`agree`) or did not (`alone`).
+- Strokes only it heard can be added (`add`).
+- The detection log records the moved thresholds per candidate and the source of an added stroke.
+- The NMF detector ignores evidence.
+
+Phase 2 used it to measure other models and one idea of our own. None was adopted.
+
+### Tried: checking separated drums against the band mix
+
+Separation leaves artefacts the classifier hears as strokes:
+- residue of a snare that sounds like a hi-hat;
+- snare and bass energy that sounds like a kick.
+
+The detection log showed these as phantom hi-hats and kicks on top of real snares, and a real
+hi-hat or kick is also in the band mix. So the classifier first read the band mix as given.
+Then, on the separated drums, a hi-hat or kick that pass didn't hear had to clear twice its
+threshold. It was chosen on the development split, committed (`fa16547`) and then measured on
+the held-out recordings:
+
+| Separated band mixes | KD | SD | HH | TT | CY | all 5 | P / R |
+|---|---|---|---|---|---|---|---|
+| Development (12), without | 0.847 | 0.709 | 0.815 | 0.593 | 0.486 | 0.773 | 0.776 / 0.769 |
+| Development (12), with | 0.880 | 0.709 | 0.853 | 0.593 | 0.485 | 0.792 | 0.854 / 0.739 |
+| **Test (11), without** | 0.945 | 0.823 | 0.700 | 0.415 | 0.141 | **0.732** | 0.762 / 0.703 |
+| **Test (11), with** | 0.932 | 0.823 | 0.676 | 0.415 | 0.145 | **0.723** | 0.798 / 0.660 |
+
+- **Synthesized band mixes with separation:** it helped (`eval_notation.py`, 20 runs: notation F 0.9643 → 0.9705).
+- **Held-out recordings:** it lost. Loud, guitar-heavy mixes bury the hi-hat, so the band-mix pass missed it and the check deleted real hi-hats:
+  - Hendrix 0.888 → 0.696 (hi-hat 0.817 → 0.222);
+  - Punk −0.052, Country1 −0.049, Gospel −0.031, Grunge −0.027.
+- **Where it helped:** jazz and the Beatles track.
+- **Decision:** the adoption rule fails (overall F down, hi-hat down 0.024), so it was reverted.
+
+### Other models measured, not adopted
+
+`scripts/eval_backends.py` runs other drum transcription models on MDB Drums with the same
+scoring, alone and as a second opinion. Each is pinned by revision and SHA-256 and downloaded
+only on request. Development split, all 5 classes, onset F at 50 ms. The second-opinion gains
+come from sweeps on the development split; since neither model was adopted, neither went to
+the held-out split:
+
+| Model | Drum stems | Separated band mixes | As a second opinion |
+|---|---|---|---|
+| Onset classifier (this one) | 0.856 | 0.773 | |
+| Onsets & Frames drums, ONNX (E-GMD; Apache-2.0) | 0.557 | 0.495 | kick on separated mixes: about +0.007 overall |
+| ADT_STR, tau-0.8 (CC BY-SA 4.0 by its README; sample rights unclear) | 0.745 | 0.731 | cymbals and toms on stems, kicks on separated mixes: about +0.01 |
+
+**Onsets & Frames, ONNX conversion.**
+- It runs at about 51× real time on this laptop's CPU.
+- The only published conversion (`thebluescreen/oaf-drums-onnx`) outputs exactly 0 on every frame of every recording for its closed hi-hat and clave outputs. Its "ride" output fires on snares. So it has no usable hi-hat and only its kick, snare, tom and crash outputs are used.
+- Its onsets are 11.5 ms early on average; this is corrected.
+
+**ADT_STR.**
+- It is a 69M-parameter encoder-decoder that writes notes as tokens per 2.56 s window.
+- Its own sampler runs the whole decoder again for every token, so dense recordings are slow: 103 s of bebop took over 9 minutes.
+- Its decoder mask is additive (−1e4). With these weights that doesn't stop earlier positions from attending to later tokens; a boolean mask does.
+- The benchmark decodes greedily with a key/value cache and a strictly causal decoder, at about 1.5× real time. On four recordings (80sRock, Britpop, Reggae, Rock) this scored the same as the model's own sampler on drum stems (0.841 against 0.840) and 0.03 lower on separated band mixes (0.805 against 0.837). So its separated-mix numbers above are likely somewhat low.
+- Even so, neither model alone approaches the classifier.
+
+**DrumScript** (rule-based, alpha, Python < 3.13) was not run.
