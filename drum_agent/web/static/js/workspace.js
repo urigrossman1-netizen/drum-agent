@@ -721,8 +721,9 @@ class Workspace {
     const head = this.kind === "beat"
       ? h("p", { class: "small muted" }, "An original beat is checked for structure and playability. It isn't compared with any recording.")
       : h("p", { class: "small muted" }, "These checks prove the chart is consistent and covers the recording. They don't prove every stroke matches it: listen to the flagged bars.");
-    this.checksEl.replaceChildren(head, h("ul", { class: "checks" }, items),
-      this.viewSrc.kind === "preview" ? h("p", { class: "tiny muted" }, "For the working copy. Saving re-checks every export.") : null);
+    // replaceChildren() would print a null as the text "null": only real nodes go in.
+    this.checksEl.replaceChildren(...[head, h("ul", { class: "checks" }, items),
+      this.viewSrc.kind === "preview" ? h("p", { class: "tiny muted" }, "For the working copy. Saving re-checks every export.") : null].filter(Boolean));
   }
 
   renderReview() {
@@ -776,6 +777,46 @@ class Workspace {
     }
     const notes = gen?.notes || [];
     return h("div", {}, h("dl", { class: "kv" }, rows),
-      notes.length ? h("div", { class: "understood" }, notes.map((n) => h("span", { class: `note-chip src-${n.source}` }, `${n.field.replace(/_/g, " ")}:`, h("b", {}, String(n.value))))) : null);
+      notes.length ? h("div", { class: "understood" }, notes.map((n) => h("span", { class: `note-chip src-${n.source}` }, `${n.field.replace(/_/g, " ")}:`, h("b", {}, String(n.value))))) : null,
+      this.rechartForm());
+  }
+
+  // Chart the same detected strokes again with what the user knows (tempo, meter, bar 1, feel):
+  // a new version in seconds, no audio processed again (POST /api/charts/{id}/rechart).
+  rechartForm() {
+    if (this.kind !== "song" || !this.chart.can_rechart) return null;
+    const field = (label, el) => h("label", { class: "field small" }, h("span", { class: "muted" }, label), el);
+    const bpm = h("input", { class: "input", type: "number", min: 30, max: 320, step: "0.1", placeholder: "auto" });
+    const meter = h("select", { class: "input" }, ["", "4/4", "3/4", "2/4", "6/8", "12/8", "9/8", "5/4", "6/4", "7/4"]
+      .map((m) => h("option", { value: m }, m || "auto")));
+    const down = h("input", { class: "input", type: "number", min: 0, step: "0.01", placeholder: "auto" });
+    const feel = h("select", { class: "input" }, ["auto", "straight", "swing", "triplet"].map((f) => h("option", { value: f }, f)));
+    const go = h("button", { class: "btn sm", type: "button" }, "Chart again");
+    go.addEventListener("click", async () => {
+      const json = { feel: feel.value };
+      if (bpm.value) json.bpm = Number(bpm.value);
+      if (meter.value) json.time_signature = meter.value;
+      if (down.value !== "") json.downbeat = Number(down.value);
+      if (!json.bpm && !json.time_signature && json.downbeat === undefined && json.feel === "auto") {
+        toast("Give a tempo, a time signature, where bar 1 starts, or a feel.", "bad");
+        return;
+      }
+      if (this.dirty && !(await dialog({ title: "Chart again without your unsaved edits?", body: "Charting again starts from the detected strokes. Save first to keep your edits as a version.", confirm: "Chart again" }))) return;
+      go.disabled = true;
+      go.textContent = "Charting…";
+      try {
+        const n = await api(`/api/charts/${this.chart.id}/rechart`, { json });
+        toast(`Charted again as version ${n.version}`);
+        location.hash = `#/chart/${n.id}`;
+      } catch (e) { toast(e.message, "bad"); }
+      go.disabled = false;
+      go.textContent = "Chart again";
+    });
+    return h("div", { class: "rechart", style: { "margin-top": "12px" } },
+      h("strong", { class: "small" }, "Wrong tempo, meter or bar 1?"),
+      h("p", { class: "small muted" }, "Chart the same strokes again with what you know. It takes seconds and makes a new version; edits made by hand in this version are not carried over."),
+      h("div", { class: "row", style: { "flex-wrap": "wrap", gap: "8px" } },
+        field("Tempo (BPM)", bpm), field("Time", meter), field("Bar 1 starts at (s)", down), field("Feel", feel)),
+      h("div", { class: "row", style: { "margin-top": "6px" } }, go));
   }
 }

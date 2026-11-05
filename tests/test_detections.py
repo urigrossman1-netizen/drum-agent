@@ -73,7 +73,7 @@ def test_every_detected_stroke_is_accounted_for(take, detector):
     from drum_agent.audio.transcribe import TranscribeOptions, transcribe_audio
     score = transcribe_audio(take, TranscribeOptions(separate="off", detector=detector), title="t")
     log = score.detections
-    assert log["format"] == "drum-agent detections" and log["version"] == 1 and log["sample_rate"] == 44100
+    assert log["format"] == "drum-agent detections" and log["version"] == 2 and log["sample_rate"] == 44100
     strokes = {s["id"]: s for s in log["strokes"]}
     assert strokes and all(s["fate"] != "unaccounted" for s in strokes.values())
     assert sum(log["summary"]["fates"].values()) == len(strokes)

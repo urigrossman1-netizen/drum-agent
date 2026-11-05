@@ -95,19 +95,21 @@ class JobRunner:
             self._thread.start()
 
     # ---- API -------------------------------------------------------------
-    def submit(self, song_id: str, source_id: str) -> tuple[dict, bool]:
-        """(job, created): the existing job for this song, recording and engine when there is one.
+    def submit(self, song_id: str, source_id: str, hints: dict | None = None) -> tuple[dict, bool]:
+        """(job, created): the existing job for this song, recording, engine and hints when there is one.
 
         The key includes the song: the same recording uploaded to another song (another
-        visitor's, on a shared server) is that song's own job, never a job it can't see."""
+        visitor's, on a shared server) is that song's own job, never a job it can't see.
+        `hints` are TranscribeOptions fields the uploader gave (bpm, time_signature, downbeat, feel)."""
         source = self.store.get_source(source_id)
         if source is None or source["song_id"] != song_id:
             raise KeyError("source not found for this song")
-        key = f"{song_id}|{source['sha256']}|{ENGINE}"
+        key = f"{song_id}|{source['sha256']}|{ENGINE}" + (f"|{_json(dict(sorted(hints.items())))}" if hints else "")
         existing = self.store.job_by_key(key)
         if existing is not None:
             return existing, False
-        job = self.store.create_job(song_id=song_id, source_id=source_id, engine=ENGINE, key=key)
+        job = self.store.create_job(song_id=song_id, source_id=source_id, engine=ENGINE, key=key,
+                                    params={"hints": hints} if hints else {})
         self.queue.put(job["id"])
         return job, True
 
@@ -135,7 +137,7 @@ class JobRunner:
         if job["kind"] == "library":
             new, _ = self.submit_library(job["song_id"], job["params"].get("file"))
             return new
-        new, _ = self.submit(job["song_id"], job["source_id"])
+        new, _ = self.submit(job["song_id"], job["source_id"], (job["params"] or {}).get("hints"))
         return new
 
     def submit_generate(self, song_id: str, params: dict) -> tuple[dict, bool]:
@@ -254,7 +256,8 @@ class JobRunner:
         if not wav.is_file():
             raise AudioError("source_missing", "the prepared audio for this source is missing; upload it again")
         y = load_audio(wav)
-        score = transcribe_audio(y, TranscribeOptions(), title=song["title"], progress=step)
+        hints = (job.get("params") or {}).get("hints") or {}
+        score = transcribe_audio(y, TranscribeOptions(**hints), title=song["title"], progress=step)
         score.artist = song["artist"]
         score.rights = source["rights"]
         score.source = (f"your music folders: {source['original_name']}" if source["kind"] == "library"

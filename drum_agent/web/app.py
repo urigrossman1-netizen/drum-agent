@@ -87,6 +87,18 @@ class ReviewIn(BaseModel):
     bars: list[int] = Field(min_length=1, max_length=2000)  # score bar numbers (1-based)
 
 
+class HintsIn(BaseModel):
+    """What a person knows about the recording: the transcriber's --bpm, --time-signature,
+    --downbeat and --feel."""
+    bpm: float | None = Field(default=None, ge=30, le=320)  # quarter notes per minute
+    time_signature: str | None = Field(default=None, max_length=5)
+    downbeat: float | None = Field(default=None, ge=0, le=7200)  # seconds into the recording
+    feel: str = Field(default="auto", pattern="^(auto|straight|swing|triplet)$")
+
+    def given(self) -> dict:
+        return {k: v for k, v in self.model_dump().items() if v is not None and v != "auto"}
+
+
 class SectionsIn(BaseModel):
     sections: list[SectionName]
     source: str = Field(default="user", pattern="^(user|claude)$")
@@ -229,19 +241,26 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return _song_detail(store, _song(store, song_id))
 
     @app.post("/api/songs/{song_id}/upload")
-    def upload(song_id: str, file: Annotated[UploadFile, File()], rights: Annotated[str, Form()] = ""):
+    def upload(song_id: str, file: Annotated[UploadFile, File()], rights: Annotated[str, Form()] = "",
+               bpm: Annotated[float | None, Form()] = None, time_signature: Annotated[str, Form()] = "",
+               downbeat: Annotated[float | None, Form()] = None, feel: Annotated[str, Form()] = "auto"):
         row = _song(store, song_id, write=True)
         name = sources.safe_name(file.filename)
         try:
             sources.rights_gate.require_rights(rights or None, name, personal_ok=sources.personal_mode())
         except RightsError as exc:
             raise HTTPException(403, str(exc)) from None
+        try:  # optional: what the uploader knows about the recording, checked before any work
+            hints = _hints(HintsIn(bpm=bpm, time_signature=time_signature or None, downbeat=downbeat,
+                                   feel=feel or "auto"))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         tmp = sources.save_stream(file.file, MAX_BYTES, dir=store.root / "uploads")
         try:
             src = sources.add_upload(store, row, tmp, name, rights)
         finally:
             tmp.unlink(missing_ok=True)
-        job, created = runner.submit(row["id"], src["id"])
+        job, created = runner.submit(row["id"], src["id"], hints)
         return {"source": _public_source(src), "job": _public_job(job), "created": created}
 
     @app.get("/api/songs/{song_id}/library")
@@ -313,6 +332,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return {**_public_chart(c), "song": _public_song(song_row), "view": view,
                 "versions": [_public_chart(v) for v in store.charts_for(c["song_id"])],
                 "has_audio": bool(c["source_id"]),
+                "can_rechart": _log_version(d / "chart.detections.json") >= 2,
                 "files": {k: f"/api/charts/{c['id']}/files/{k}" for k in FILES if (d / k).is_file()}}
 
     @app.get("/api/charts/{chart_id}/files/{name}")
@@ -373,6 +393,36 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
                                      parent_id=c["id"])
         return _public_chart(new)
 
+    @app.post("/api/charts/{chart_id}/rechart")
+    def rechart_chart(chart_id: str, body: HintsIn):
+        """The strokes detected before, charted again with the tempo, meter, downbeat or feel
+        given: a new version in seconds (no audio read, nothing detected again). Charting
+        starts from the detector's strokes, so a version's hand edits are not carried over."""
+        from ..audio.transcribe import TranscribeOptions, rechart
+        c = _chart(store, chart_id, write=True)
+        d = Path(c["dir"])
+        hints = _hints(body)
+        if not hints:
+            raise HTTPException(422, "give a tempo, a time signature, a downbeat or a feel to chart with")
+        log_path = d / "chart.detections.json"
+        if not log_path.is_file():
+            raise HTTPException(409, "this version has no detection log to chart again from")
+        before = Score.load(d / "chart.json")
+        try:
+            score = rechart(json.loads(log_path.read_text(encoding="utf-8")), TranscribeOptions(**hints),
+                            title=before.title)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        for name in ("artist", "transcriber", "source", "copyright", "chart_type", "rights"):
+            setattr(score, name, getattr(before, name))
+        song_row = store.get_song(c["song_id"])
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        with revise_lock:
+            new = runner._save_chart(song_row, score, lambda stage: None, origin="rechart", source=src,
+                                     audio_duration=src["info"].get("duration_s") if src else None,
+                                     parent_id=c["id"], note="Charted again: " + _describe_hints(hints))
+        return _public_chart(new)
+
     @app.post("/api/charts/{chart_id}/review")
     def review(chart_id: str, body: ReviewIn):
         """A person listened to these bars and confirms them: their review flags are cleared
@@ -405,6 +455,35 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
 
 
 # ---- views of rows (no server paths, no secrets) ---------------------------------------
+
+def _hints(body: HintsIn) -> dict:
+    """The hints given, as TranscribeOptions fields (a meter audio can't be charted in is a 422)."""
+    from ..audio.transcribe import AUDIO_SIMPLE_METERS
+    hints = body.given()
+    ts = hints.get("time_signature")
+    if ts is not None and ts not in AUDIO_SIMPLE_METERS:
+        raise HTTPException(422, f"time signature {ts!r}: one of {', '.join(sorted(AUDIO_SIMPLE_METERS))}")
+    return hints
+
+
+def _log_version(path: Path) -> int:
+    """The format version of a chart's detection log (0: none). The log is written with
+    "format" and "version" first, so its first bytes are enough."""
+    try:
+        with path.open("rb") as f:
+            head = f.read(256).decode("utf-8", "replace")
+    except OSError:
+        return 0
+    m = re.search(r'"version":\s*(\d+)', head)
+    return int(m.group(1)) if m and '"drum-agent detections"' in head else 0
+
+
+def _describe_hints(hints: dict) -> str:
+    parts = [f"{hints['bpm']:g} BPM" if "bpm" in hints else None, hints.get("time_signature"),
+             f"beat 1 at {hints['downbeat']:g} s" if "downbeat" in hints else None,
+             f"{hints['feel']} feel" if "feel" in hints else None]
+    return ", ".join(p for p in parts if p)
+
 
 def _song(store: Store, song_id: str, *, write: bool = False) -> dict:
     """The song, if this visitor may see it (else 404, as if it didn't exist); `write`: and change it."""
