@@ -155,12 +155,12 @@ The owner's target for this phase: charts at least 0.90 accurate.
 - **Onsets & Frames drums, ONNX** (E-GMD, Apache-2.0). Fast (51× real time).
   - The only available conversion has two dead outputs (always exactly 0), one of them the closed hi-hat, so it has no hi-hat.
   - Alone: 0.557 on drum stems, 0.495 separated (`phase2-dev-oaf-alone`).
-  - As a second opinion: kick on separated mixes +0.05, overall +0.007.
+  - As a second opinion: +0.001 on drum stems, +0.004 separated (`phase2-dev-oaf-evidence`).
 - **ADT_STR** (transformer, CC BY-SA, sample rights unclear).
   - Its decoder re-runs every token at each step: dense jazz took over 9 minutes for 103 s of audio. A cached decoder runs at about 1.5× real time.
   - Its float mask (−1e4) lets earlier positions see later tokens with these weights. So the cached, strictly causal decoding isn't token-identical: on 4 recordings it scored the same on stems and 0.03 lower on separated mixes.
   - Alone (cached decoding): 0.745 on drum stems, 0.731 separated (`phase2-dev-adt-str-alone`).
-  - As a second opinion: cymbals and toms on stems, kicks on separated mixes, about +0.01 overall.
+  - As a second opinion: +0.010 on drum stems, +0.009 separated (`phase2-dev-adt-str-evidence`; development split only, not taken to the held-out split).
 - **DrumScript** (rule-based, alpha, Python < 3.13) was not run. Neither learned model came close to the onset classifier.
 - **Not adopted.** Neither model improves on the onset classifier enough to justify a 289 MB download, an unclear licence (ADT_STR) or a conversion without a hi-hat (Onsets & Frames).
 

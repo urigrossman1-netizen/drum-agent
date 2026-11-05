@@ -267,8 +267,8 @@ the held-out split:
 | Model | Drum stems | Separated band mixes | As a second opinion |
 |---|---|---|---|
 | Onset classifier (this one) | 0.856 | 0.773 | |
-| Onsets & Frames drums, ONNX (E-GMD; Apache-2.0) | 0.557 | 0.495 | kick on separated mixes: about +0.007 overall |
-| ADT_STR, tau-0.8 (CC BY-SA 4.0 by its README; sample rights unclear) | 0.745 | 0.731 | cymbals and toms on stems, kicks on separated mixes: about +0.01 |
+| Onsets & Frames drums, ONNX (E-GMD; Apache-2.0) | 0.557 | 0.495 | kick and toms: 0.857 / 0.777 (+0.001 / +0.004; `phase2-dev-oaf-evidence`) |
+| ADT_STR, tau-0.8 (CC BY-SA 4.0 by its README; sample rights unclear) | 0.745 | 0.731 | cymbals, toms, hi-hat and kick: 0.866 / 0.782 (+0.010 / +0.009; `phase2-dev-adt-str-evidence`) |
 
 **Onsets & Frames, ONNX conversion.**
 - It runs at about 51× real time on this laptop's CPU.
