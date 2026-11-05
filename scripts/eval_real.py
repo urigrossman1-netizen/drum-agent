@@ -180,8 +180,8 @@ def score_track(ref: list[tuple[float, str]], est: list[tuple[float, str]]) -> d
     return out
 
 
-def run_one(job: tuple[str, str, str, str]) -> tuple[str, str, dict, float]:
-    track, mix, pipeline, detector = job
+def run_one(job: tuple) -> tuple[str, str, dict, float]:
+    track, mix, pipeline, detector, band_check = job
     import soundfile as sf
     from drum_agent.audio.detect import DetectOptions, detect
     p = _paths(track)
@@ -190,6 +190,7 @@ def run_one(job: tuple[str, str, str, str]) -> tuple[str, str, dict, float]:
     if sr != 44100:
         import librosa
         y = librosa.resample(y, orig_sr=sr, target_sr=44100)
+    band_mix = y
     t0 = time.time()
     if mix == "sep":  # the band mix, with the drums pulled out first (cached: separation is slow)
         import numpy as np
@@ -203,13 +204,25 @@ def run_one(job: tuple[str, str, str, str]) -> tuple[str, str, dict, float]:
             np.save(stem, y)
     drums_only = mix in ("drums", "sep")
     if pipeline == "detect":
-        det = detect(y, DetectOptions(drums_only=drums_only, method=detector))
+        evidence = None
+        if mix == "sep" and band_check:  # what the transcriber does: check the separated drums against the mix
+            from drum_agent.audio.transcribe import TranscribeOptions, band_mix_evidence
+            evidence = band_mix_evidence(band_mix, TranscribeOptions(detector=detector))
+        det = detect(y, DetectOptions(drums_only=drums_only, method=detector), evidence=evidence)
         est = [(h.time, OURS_TO_MDB.get(h.inst, "OT")) for h in det.hits]
     else:
-        from drum_agent.audio.transcribe import TranscribeOptions, transcribe_audio
-        # separate="off": "mix" is the band mix as given, and "sep" was separated above (the
-        # transcriber would otherwise separate "mix" itself whenever demucs is installed).
-        score = transcribe_audio(y, TranscribeOptions(drums_only=drums_only, detector=detector, separate="off"))
+        from drum_agent.audio import transcribe as tx
+        if mix == "sep" and band_check:
+            # The transcriber's own path from the band mix, with the cached separation standing in
+            # for HTDemucs (same model, same stem; this worker runs one job at a time).
+            import drum_agent.audio.separate as separate
+            separate.separate_drums = lambda _y, _sr, stem=y: stem
+            score = tx.transcribe_audio(band_mix, tx.TranscribeOptions(detector=detector, separate="on"))
+        else:
+            # separate="off": "mix" is the band mix as given, "sep" was separated above (the
+            # transcriber would otherwise separate "mix" itself whenever demucs is installed).
+            score = tx.transcribe_audio(y, tx.TranscribeOptions(drums_only=drums_only, detector=detector,
+                                                                separate="off"))
         est = [(h.time, OURS_TO_MDB.get(h.inst, "OT")) for _, _, h in score.iter_hits() if h.time is not None]
     ref = read_annotations(p["class"])
     return track, mix, score_track(ref, est), time.time() - t0
@@ -277,6 +290,9 @@ def main() -> None:
                     help="also score 'sep': the band mix with the drums separated by HTDemucs first")
     ap.add_argument("--detector", default="auto", choices=["auto", "classifier", "nmf"],
                     help="which detector (auto: the onset classifier when its weights are installed)")
+    ap.add_argument("--no-band-check", action="store_true",
+                    help="'sep' without the transcriber's check of the separated drums against the band mix "
+                         "(transcribe.BAND_MIX_CHECK), to measure what the check does")
     ap.add_argument("--label", help="name of this run in benchmarks/results (default: split, pipeline, detector)")
     ap.add_argument("--no-save", action="store_true", help="don't write benchmarks/results")
     ap.add_argument("--quiet", action="store_true")
@@ -294,7 +310,7 @@ def main() -> None:
         if not available():
             raise SystemExit("--separate needs the demucs package: pip install demucs")
         mixes.append("sep")
-    jobs = [(t, m, a.pipeline, a.detector) for t in tracks for m in mixes]
+    jobs = [(t, m, a.pipeline, a.detector, not a.no_band_check) for t in tracks for m in mixes]
     rows: dict[tuple[str, str], dict] = {}
     t0 = time.time()
     with ProcessPoolExecutor(max_workers=a.jobs) as ex:
@@ -393,12 +409,20 @@ def _meta(a, tracks, elapsed: float) -> dict:
     except Exception:  # noqa: BLE001 - no weights: the NMF detector is what ran
         pass
     meta = {"date": time.strftime("%Y-%m-%d %H:%M"), "commit": commit, "uncommitted_changes": dirty,
-            "classifier": model, "separation": _separator() if a.separate else None, "tracks": list(tracks),
+            "classifier": model, "separation": _separator() if a.separate else None,
+            "band_mix_check": (None if not a.separate else
+                               "off" if getattr(a, "no_band_check", False) else _band_check()),
+            "tracks": list(tracks),
             "machine": f"{platform.system()} {platform.release()}, {platform.processor() or platform.machine()}, "
                        f"Python {platform.python_version()}", "seconds": round(elapsed)}
     if commit is None:  # say why, so a record without its commit is not mistaken for one with nothing to say
         meta["commit_unknown"] = "git not found" if git is None else "git could not read the repository"
     return meta
+
+
+def _band_check() -> str:
+    from drum_agent.audio.transcribe import BAND_MIX_CHECK
+    return ", ".join(f"{fam} x{f:g} when only the separated drums hear it" for fam, f in BAND_MIX_CHECK.items())
 
 
 def _meta_md(meta: dict) -> str:

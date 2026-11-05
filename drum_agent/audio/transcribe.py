@@ -83,23 +83,27 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
                          f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
                          f"transcribe from MIDI or write a chart spec.")
-    drums_only, separated, separation_note = opts.drums_only, None, None
+    drums_only, separated, separation_note, band_mix = opts.drums_only, None, None, None
     if use_separation(opts):
         from .separate import MODEL, separate_drums
         step("separate")
         try:
+            band_mix = y
             y = separate_drums(y, SR)
             drums_only, separated = True, MODEL
         except Exception as exc:  # noqa: BLE001 - "auto": the band mix is still transcribable
             if opts.separate == "on":
                 raise
+            band_mix = None
             import logging
             logging.getLogger("drum_agent.transcribe").warning("drum separation failed; using the mix", exc_info=True)
             separation_note = (f"Separating the drums from the band failed ({type(exc).__name__}: "
                                f"{str(exc)[:160]}), so the band mix was transcribed as given, which is less "
                                f"accurate. --separate off skips the attempt; --separate on makes it an error.")
     step("detect")
-    det = detect(y, DetectOptions(drums_only=drums_only, sensitivity=opts.sensitivity, method=opts.detector))
+    evidence = band_mix_evidence(band_mix, opts) if band_mix is not None else None
+    det = detect(y, DetectOptions(drums_only=drums_only, sensitivity=opts.sensitivity, method=opts.detector),
+                 evidence=evidence)
     if not det.hits:
         raise ValueError("no drum strokes detected; is there a drum part? Try --sensitivity 1.5")
     pre_feel = opts.feel if opts.feel != "auto" else None
@@ -214,6 +218,25 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "detector": det.stats.get("detector", "nmf"),
     }
     return score
+
+
+# Separated drums are checked against the band mix they came from: a hi-hat or kick stroke heard
+# only in the separated drums must clear twice its usual threshold (in practice, near-certainty).
+# Separation leaves snare residue that sounds like a hi-hat and turns snare and bass into
+# phantom kicks; a real hi-hat or kick is in the mix too. Chosen on the MDB Drums development
+# split (2026-11-04): separated band mixes 0.773 -> 0.792 F, hi-hat 0.815 -> 0.853, kick
+# 0.847 -> 0.880, no class lower (docs/TESTING_AND_BENCHMARKS.md).
+BAND_MIX_CHECK = {"HH": 2.0, "KD": 2.0}
+
+
+def band_mix_evidence(band_mix: np.ndarray, opts: TranscribeOptions):
+    """The onset classifier's strokes in the band mix as given, as evidence for the separated
+    drums (classifier.Evidence); None when the classifier isn't the detector."""
+    from .classifier import Evidence, model_available
+    if opts.detector == "nmf" or not model_available():
+        return None
+    mix = detect(band_mix, DetectOptions(drums_only=False, sensitivity=opts.sensitivity, method="classifier"))
+    return Evidence([(h.time, h.inst) for h in mix.hits], source="band mix", alone=dict(BAND_MIX_CHECK))
 
 
 def use_separation(opts: TranscribeOptions) -> bool:

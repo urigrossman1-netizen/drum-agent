@@ -284,7 +284,9 @@ def front_end(y: np.ndarray, opts: DetectOptions) -> FrontEnd | None:
     return FrontEnd(y, gain, duration, M_full, V_plain, M_harm, flux, np.asarray(cand, dtype=int))
 
 
-def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
+def detect(y: np.ndarray, options: DetectOptions | None = None, evidence=None) -> Detection:
+    """Strokes in `y` (mono, 44.1 kHz). `evidence` (classifier.Evidence): another model's
+    strokes, which the onset classifier weighs its decisions with; the NMF detector ignores it."""
     opts = options or DetectOptions()
     fe = front_end(y, opts)
     if fe is None:
@@ -295,7 +297,7 @@ def detect(y: np.ndarray, options: DetectOptions | None = None) -> Detection:
         method = "classifier" if model_available() else "nmf"
     if method == "classifier":
         from .classifier import classify_hits
-        hits, extra = classify_hits(fe, opts)
+        hits, extra = classify_hits(fe, opts, evidence)
         return _finish(hits, fe, extra)
     return _detect_nmf(fe, opts)
 

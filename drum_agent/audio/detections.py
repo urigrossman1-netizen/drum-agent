@@ -38,13 +38,17 @@ class DetectionLog:
     candidates: list[dict[str, Any]] = field(default_factory=list)
     strokes: list[dict[str, Any]] = field(default_factory=list)
 
-    def candidate(self, time: float, probs: dict[str, float] | None = None, gate: str | None = None) -> int:
+    def candidate(self, time: float, probs: dict[str, float] | None = None, gate: str | None = None,
+                  source: str | None = None) -> int:
+        """A candidate onset; `source` names another model when only that model heard it."""
         cid = len(self.candidates)
         c: dict[str, Any] = {"id": cid, "time": round(float(time), 4), "sample": max(0, int(round(time * SR)))}
         if probs is not None:
             c["probs"] = {k: round(float(v), 3) for k, v in probs.items()}
         if gate:
             c["gate"] = gate
+        if source:
+            c["source"] = source
         self.candidates.append(c)
         return cid
 
