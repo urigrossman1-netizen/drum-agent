@@ -122,6 +122,64 @@ weights).
 All three ranges use the same one-shot library (`oneshots.py`, whose default
 output hasn't changed).
 
+### Training on Windows, and data aimed at the measured errors (2026-11-05)
+
+`oneshots.py` and `generate.py` read their sources from the Debian/Ubuntu package
+paths. Where those packages aren't installed:
+1. `scripts/adt/fetch_sources.py` downloads the same five Debian packages (about 530 MB) and checks each against the SHA-256 that packages.debian.org publishes.
+2. It unpacks them under `~/.cache/drum-agent/adt/debian`.
+3. `DRUM_AGENT_SAMPLE_ROOT` then points both scripts there. When it's unset they read `/` as before.
+
+Phase 2's measurements on real recordings found two errors that the training data could
+explain:
+- **Phantom hi-hats on snares and kicks.** In the default style mix, nearly every loud backbeat snare has a hi-hat or ride with it (about half of all snares do, counting ghost notes and fills).
+- **Snares lost in separated band recordings.** No training clip was ever separated.
+
+Two additions aim at these:
+- **A "nohat" style.** Kick and snare grooves without a time-keeping cymbal, or with one on the off-beats only.
+  - Its weight in the default mix is 0, so every existing seed draws the same clip.
+  - A build uses it through `DRUM_AGENT_STYLES`. In `nohat:3,jazz:1,jazz_ballad:1,isolated:1`, 87% of snares have no hi-hat or ride within 30 ms, against 48% in the default mix.
+- **`train.py build --separate`.** Every clip with a band (`--mix-p 1.0`: all of them) goes through HTDemucs, and its separated drums are then read as drums only, as the transcriber reads a separated band recording. This costs about 20 s of CPU per clip.
+
+**The retraining round: not adopted.**
+
+Data, built on this PC (`~/.cache/drum-agent/adt/shards_v5`, about 5 hours):
+
+| Seeds | Build |
+|---|---|
+| 400001-403000 | the default mix |
+| 500001-501000 | `DRUM_AGENT_STYLES="nohat:3,jazz:1,jazz_ballad:1,isolated:1"` |
+| 600001-600600 | `--mix-p 1.0 --separate` |
+
+**Models:** both use `train --hidden 512,256 --epochs 30`, like v2 and v3.
+- **v5a:** the first two builds, 4,000 clips.
+- **v5:** all three builds, 4,600 clips (535,840 candidates).
+
+**Results** (MDB Drums development split, all 5 classes, `benchmarks/results/2026-11-05_phase2b-dev-*`):
+
+| Model | Drum stems | Band mix | Separated | Toms / cymbals (stems) | Precision (stems) |
+|---|---|---|---|---|---|
+| **v2 + v3 (shipped)** | **0.856** | 0.696 | 0.773 | 0.640 / 0.618 | 0.826 |
+| v5a | 0.847 | 0.671 | 0.770 | 0.741 / 0.510 | 0.820 |
+| v5 | 0.834 | 0.672 | 0.756 | 0.640 / 0.535 | 0.784 |
+| v2 + v3 + v5a | 0.855 | 0.699 | 0.777 | 0.696 / 0.554 | 0.832 |
+| v2 + v3 + v5 | 0.852 | 0.706 | 0.773 | 0.696 / 0.565 | 0.819 |
+
+- **Not adopted.** No candidate improves on the shipped model by more than 0.004 anywhere. Every one loses cymbals: 0.05 to 0.11 on drum stems, beyond the 0.02 a class may drop.
+- **The held-out test split was not run.** There was no finalist.
+
+What the round showed:
+- **The phantom hi-hats did not go away.** Precision on drum stems is unchanged or lower.
+  - Every phantom hi-hat comes from the same onset candidate as a real snare or kick, so it is the classifier's call, not double detection.
+  - Snares without a hi-hat in training didn't change it. So it is most likely the sound of a real snare recorded with overhead and room microphones, which summed one-shot samples don't produce.
+- **Separated training clips made things worse, even on separated recordings** (v5 against v5a: separated 0.770 → 0.756, precision on stems 0.820 → 0.784).
+  - In those clips 13–17% of strokes have no candidate after separation, against 6.8% unseparated.
+  - Labels on the strokes that remain include near-inaudible residue, which teaches the classifier to call faint noise a drum.
+- **Toms improve with today's generator** (0.640 → 0.741 for v5a), but cymbals drop. The generator's cymbal data differs from what v2 and v3 were trained on (part of theirs came from the first generator, `1a6e780`).
+- **The remaining errors come from the gap between synthesized and real recordings.** More synthesized data of the same kind doesn't close it.
+  - The annotated recordings of real kits in real rooms that we know of (ENST-Drums, IDMT-SMT-Drums, ADTOF, MDB Drums) are licensed for non-commercial use or for evaluation only, which this project excluded (`docs/DEPENDENCY_AND_MODEL_LICENSE_AUDIT.md`).
+  - E-GMD (CC BY 4.0) is human playing, but on an electronic kit's samples.
+
 ### Sources and licences
 
 The samples are only rendered into training audio; none is redistributed.

@@ -197,3 +197,21 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
 - **Next lever:** retraining with data aimed at those errors.
 
 **Tests:** 827 passed, 1 skipped (`tests/test_evidence.py`, `tests/test_eval_backends.py` new).
+
+### 2026-11-05: retraining the onset classifier (owner's request: "Retrain classifier")
+
+- **Setup on Windows.**
+  - `scripts/adt/fetch_sources.py` fetched the five Debian packages the training sources come from (530 MB, checked against packages.debian.org's SHA-256).
+  - `oneshots.py` built the one-shot library: 44 kits in 86 s.
+- **Data aimed at the measured errors:**
+  - a "nohat" style: snares and kicks without a hi-hat;
+  - `train.py build --separate`: band clips go through HTDemucs.
+  - Tests in `tests/test_adt_generate.py`.
+- **Built:** 4,600 clips, 535,840 labelled candidates, in about 5 hours.
+- **Trained:** two networks, v5a (without separated clips) and v5 (with them).
+- **Not adopted.** Neither network, nor either one averaged with the shipped pair, improves on the development split by more than 0.004 overall. All of them lose cymbals by 0.05–0.11 on drum stems. With no finalist, the held-out split was not run. The full table and what it showed are in `docs/MODELS.md` ("The retraining round").
+- **What it showed:**
+  - The phantom hi-hats are the classifier's reading of real snares, not a pattern learnt from synthesized grooves.
+  - Training on separated clips teaches false strokes.
+  - The remaining gap is synthesized against real recordings. Closing it needs real annotated recordings; those we know of are licensed non-commercial or evaluation-only, which the project excluded.
+- **Kept:** the Windows training setup and the two build options, for a later round.
