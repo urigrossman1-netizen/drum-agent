@@ -756,6 +756,7 @@ class Workspace {
     this.reviewEl = h("div", { class: "body" });
     if (this.kind === "song" && !this.practice) panels.push(this.panel("Review flagged bars", "alert", this.reviewEl, true));
     if (this.kind === "song") panels.push(this.panel("Practice versions", "layers", this.practiceBody(), this.practice));
+    if (this.kind === "song") panels.push(this.panel("Explain this chart", "sparkle", this.explainBody(), false));
     panels.push(this.panel("Edit with words", "sparkle", this.wordsBody(), this.kind === "beat"));
     this.sectionsEl = h("div", { class: "body" });
     panels.push(this.panel("Sections", "layers", this.sectionsEl, false));
@@ -784,6 +785,37 @@ class Workspace {
         h("div", { style: { flex: 1 } }, h("strong", { class: "small" }, name), h("div", { class: "tiny muted" }, what)), go);
     });
     return h("div", { class: "stack", style: { gap: "8px" } }, h("p", { class: "small muted" }, "Easier charts made from this version, to work up to it. They only leave notes out, and this chart stays as it is."), ...rows);
+  }
+
+  // Claude's guide to the saved version: text beside the chart, from the chart's own facts.
+  explainBody() {
+    const ready = this.app.health?.claude?.configured;
+    const out = h("div", { "aria-live": "polite" });
+    const go = h("button", { class: "btn sm ai", type: "button", disabled: !ready }, icon("sparkle"), "Explain and plan");
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      out.replaceChildren(h("p", { class: "small muted" }, h("span", { class: "spinner" }), " Claude is reading the chart…"));
+      try {
+        const r = await api(`/api/charts/${this.chart.id}/explain`, { method: "POST" });
+        out.replaceChildren(...this.explanation(r.explanation));
+      } catch (e) {
+        out.replaceChildren(h("p", { class: "small" }, `Claude is unavailable: ${e.message}`));
+        go.disabled = false;
+      }
+    });
+    return h("div", {},
+      h("p", { class: "small muted" }, "What this chart holds and a plan for practising it, from its sections, tempo, density and flagged bars. Claude reads the saved version, hasn't heard the recording, and can't change a note."),
+      h("div", { class: "row" }, go, ready ? null : h("span", { class: "tiny muted" }, "Not configured: needs ANTHROPIC_API_KEY on the server")), out);
+  }
+
+  explanation(x) {
+    const steps = x.practice_plan.map((s) => h("li", {}, h("strong", { class: "small" }, s.title), " ",
+      h("button", { class: "btn sm ghost num", type: "button", title: "Loop these bars", onclick: () => this.loopSection(s.first_bar - 1, s.last_bar - 1) }, icon("loop"),
+        s.first_bar === s.last_bar ? `Bar ${s.first_bar}` : `Bars ${s.first_bar}–${s.last_bar}`),
+      h("div", { class: "small muted" }, s.how)));
+    return [h("p", { class: "small" }, x.summary), h("ol", { class: "plan" }, steps),
+      x.watch_out.length ? h("div", {}, h("strong", { class: "small" }, "Check by ear"), h("ul", { class: "plan" }, x.watch_out.map((w) => h("li", { class: "small muted" }, w)))) : null,
+      h("p", { class: "tiny muted" }, "Written by Claude from the chart's data. It hasn't heard the recording.")].filter(Boolean);
   }
 
   async makePractice(level, name, button) {

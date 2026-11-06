@@ -78,7 +78,7 @@ lawyer before a commercial launch.
 | Program | Version | Licence | How it is used | Notes |
 |---|---|---|---|---|
 | LilyPond | 2.26.0 | GPL-3.0-or-later | separate program: engraves every chart | the Windows app ships it unmodified with a source link (`NOTICES.txt`): aggregation, not linking |
-| FFmpeg (BtbN LGPL shared build) | "latest" (N-128352, 2026-11-03) | LGPL-2.1-or-later (no GPL parts) | separate program: decoding | **unpinned**: `fetch_tools.py` takes the rolling "latest" build. Pinning is planned (phase 5) |
+| FFmpeg (BtbN LGPL shared build) | "latest" (N-128352, 2026-11-03) | LGPL-2.1-or-later (no GPL parts) | separate program: decoding, and the listen-along copies (libopus, `atempo`) | **unpinned**: `fetch_tools.py` takes the rolling "latest" build. Pinning is planned (phase 5) |
 | FluidSynth | 2.6.2 (pinned SHA-256) | LGPL-2.1-or-later | separate program: sampled drums, `synth` | added 2026-11-04 (`fetch_tools.py --sounds`) |
 | FluidR3_GM.sf2 (Frank Wen) | Debian 3.1-5.3 (pinned SHA-256) | MIT | the General MIDI soundfont | the same file the Linux image installs |
 | cloudflared | latest | Apache-2.0 | CI only (`live-studio.yml` tunnel) | unpinned, no checksum (phase 5) |

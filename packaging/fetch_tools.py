@@ -1,7 +1,7 @@
 """Download the tools the Drum Agent app ships with, into DEST (run on the build machine).
 
   LilyPond 2.26.0   engraving                                  GPL-3.0+   https://lilypond.org
-  FFmpeg            decoding audio files                       LGPL-2.1+  https://ffmpeg.org
+  FFmpeg            decoding and converting audio files        LGPL-2.1+  https://ffmpeg.org
                     (Windows build: https://github.com/BtbN/FFmpeg-Builds)
   HTDemucs model    separating the drums from the band         MIT        https://github.com/adefossez/demucs
                     (with --separation; its code, PyTorch and demucs, is in the app itself)
@@ -76,7 +76,7 @@ Drum Agent runs these programs, unmodified, as separate programs.
 
 LilyPond {LILYPOND} (lilypond/): music engraving. GNU GPL v3 or later.
   Source: https://lilypond.org/source.html  https://gitlab.com/lilypond/lilypond
-FFmpeg (ffmpeg/): decoding audio files. GNU LGPL v2.1 or later (this build has no GPL parts).
+FFmpeg (ffmpeg/): decoding and converting audio files. GNU LGPL v2.1 or later (this build has no GPL parts).
   Source: https://ffmpeg.org/download.html  Build: https://github.com/BtbN/FFmpeg-Builds
 HTDemucs (torch/, when present): the model that separates the drums from the band before
   transcription, run with PyTorch (BSD) and demucs (MIT). MIT licence.

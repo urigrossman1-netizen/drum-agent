@@ -1,4 +1,4 @@
-"""Claude suggests names for a chart's sections (Intro, Verse, Chorus ...).
+"""Claude suggests names for a chart's sections (Intro, Verse, Chorus ...), and explains a chart.
 
 The transcriber finds section boundaries from the drum patterns and letters them A, B,
 C. Naming them is a judgement about song form that a language model does well from a
@@ -10,6 +10,10 @@ The answer is structured (a JSON schema), then validated here: one name per exis
 section, from a fixed vocabulary, at exactly the boundaries the chart already has.
 Claude cannot add, move or remove a boundary, change a note or a tempo. A suggestion
 changes nothing by itself: applying it makes a new chart version.
+
+An explanation is text beside the chart: what it holds and a practice plan, written from the
+facts read out of the chart (`chart_facts`). Claude never hears the recording, and every bar
+it names is checked against the chart before the answer is shown.
 
 Configuration (server side only; never sent to the browser):
   ANTHROPIC_API_KEY             the API key (the only required setting)
@@ -30,7 +34,7 @@ import os
 import re
 from collections import Counter
 
-from ..model import Score
+from ..model import CHART_TYPES, STATUSES, Score
 
 DEFAULT_BASE_URL = "https://api.anthropic.com"
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -213,6 +217,114 @@ def suggest_section_names(score: Score, client=None) -> dict:
         raise ClaudeUnavailable("invalid_answer", f"Claude's answer did not fit the chart: {exc}") from None
     return {"sections": suggestion, "confidence": data.get("confidence"), "comment": str(data.get("comment", ""))[:400],
             "model": getattr(response, "model", config()["model"]), "usage": _usage(response)}
+
+
+# ---- a chart explained: what it holds and how to practise it -------------------------------
+
+EXPLAIN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "practice_plan": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "first_bar": {"type": "integer"},
+                    "last_bar": {"type": "integer"},
+                    "how": {"type": "string"},
+                },
+                "required": ["title", "first_bar", "last_bar", "how"],
+                "additionalProperties": False,
+            },
+        },
+        "watch_out": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["summary", "practice_plan", "watch_out"],
+    "additionalProperties": False,
+}
+MAX_STEPS = 6
+MAX_WATCH = 4
+BAR_MENTION = re.compile(r"\bbars? (\d+)(?:(?: ?[-\u2013] ?| to | and )(\d+))?", re.IGNORECASE)
+
+
+def chart_facts(score: Score) -> dict:
+    """What the chart itself says, and no more: all that Claude is told about it."""
+    ms = score.measures
+    hits = [h for m in ms for h in m.hits]
+    busiest = sorted(range(len(ms)), key=lambda i: -len(ms[i].hits))[:5]
+    analysis = score.analysis or {}
+    return {
+        "title": score.title, "artist": score.artist,
+        "what_this_chart_is": CHART_TYPES[score.chart_type], "status": STATUSES.get(score.status),
+        "bars": len(ms), "time_signatures": sorted({str(m.time_sig) for m in ms}),
+        "tempo_bpm": round(score.initial_tempo, 1),
+        "tempo_marks": [{"bar": i + 1, "bpm": round(m.tempo, 1)} for i, m in enumerate(ms) if m.tempo is not None][:20],
+        "feel": analysis.get("feel") or ("swing" if score.swing else None),
+        "sections": describe_sections(score),
+        "strokes_per_instrument": dict(Counter(h.inst for h in hits).most_common()),
+        "ghost_notes": sum(h.ghost for h in hits), "accents": sum(h.accent for h in hits),
+        "flams": sum(h.flam for h in hits), "drags": sum(h.drag for h in hits),
+        "rolls": sum(h.roll is not None for h in hits),
+        "fill_bars": [i + 1 for i, m in enumerate(ms) if m.cue == "Fill"],
+        "busiest_bars": [{"bar": i + 1, "strokes": len(ms[i].hits)} for i in busiest],
+        "bars_flagged_as_unsure": [i + 1 for i, m in enumerate(ms) if m.uncertain],
+    }
+
+
+def explain_prompt(facts: dict) -> str:
+    return (
+        "You are helping a drummer work on a drum chart. Write only from the facts below, which were read "
+        "from the chart. You haven't heard the recording and you can't change the chart: say nothing about how "
+        "the song sounds or who plays it, describe no note, bar or section that isn't in the facts, and don't "
+        "suggest edits to the chart.\n\n"
+        "Facts (JSON):\n" + json.dumps(facts, indent=1) + "\n\n"
+        "summary: two or three sentences on what the chart holds: its form, tempo, feel and what's most "
+        "demanding in it.\n"
+        "practice_plan: three to five steps in the order to work on them. Each names a stretch of bars "
+        "(first_bar and last_bar, inside the chart) and says how to practise it: a starting speed as a "
+        "percentage of the tempo, what to listen for, and when to move on. Give the busiest bars and the fills "
+        "steps of their own.\n"
+        "watch_out: up to three things to check by ear. Name any bars_flagged_as_unsure: the transcriber was "
+        "unsure of them, so they may be wrong. Leave it empty if nothing stands out.\n"
+        "Use plain words and short sentences."
+    )
+
+
+def _clean(text, limit: int) -> str:
+    return " ".join(str(text).split())[:limit]
+
+
+def validate_explanation(data: dict, bars: int) -> dict:
+    """The answer, checked against the chart; raises ValueError when it doesn't fit."""
+    summary = _clean(data.get("summary", ""), 800)
+    plan = data.get("practice_plan")
+    if not summary or not isinstance(plan, list) or not plan:
+        raise ValueError("the answer has no summary or practice plan")
+    steps = []
+    for s in plan[:MAX_STEPS]:
+        first, last = s.get("first_bar"), s.get("last_bar")
+        if not (isinstance(first, int) and isinstance(last, int) and 1 <= first <= last <= bars):
+            raise ValueError(f"a step names bars {first} to {last}, and the chart has {bars}")
+        steps.append({"title": _clean(s.get("title", ""), 80), "first_bar": first, "last_bar": last,
+                      "how": _clean(s.get("how", ""), 500)})
+    watch = [w for w in (_clean(x, 300) for x in (data.get("watch_out") or [])[:MAX_WATCH]) if w]
+    for text in (summary, *(s["how"] for s in steps), *(s["title"] for s in steps), *watch):
+        for mention in BAR_MENTION.finditer(text):
+            if any(n and not 1 <= int(n) <= bars for n in mention.groups()):
+                raise ValueError(f"it mentions {mention.group(0)!r}, and the chart has {bars} bars")
+    return {"summary": summary, "practice_plan": steps, "watch_out": watch}
+
+
+def explain_chart(score: Score, client=None) -> dict:
+    """{"summary", "practice_plan", "watch_out", "model", "usage"}; raises ClaudeUnavailable."""
+    data, response = _ask(explain_prompt(chart_facts(score)), EXPLAIN_SCHEMA, client)
+    try:
+        out = validate_explanation(data, len(score.measures))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ClaudeUnavailable("invalid_answer", f"Claude's answer did not fit the chart: {exc}") from None
+    return {**out, "model": getattr(response, "model", config()["model"]), "usage": _usage(response)}
 
 
 # ---- beats: reading a description, and turning an edit request into commands ---------------

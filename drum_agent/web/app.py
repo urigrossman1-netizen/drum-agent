@@ -21,6 +21,7 @@ Routes (all JSON unless noted):
   POST /api/charts/{id}/suggest-sections   Claude's section names (a suggestion; changes nothing)
   POST /api/charts/{id}/sections           apply section names: a new chart version
   POST /api/charts/{id}/simplify           a Beginner or Intermediate practice version: a new version
+  POST /api/charts/{id}/explain            Claude's guide and practice plan (text; changes nothing)
 """
 
 from __future__ import annotations
@@ -394,8 +395,23 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         try:
             return {"suggestion": claude.suggest_section_names(score), "applied": False}
         except claude.ClaudeUnavailable as exc:
-            status = 503 if exc.code in ("not_configured", "unreachable", "timeout", "rate_limited") else 502
-            return JSONResponse({"error": exc.code, "detail": str(exc)}, status_code=status)
+            return _claude_error(exc)
+
+    @app.post("/api/charts/{chart_id}/explain")
+    def explain(chart_id: str):
+        """Claude's guide to this version, written from the chart's facts: text beside the chart,
+        which changes nothing. A version never changes, so the answer is kept with it and
+        asking again costs nothing."""
+        c = _chart(store, chart_id, write=True)
+        kept = Path(c["dir"]) / "explanation.json"
+        if kept.is_file():
+            return {"explanation": json.loads(kept.read_text(encoding="utf-8")), "kept": True}
+        try:
+            answer = claude.explain_chart(Score.load(Path(c["dir"]) / "chart.json"))
+        except claude.ClaudeUnavailable as exc:
+            return _claude_error(exc)
+        kept.write_text(json.dumps(answer), encoding="utf-8")
+        return {"explanation": answer, "kept": False}
 
     @app.post("/api/charts/{chart_id}/sections")
     def apply_sections(chart_id: str, body: SectionsIn):
@@ -631,6 +647,11 @@ def _song_detail(store: Store, s: dict) -> dict:
             "sources": [_public_source(x) for x in store.sources_for(s["id"])],
             "jobs": [_public_job(j) for j in store.jobs_for(s["id"])][:10],
             "charts": [_public_chart(c) for c in store.charts_for(s["id"])]}
+
+
+def _claude_error(exc: claude.ClaudeUnavailable) -> JSONResponse:
+    status = 503 if exc.code in ("not_configured", "unreachable", "timeout", "rate_limited") else 502
+    return JSONResponse({"error": exc.code, "detail": str(exc)}, status_code=status)
 
 
 def _build_id() -> str:

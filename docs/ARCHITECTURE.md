@@ -177,6 +177,8 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
   tests and examples.
 - `edit.py`: exact, reference-based corrections to a score.json (the
   human-in-the-loop step after listening).
+- `simplify.py`: Beginner and Intermediate practice versions of a transcription: a
+  subset of its notes, labelled as not what was played.
 
 ## Rights
 

@@ -216,6 +216,21 @@ Charts of non-commercial-licensed material are not committed.
     recordings). Fast swung ride patterns lose the most strokes. A drum stem
     helps most here.
 
+## Practice and explanation limits
+
+- **Practice versions follow fixed rules.** They keep notes by where they fall in the bar
+  and what they're played on; they don't know the song. A part built on off-beats loses
+  what makes it that part at Beginner level: a syncopated kick is left on the beats,
+  or out. Stickings are kept as written, so with notes gone they can read oddly.
+- **Practice speed on the recording** needs a browser that can decode Opus. Without one it
+  falls back to the WAV, and then the speed changes the pitch. Slowing down a whole song
+  also holds about 100 MB of decoded audio per four minutes in the browser's memory, on
+  top of the original, which may be too much for a phone.
+- **"Explain this chart"** has never been run against the live Anthropic API, because no key is
+  set on this PC. What it writes comes from the chart's data, so it can't catch a wrong
+  transcription, and only the bars it names are checked: the rest is advice to judge
+  by ear.
+
 ## Notation limits
 - Rhythms finer than 32nds or sextuplets (quintuplets, 64ths) can't be
   written; such strokes have to be simplified, which the report says.

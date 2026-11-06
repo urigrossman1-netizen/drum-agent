@@ -37,13 +37,25 @@ result plays in YouTube's own player once the key is set (see below).
 ## Practise with the chart
 
 - **Play** the drums alone, the recording with the chart, or the recording alone.
-- **Speed**, **loop**, **metronome** and **count-in** are in the player bar.
+- **Speed**, **loop**, **metronome** and **count-in** are in the player bar. Slowing down
+  keeps the recording's pitch; the first time at a new speed takes a few seconds.
+- Drag the **time line** to go anywhere in the song. **Pause** carries on from where you
+  stopped; **Stop** goes back to the selected bar.
 - Click a bar to start from there. The current bar lights up as it plays.
+- To drill one part, open **Sections** and press the loop button beside it.
+- **Practice versions** makes an easier Beginner or Intermediate chart from your
+  transcription. It only leaves notes out, says so at the top, and your transcription stays
+  as it is.
+- **Explain this chart** (needs the Anthropic key) writes what the chart holds and a plan for
+  practising it, with a loop button for each step. Claude reads the chart, not the
+  recording.
 
 ## Fix what's wrong
 
 - Click a bar, then use the grid under the notation to add or remove hits, or mark accents,
   ghost notes and flams. Undo with Ctrl+Z.
+- Choose **Adjust** in the grid and click a note to change how loud it is, put it on another
+  drum, or move it a step earlier or later.
 - **Save** keeps a new version. Earlier versions, including the computer's original
   transcription, stay available.
 
@@ -65,7 +77,7 @@ not.
 | Key | What it turns on | Where to get it | Cost |
 |---|---|---|---|
 | `YOUTUBE_API_KEY` | YouTube results in song search, and the YouTube player | Google Cloud console → APIs & Services → enable **YouTube Data API v3** → Credentials → Create credentials → API key | free (about 100 searches a day) |
-| `ANTHROPIC_API_KEY` | Claude: names the sections (Intro, Verse, Chorus…), reads beat descriptions and typed edit requests. It never writes notes | console.anthropic.com → API Keys → Create Key (add credit first) | pay per use; a few cents for many charts |
+| `ANTHROPIC_API_KEY` | Claude: names the sections (Intro, Verse, Chorus…), explains a chart and plans your practice, reads beat descriptions and typed edit requests. It never writes notes | console.anthropic.com → API Keys → Create Key (add credit first) | pay per use; a few cents for many charts |
 | `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` | Spotify results in song search (song details only) | developer.spotify.com → Dashboard → Create app → Settings | free |
 
 Keep keys private: never paste them into a chat, a screenshot or a file you share. The

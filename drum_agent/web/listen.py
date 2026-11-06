@@ -3,8 +3,8 @@
 The player puts the recording on the same audio clock as the chart's drums, so a section loop
 restarts on the sample and the two stay together. That needs a decoded buffer: a media element
 can keep the pitch by itself, but it seeks with a gap on every loop and drifts against the
-clock. So each speed is a rendition made here: FFmpeg's `atempo` (pitch kept), Opus in Ogg, a
-tenth of the size of the WAV. At normal speed it is only compressed.
+clock. So each speed is a rendition made here: FFmpeg's `atempo` (pitch kept), Opus in Ogg,
+about an eighth of the size of the WAV. At normal speed it is only compressed.
 
 Renditions are private copies of the recording: served under the same owner checks as the
 recording, removed with it, and only the most recently used few are kept per recording.
@@ -40,7 +40,7 @@ def rendition(folder: Path, source: Path, speed: float) -> Path:
     if speed not in SPEEDS:
         raise ValueError(f"speed must be one of {SPEEDS[0]}..{SPEEDS[-1]} in steps of 0.05")
     out = folder / f"{round(speed * 100):03d}.ogg"
-    with _lock(str(out)):
+    with _lock(str(folder)):  # one at a time per recording: pruning reads the folder too
         if out.is_file():
             os.utime(out)  # most recently used
             return out
@@ -69,4 +69,7 @@ def rendition(folder: Path, source: Path, speed: float) -> Path:
 def _prune(folder: Path, keep: Path) -> None:
     done = sorted(folder.glob("*.ogg"), key=lambda p: p.stat().st_mtime, reverse=True)
     for old in [p for p in done if p != keep][KEEP - 1:]:
-        old.unlink(missing_ok=True)
+        try:
+            old.unlink(missing_ok=True)
+        except OSError:  # being served right now (Windows won't delete an open file): the next one prunes it
+            pass

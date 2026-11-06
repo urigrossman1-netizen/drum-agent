@@ -25,10 +25,10 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Since phase 3: repeated sections recognized (A, B, A2), fills marked on bars, tempo/meter/downbeat/feel hints in the studio (upload, and "Chart again" in seconds from the stored strokes; `drum-agent rechart`). Odd meters aren't detected from audio: 5/4, 6/4, 7/4 and 9/8 can be given as hints, while 7/8 and 5/8 can't. A second beat tracker, Beat This!, was measured and didn't detect them either (`scripts/compare_beat_trackers.py`) |
 | Arrangement | complete-song representation | **Complete and verified** | Every bar of the recording is charted, with sections, repeats (A2) and fills marked: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test; `tests/test_structure.py` (constructed bars and the library's fill chart g64; not measured on real recordings, whose annotations have no sections) |
 | Chart generation | genuine drum notation | **Complete and verified** | LilyPond 2.26 engraving; MusicXML 4.0 (XSD); MIDI; three-way read-back on every export; 113-chart library |
-| Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
-| Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Missing: velocity, change instrument, move |
+| Playback | synchronized with the chart | **Complete and verified** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Since phase 4: a time line to seek, a real pause, section loops, speed with the pitch kept, a compressed copy to listen to (`tests/test_listen.py`; the browser behaviour checked in the browser pane, not by an automated test) |
+| Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Since phase 4 an Adjust tool sets a note's loudness, drum and place. Not done: dragging notes (loudness is a slider, moving is by buttons) |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 827 passed, 1 skipped (2026-11-05, phase 2); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
+| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 948 passed, 1 skipped (2026-11-06, phase 4); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
 | Security | upload and API protection | **Partially implemented** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Missing: rate limits, CSRF guard, streaming size cap, Host allowlist, decode outside the request |
 
 ## Log
@@ -251,3 +251,36 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
 - **Meanwhile:** 5/4, 6/4, 7/4 and 9/8 can be given as a hint (`--time-signature`, or "Chart again" in the studio). 7/8 and 5/8 still need MIDI, a game chart or a chart spec.
 
 **Tests:** 841 passed, 1 skipped.
+
+### 2026-11-06: phase 4, practice, editing, explanation
+
+**Listening** (`web/listen.py`, `player.js`, `workspace.js`, `tests/test_listen.py`).
+- A time line seeks anywhere in the song. Pause now carries on from where it stopped; before, Play always went back to the selected bar. Stop goes back to the selection.
+- Each section has a Loop button in the Sections panel.
+- The recording is heard from an Opus copy, about eight times smaller than the WAV. In the browser its decoded length matched the WAV's and a cross-correlation found no shift (0 samples).
+- Practice speed keeps the pitch. **Changed from the plan**, which said `HTMLMediaElement.preservesPitch`: a media element can't start on the audio clock, so section loops would gap and drift against the strokes. The server makes the recording at each speed instead (FFmpeg `atempo`), and it's decoded and played on that clock. In tests, strokes land within 30 ms of where the player expects them and a 440 Hz tone stays within 5 Hz at 0.5, 0.75 and 1.25.
+- Checked in the browser pane on the demo take: seek while stopped and playing, pause and carry on, 75% while playing (the old speed plays on until the new one is ready, then it restarts at the same place), a one-bar loop at 75% over three passes, and back to 100%.
+
+**Editing** (`grid.js`).
+- The Adjust tool sets a note's loudness, puts it on another drum and moves it a grid step, over the barline too. It refuses a step that's taken. Every change goes through undo.
+- A ghost note raised past what its mark allows stops being one, and the same for an accent lowered: otherwise the slider would change nothing you can hear.
+- Cells show their loudness.
+- Checked in the browser pane: 18 edits on one note, undone back to the saved version, with no engraving error.
+
+**Practice versions** (`simplify.py`, `tests/test_simplify.py`, `tests/cases/16_practice_version.yaml`).
+- Beginner and Intermediate charts are new versions labelled in the PDF and MusicXML headers and on the page. Run over all 73 grooves in the library: only notes of the source, valid, no played bar silent, velocities unchanged.
+- Rendered a funk groove with ghost notes and a shuffle at both levels and looked at them: the header fits and they read as easier parts.
+- They never take the transcription's place: `_save_chart` keeps the origin `simplified` through edits and restores, and `store.latest_chart` skips them.
+- The rules are fixed and don't know the song: see `docs/LIMITATIONS.md`.
+
+**Explanation** (`web/claude.py`, `tests/test_explain.py`).
+- "Explain this chart" is written from the chart's facts only, and every bar it names is checked against the chart. It's kept with the version, so asking again costs nothing.
+- Without the key the panel says it isn't configured and the API answers 503.
+- **It has never run against the live API.** No key is set on this PC; a stand-in client answers in the tests.
+
+**Found on the way.** After a change, the browser kept an old copy of one script beside new ones and the page stayed blank. The server sent no cache rules for scripts, and the installed app could hit the same thing after an update. The page now loads its files from a path that changes with each build, and they're checked on each load (`tests/test_web.py`).
+
+**Not run:** the Playwright browser tests (`tests/test_web_e2e.py`). This PC has no Node. One of them changed (`beat.e2e.js` now presses Stop, not Pause, before it expects to start from bar 1). In their place, the beat journey (create, play with the scheduled strokes compared with the chart, stop, tempo, undo) and the phone width were checked by hand in the browser pane.
+
+**Tests:** 948 passed, 1 skipped (fast suite).
+
