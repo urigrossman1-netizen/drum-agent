@@ -20,10 +20,12 @@ Routes (all JSON unless noted):
   GET  /api/charts/{id}/audio              the chart's source audio, for playback-follow (if any)
   POST /api/charts/{id}/suggest-sections   Claude's section names (a suggestion; changes nothing)
   POST /api/charts/{id}/sections           apply section names: a new chart version
+  POST /api/charts/{id}/simplify           a Beginner or Intermediate practice version: a new version
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -34,7 +36,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -42,6 +44,7 @@ from .. import __version__
 from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
 from ..rights import RightsError, shareable
+from ..simplify import simplify
 from ..song.fetch import FetchError
 from . import claude, library, listen, owners, sources
 from .jobs import ENGINE, JobRunner
@@ -97,6 +100,10 @@ class HintsIn(BaseModel):
 
     def given(self) -> dict:
         return {k: v for k, v in self.model_dump().items() if v is not None and v != "auto"}
+
+
+class SimplifyIn(BaseModel):
+    level: str = Field(pattern="^(beginner|intermediate)$")
 
 
 class SectionsIn(BaseModel):
@@ -334,7 +341,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return {**_public_chart(c), "song": _public_song(song_row), "view": view,
                 "versions": [_public_chart(v) for v in store.charts_for(c["song_id"])],
                 "has_audio": bool(c["source_id"]),
-                "can_rechart": _log_version(d / "chart.detections.json") >= 2,
+                "can_rechart": c["origin"] != "simplified" and _log_version(d / "chart.detections.json") >= 2,
                 "files": {k: f"/api/charts/{c['id']}/files/{k}" for k in FILES if (d / k).is_file()}}
 
     @app.get("/api/charts/{chart_id}/files/{name}")
@@ -418,6 +425,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         starts from the detector's strokes, so a version's hand edits are not carried over."""
         from ..audio.transcribe import TranscribeOptions, rechart
         c = _chart(store, chart_id, write=True)
+        if c["origin"] == "simplified":
+            raise HTTPException(409, "this is a practice version: chart the transcription again instead")
         d = Path(c["dir"])
         hints = _hints(body)
         if not hints:
@@ -439,6 +448,31 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             new = runner._save_chart(song_row, score, lambda stage: None, origin="rechart", source=src,
                                      audio_duration=src["info"].get("duration_s") if src else None,
                                      parent_id=c["id"], note="Charted again: " + _describe_hints(hints))
+        return _public_chart(new)
+
+    @app.post("/api/charts/{chart_id}/simplify")
+    def simplify_chart(chart_id: str, body: SimplifyIn):
+        """A practice version of this transcription: a new version made from it, labelled as
+        not what was played. The transcription stays as it is (simplify.py)."""
+        c = _chart(store, chart_id, write=True)
+        score = Score.load(Path(c["dir"]) / "chart.json")
+        if score.chart_type == "original_beat":
+            raise HTTPException(409, "an original beat is made simpler in Shape the beat")
+        note = f"{body.level.capitalize()} practice version"
+        made = next((v for v in store.charts_for(c["song_id"]) if v["parent_id"] == c["id"]
+                     and v["origin"] == "simplified" and v["note"] == note), None)
+        if made is not None:
+            return _public_chart(made)
+        try:
+            practice = simplify(score, body.level)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        song_row = store.get_song(c["song_id"])
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        with revise_lock:
+            new = runner._save_chart(song_row, practice, lambda stage: None, origin="simplified", source=src,
+                                     audio_duration=src["info"].get("duration_s") if src else None,
+                                     parent_id=c["id"], note=note)
         return _public_chart(new)
 
     @app.post("/api/charts/{chart_id}/review")
@@ -463,11 +497,16 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return _public_chart(new)
 
     # ---- page ------------------------------------------------------------
+    # The page loads its files from a path that changes with them. A browser can't then keep an
+    # old copy of one script beside new ones after an update, which leaves a blank page.
+    build = _build_id()
+    app.mount(f"/static/{build}", StaticFiles(directory=STATIC), name="build")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
+    page = (STATIC / "index.html").read_text(encoding="utf-8").replace('"/static/', f'"/static/{build}/')
 
     @app.get("/", include_in_schema=False)
     def index():
-        return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
     return app
 
@@ -594,8 +633,19 @@ def _song_detail(store: Store, s: dict) -> dict:
             "charts": [_public_chart(c) for c in store.charts_for(s["id"])]}
 
 
+def _build_id() -> str:
+    """Changes whenever a file the page loads changes."""
+    digest = hashlib.sha256()
+    for p in sorted(STATIC.rglob("*")):
+        if p.is_file():
+            digest.update(p.relative_to(STATIC).as_posix().encode() + p.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 def _download_name(song: dict, chart: dict, name: str) -> str:
-    base = f"{song['title']} - {song['artist']} - drums v{chart['version']}"
+    kind = (chart.get("summary") or {}).get("chart_type") or ""
+    level = f" {kind.removeprefix('practice_')} practice" if kind.startswith("practice_") else ""
+    base = f"{song['title']} - {song['artist']} - drums v{chart['version']}{level}"
     base = re.sub(r"[^\w\s.,()'&-]", "", base).strip()[:150] or "chart"
     return base + Path(name).suffix
 

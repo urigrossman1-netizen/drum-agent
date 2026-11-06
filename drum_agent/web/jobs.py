@@ -288,6 +288,8 @@ class JobRunner:
     def _save_chart(self, song: dict, score: Score, step, *, origin: str = "transcription", job: dict | None = None,
                     source: dict | None = None, audio_duration: float | None = None,
                     parent_id: str | None = None, note: str | None = None) -> dict:
+        if score.status == "simplified":
+            origin = "simplified"  # edited, restored or renamed, a practice version stays one
         step("validate")
         validation = validate_score(score, DEFAULT_KIT, audio_duration)
         if not validation.ok:

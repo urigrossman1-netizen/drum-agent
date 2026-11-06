@@ -3,7 +3,7 @@
 // re-engraved for the screen as you go, kept as a draft on the server (and in this browser),
 // and saved as the next version when you choose.
 
-import { h, icon, api, toast, dialog, prefs, menu, statusBadge, ago, reducedMotion } from "./ui.js";
+import { h, icon, api, toast, dialog, prefs, menu, chartBadge, ago, reducedMotion } from "./ui.js";
 import { Frac, clone, sameScore, barLength, hitCount } from "./score.js";
 import { GridEditor } from "./grid.js";
 import { Player } from "./player.js";
@@ -96,9 +96,19 @@ class Workspace {
 
   get dirty() { return !sameScore(this.score, this.saved); }
 
+  get practice() { return this.chart.origin === "simplified"; }
+
+  /** The transcription a practice version was made from. */
+  transcription() {
+    let c = this.chart;
+    while (c && c.origin === "simplified") c = (this.project.charts || []).find((x) => x.id === c.parent_id);
+    return c || null;
+  }
+
   // ---- layout --------------------------------------------------------------------
   mount() {
     this.headEl = h("div", { class: "ws-head" });
+    this.noticeEl = h("div", {});
     this.bannerEl = h("div", {});
     this.transportEl = h("div", { class: "transport", role: "toolbar", "aria-label": "Playback" });
     this.pagesEl = h("div", { class: "pages" });
@@ -116,7 +126,7 @@ class Workspace {
       this.pagesEl);
     this.gridEl = h("section", { class: "gridpanel", "aria-label": "Beat grid editor" });
     this.sideEl = h("aside", { class: "ws-side", "aria-label": "Chart tools" });
-    this.root.replaceChildren(this.headEl, this.bannerEl, this.transportEl,
+    this.root.replaceChildren(this.headEl, this.noticeEl, this.bannerEl, this.transportEl,
       h("div", { class: "ws-body" }, h("div", { class: "ws-main" }, this.notationEl, this.gridEl), this.sideEl));
     this.grid = new GridEditor(this.gridEl, { kit: this.app.kitInfo.instruments, player,
       onEdit: (score, label) => this.commit(score, label),
@@ -133,7 +143,7 @@ class Workspace {
   }
 
   renderHead() {
-    const kindBadge = this.kind === "beat" ? h("span", { class: "badge ai plain" }, "Original beat")
+    const kindBadge = this.practice ? null : this.kind === "beat" ? h("span", { class: "badge ai plain" }, "Original beat")
       : this.chart.origin === "library_chart" ? h("span", { class: "badge plain" }, "Library chart")
       : h("span", { class: "badge busy plain" }, this.chart.source_id ? "Transcription" : "Chart");
     const title = h("h1", { title: this.project.title }, this.project.title);
@@ -152,11 +162,15 @@ class Workspace {
     this.headEl.replaceChildren(
       h("a", { class: "btn icon-only ghost", href: this.kind === "beat" ? "#/library" : `#/song/${this.project.id}`, "aria-label": "Back" }, icon("arrowLeft")),
       h("div", { class: "ws-title" }, title, rename, kindBadge,
-        h("span", { class: "badge plain num" }, `v${this.chart.version}`), statusBadge(this.chart.status, this.kind),
+        h("span", { class: "badge plain num" }, `v${this.chart.version}`), chartBadge(this.chart, this.kind),
         this.kind !== "beat" && this.chart.shareable === false ? h("span", { class: "badge warn plain",
           title: "Transcribed for your own practice: play along and print it for yourself. Posting it publicly needs the music publisher's permission." }, "Personal practice") : null),
       this.saveStateEl, this.undoBtn, this.redoBtn, this.saveBtn, h("div", { class: "menu" }, exportBtn),
       h("button", { class: "btn", type: "button", onclick: () => this.print() }, icon("print"), "Print"));
+    const from = this.practice ? this.transcription() : null;
+    this.noticeEl.replaceChildren(...(this.practice ? [h("div", { class: "banner info", role: "note" }, icon("info"),
+      h("span", {}, "Simplified from the transcription, not what was played."), h("span", { class: "spacer" }),
+      from ? h("a", { class: "btn sm", href: `#/chart/${from.id}` }, "Open the transcription") : null)] : []));
     this.updateSaveState();
   }
 
@@ -740,7 +754,8 @@ class Workspace {
     const panels = [];
     if (this.kind === "beat" && this.generated) panels.push(this.panel("Shape the beat", "wand", this.shapeBody(), true));
     this.reviewEl = h("div", { class: "body" });
-    if (this.kind === "song") panels.push(this.panel("Review flagged bars", "alert", this.reviewEl, true));
+    if (this.kind === "song" && !this.practice) panels.push(this.panel("Review flagged bars", "alert", this.reviewEl, true));
+    if (this.kind === "song") panels.push(this.panel("Practice versions", "layers", this.practiceBody(), this.practice));
     panels.push(this.panel("Edit with words", "sparkle", this.wordsBody(), this.kind === "beat"));
     this.sectionsEl = h("div", { class: "body" });
     panels.push(this.panel("Sections", "layers", this.sectionsEl, false));
@@ -750,6 +765,39 @@ class Workspace {
     panels.push(this.panel("Details", "info", this.detailsBody(), false));
     this.sideEl.replaceChildren(...panels);
     this.renderSections(); this.renderChecks(); this.renderReview();
+  }
+
+  // Easier charts made from this transcription: new versions beside it (POST /api/charts/{id}/simplify).
+  practiceBody() {
+    if (this.practice) {
+      const a = this.saved.analysis?.simplified;
+      return h("div", {}, h("p", { class: "small muted" }, "An easier chart for working towards the real part. It leaves notes out and adds none, so it isn't a record of what was played."),
+        a ? h("p", { class: "small muted" }, `It keeps ${a.kept} of the transcription's ${a.of} notes.`) : null);
+    }
+    const levels = [["beginner", "Beginner", "The time on the hi-hat or ride, with kick, snare and toms on the beats."],
+      ["intermediate", "Intermediate", "The groove without ghost notes and ornaments, with busy fills thinned out."]];
+    const rows = levels.map(([level, name, what]) => {
+      const made = (this.project.charts || []).find((c) => c.origin === "simplified" && c.parent_id === this.chart.id && c.note === `${name} practice version`);
+      const go = made ? h("a", { class: "btn sm", href: `#/chart/${made.id}` }, "Open") : h("button", { class: "btn sm", type: "button" }, "Make");
+      if (!made) go.addEventListener("click", () => this.makePractice(level, name, go));
+      return h("div", { class: "row", style: { "align-items": "flex-start" } },
+        h("div", { style: { flex: 1 } }, h("strong", { class: "small" }, name), h("div", { class: "tiny muted" }, what)), go);
+    });
+    return h("div", { class: "stack", style: { gap: "8px" } }, h("p", { class: "small muted" }, "Easier charts made from this version, to work up to it. They only leave notes out, and this chart stays as it is."), ...rows);
+  }
+
+  async makePractice(level, name, button) {
+    if (this.dirty && !(await dialog({ title: "Make it from the saved version?", body: `Your unsaved edits won't be in it. Save first to include them.`, confirm: `Make ${name}` }))) return;
+    button.disabled = true;
+    button.textContent = "Making…";
+    try {
+      const n = await api(`/api/charts/${this.chart.id}/simplify`, { json: { level } });
+      location.hash = `#/chart/${n.id}`;
+    } catch (e) {
+      toast(e.message, "bad");
+      button.disabled = false;
+      button.textContent = "Make";
+    }
   }
 
   panel(title, ic, body, open) {
@@ -862,6 +910,7 @@ class Workspace {
       icon(c.ok ? "check" : "alert"), h("span", {}, h("strong", {}, c.name), " — ", c.detail)));
     const head = this.kind === "beat"
       ? h("p", { class: "small muted" }, "An original beat is checked for structure and playability. It isn't compared with any recording.")
+      : this.practice ? h("p", { class: "small muted" }, "A practice version is checked for structure and playability. It leaves notes out on purpose, so it isn't held to the recording.")
       : h("p", { class: "small muted" }, "These checks prove the chart is consistent and covers the recording. They don't prove every stroke matches it: listen to the flagged bars.");
     // replaceChildren() would print a null as the text "null": only real nodes go in.
     this.checksEl.replaceChildren(...[head, h("ul", { class: "checks" }, items),
@@ -891,7 +940,7 @@ class Workspace {
     const list = h("div", { class: "versions" }, (this.project.charts || []).map((c) => h("div", { class: `v${c.id === this.chart.id ? " current" : ""}` },
       h("strong", { class: "num" }, `v${c.version}`), h("span", { class: "muted", style: { flex: 1, overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }, title: c.note || c.origin }, c.note || c.origin.replace("_", " ")),
       c.id === this.chart.id ? h("span", { class: "tiny muted" }, "open") : h("a", { class: "btn sm ghost", href: `#/chart/${c.id}` }, "Open"),
-      c.id !== this.chart.id ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => {
+      c.id !== this.chart.id && c.origin !== "simplified" ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => {
         const ok = await dialog({ title: `Restore version ${c.version}?`, body: "It becomes the newest version; nothing is deleted.", confirm: "Restore" });
         if (!ok) return;
         try { const n = await api(`/api/charts/${c.id}/restore`, { method: "POST" }); toast(`Version ${c.version} restored as version ${n.version}`); location.hash = `#/chart/${n.id}`; } catch (e) { toast(e.message, "bad"); }

@@ -275,6 +275,28 @@ def cmd_rechart(args) -> int:
     return _print_report(report, Path(args.out))
 
 
+def cmd_simplify(args) -> int:
+    """A practice version of a chart: notes left out, none added or moved, and labelled as not
+    what was played (simplify.py). The chart it's made from isn't changed."""
+    from .model import Score
+    from .pipeline import export_all
+    from .rights import require_rights
+    from .simplify import simplify
+    src = Path(args.input)
+    before = Score.load(src)
+    rights = before.rights or args.rights  # the transcription's basis carries over
+    require_rights(rights, args.input)
+    stem = args.stem or f"{src.stem}-{args.level}"
+    _guard_input(args.input, args.out, stem)
+    try:
+        score = simplify(before, args.level)
+    except ValueError as exc:
+        raise SystemExit(f"simplify: {exc}") from None
+    score.rights = rights
+    report = export_all(score, args.out, stem, _kit(args), _export_opts(args))
+    return _print_report(report, Path(args.out))
+
+
 def cmd_analyze(args) -> int:
     from .audio.transcribe import analyze_file
     info = analyze_file(args.input, bpm=args.bpm, time_signature=args.time_signature, detector=args.detector)
@@ -555,6 +577,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
     _add_export_args(p)
     p.set_defaults(func=cmd_rechart)
+
+    p = sub.add_parser("simplify", help="a Beginner or Intermediate practice version of a chart "
+                                        "(notes left out, none added or moved)")
+    p.add_argument("input", help="a chart (score .json)")
+    p.add_argument("--level", required=True, choices=["beginner", "intermediate"])
+    p.add_argument("--rights", choices=sorted(RIGHTS), default=None,
+                   help="basis, if the chart doesn't record one (a transcription's own basis carries over)")
+    _add_export_args(p)
+    p.set_defaults(func=cmd_simplify)
 
     p = sub.add_parser("analyze", help="high-level analysis only (tempo, meter, sections); no notation")
     p.add_argument("input")

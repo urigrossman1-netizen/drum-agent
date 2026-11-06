@@ -5,7 +5,7 @@
 // allows transcribing it. A song found on YouTube can be played with YouTube's own player;
 // its audio is never downloaded.
 
-import { h, icon, api, toast, prefs, fmtDur, statusBadge, dialog } from "./ui.js";
+import { h, icon, api, toast, prefs, fmtDur, statusBadge, chartBadge, dialog } from "./ui.js";
 import { progressCard, watchJob } from "./progress.js";
 
 const CASE = {
@@ -45,7 +45,7 @@ export async function showSong(root, id, app, params = new URLSearchParams()) {
   const right = h("div", { class: "stack" });
   if (d.charts.length) {
     right.append(h("div", { class: "panel" }, h("h3", {}, "Charts"), h("div", { class: "versions" }, d.charts.map((c) =>
-      h("div", { class: "v" }, h("strong", { class: "num" }, `v${c.version}`), statusBadge(c.status, "song"),
+      h("div", { class: "v" }, h("strong", { class: "num" }, `v${c.version}`), chartBadge(c, "song"),
         h("span", { class: "muted small", style: { flex: 1 } }, `${c.bars} bars · ${c.note || c.origin.replace("_", " ")}`),
         c.shareable === false ? h("span", { class: "badge plain", title: "For your own practice" }, "personal") : null,
         h("a", { class: "btn sm primary", href: `#/chart/${c.id}` }, "Open"))))));

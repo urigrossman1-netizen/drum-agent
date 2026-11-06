@@ -179,6 +179,15 @@ export function statusBadge(status, kind) {
   return h("span", { class: `badge ${cls}` }, label);
 }
 
+/** A chart version's badge. A practice version isn't a transcription, so it shows what it is
+ *  and no transcription status. */
+export function chartBadge(c, kind) {
+  if (c.origin !== "simplified") return statusBadge(c.status, kind);
+  const level = (c.summary?.chart_type || "").replace("practice_", "");
+  return h("span", { class: "badge warn plain", title: "Simplified from the transcription, not what was played" },
+    level ? `Practice version: ${level[0].toUpperCase()}${level.slice(1)}` : "Practice version");
+}
+
 export function menu(button, items) {
   let list = null;
   const close = () => { if (list) { list.remove(); list = null; button.setAttribute("aria-expanded", "false"); document.removeEventListener("click", outside, true); } };

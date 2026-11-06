@@ -6,6 +6,7 @@ transport (isolated tests only); nothing here reaches the network.
 
 import io
 import json
+import re
 import shutil
 import subprocess
 from fractions import Fraction
@@ -330,10 +331,18 @@ def client(tmp_path):
         yield c
 
 
-def test_scripts_are_checked_each_time_so_an_update_reaches_the_browser(client):
-    r = client.get("/static/js/player.js")
+def test_an_update_reaches_the_browser_whole(client):
+    """Old cached scripts beside new ones leave a blank page: the page's files have a path of
+    their own for each build, and are checked each time they're loaded."""
+    page = client.get("/")
+    assert page.headers["cache-control"] == "no-cache"
+    entry = re.search(r'src="(/static/[0-9a-f]{12}/js/main\.js)"', page.text).group(1)
+    r = client.get(entry)
     assert r.status_code == 200 and r.headers["cache-control"] == "no-cache" and r.headers["etag"]
-    assert client.get("/static/js/player.js", headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+    assert client.get(entry, headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+    assert client.get(entry.replace("main.js", "ui.js")).status_code == 200  # main.js imports it relatively
+    assert client.get("/static/js/main.js").content == r.content
+    assert 'href="/static/' in page.text and 'href="/static/css' not in page.text
 
 
 def _song(client, title="Test Song", artist="Tester"):
