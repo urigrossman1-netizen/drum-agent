@@ -69,3 +69,11 @@ def studio_client(app):
     """A client as the server expects one: on this computer's own address, sending the page's header."""
     from fastapi.testclient import TestClient
     return TestClient(app, base_url="http://127.0.0.1", headers={"X-Drum-Agent": "test"})
+
+
+@pytest.fixture(autouse=True)
+def no_musicbrainz_pause(monkeypatch):
+    """Its one-request-a-second pacing has nothing to pace in tests (tests/test_song.py tries it)."""
+    from drum_agent.song import lookup
+    monkeypatch.setattr(lookup, "MUSICBRAINZ_GAP_S", 0.0)
+    monkeypatch.setattr(lookup, "_musicbrainz_next", 0.0)

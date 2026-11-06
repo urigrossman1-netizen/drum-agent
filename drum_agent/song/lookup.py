@@ -19,6 +19,8 @@ import difflib
 import http.client
 import json
 import re
+import threading
+import time
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -31,6 +33,8 @@ USER_AGENT = "drum-agent/1.0 (https://github.com/urigrossman1-netizen/drum-agent
 MAX_JSON_BYTES = 2 * 1024 * 1024  # a search answer is a few kB; anything this big is not one
 RESULTS_PER_SOURCE = 10
 DEEZER_TRACK_LOOKUPS = 3  # /track/<id> calls for BPM and ISRC, best search hits only
+MUSICBRAINZ_GAP_S = 1.0  # MusicBrainz asks for at most one request a second from an application
+MUSICBRAINZ_MAX_WAIT_S = 5.0  # a search that would wait longer goes on without it
 
 MUSICBRAINZ_URL = "https://musicbrainz.org/ws/2/recording/"
 ITUNES_URL = "https://itunes.apple.com/search"
@@ -49,6 +53,23 @@ OTHER_ARTIST_WORDS = ("karaoke", "tribute", "cover", "made famous by", "original
 
 class MetadataError(RuntimeError):
     """A metadata source (or all of them) could not answer."""
+
+
+_musicbrainz_lock = threading.Lock()
+_musicbrainz_next = 0.0  # when the next request may go (time.monotonic)
+
+
+def _musicbrainz_turn() -> bool:
+    """Wait for this application's next turn at MusicBrainz; False if the queue is too long."""
+    global _musicbrainz_next
+    with _musicbrainz_lock:
+        now = time.monotonic()
+        wait = max(0.0, _musicbrainz_next - now)
+        if wait > MUSICBRAINZ_MAX_WAIT_S:
+            return False
+        _musicbrainz_next = max(_musicbrainz_next, now) + MUSICBRAINZ_GAP_S
+    time.sleep(wait)
+    return True
 
 
 class Results(list):
@@ -253,6 +274,8 @@ def _num(value: Any) -> float | None:
 
 
 def search_musicbrainz(query: str, artist: str | None, timeout: float) -> list[SongCandidate]:
+    if not _musicbrainz_turn():
+        raise MetadataError("MusicBrainz is busy with other searches")
     if artist:
         q = f'recording:"{_lucene(query)}" AND artist:"{_lucene(artist)}"'
     else:

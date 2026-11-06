@@ -77,12 +77,15 @@ export async function showSong(root, id, app, params = new URLSearchParams()) {
     const title = j.kind === "library" ? "Finding the song and writing the chart" : "Transcribing the recording";
     const draw = (x) => jobHost.replaceChildren(progressCard(x, { title,
       onCancel: async () => { try { await api(`/api/jobs/${x.id}/cancel`, { method: "POST" }); } catch (e) { toast(e.message, "bad"); } },
-      onRetry: async () => { try { started({ job: await api(`/api/jobs/${x.id}/retry`, { method: "POST" }) }); } catch (e) { toast(e.message, "bad"); } } }));
+      // A recording that couldn't be used wasn't kept: there's nothing to try again, only another upload.
+      onRetry: x.kind === "transcribe" && !x.source_id ? null : async () => { try { started({ job: await api(`/api/jobs/${x.id}/retry`, { method: "POST" }) }); } catch (e) { toast(e.message, "bad"); } } }));
     draw(j);
     if (stopWatch) stopWatch();
     stopWatch = watchJob(j.id, (x, err) => {
       if (err) return;
       draw(x);
+      // It ended without a chart: drawn again, with the source as it now stands and the ways to go on.
+      if (running && (x.status === "failed" || x.status === "cancelled") && location.hash.startsWith(`#/song/${id}`)) { showSong(root, id, app); return; }
       if (x.status === "succeeded" && x.chart_id) {
         if (autoOpen.delete(x.id) && location.hash.startsWith(`#/song/${id}`)) { location.hash = `#/chart/${x.chart_id}`; return; }
         jobHost.querySelector(".progress-card")?.append(h("a", { class: "btn primary", href: `#/chart/${x.chart_id}`, style: { "margin-top": "12px" } }, "Open the chart"));

@@ -964,3 +964,21 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
     mine = AudioSource(Path("/music/x.wav"), "file")
     mine_cmd = run._rerun_command(given, mine).replace("BASIS", "own")
     assert parser.parse_args(shlex.split(mine_cmd)[3:]).audio == "/music/x.wav"
+
+
+def test_musicbrainz_is_asked_at_most_once_a_second(monkeypatch):
+    """Its terms ask an application for one request a second, however many visitors search."""
+    from drum_agent.song import lookup
+    naps, clock = [], [100.0]
+    monkeypatch.setattr(lookup, "MUSICBRAINZ_GAP_S", 1.0)
+    monkeypatch.setattr(lookup.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(lookup.time, "sleep", naps.append)
+    monkeypatch.setattr(lookup, "_get", lambda *a: {"recordings": []})
+    for _ in range(3):
+        assert lookup.search_musicbrainz("A Song", None, 1) == []
+    assert naps == [0.0, 1.0, 2.0]
+    for _ in range(3):
+        lookup.search_musicbrainz("A Song", None, 1)  # the queue is now 6 s long
+    with pytest.raises(lookup.MetadataError, match="busy"):
+        lookup.search_musicbrainz("A Song", None, 1)  # past the wait a search will take: it goes on without it
+
