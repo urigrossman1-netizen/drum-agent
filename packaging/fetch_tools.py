@@ -31,18 +31,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "build" / "downloads"
 LILYPOND = "2.26.0"
+# The last build of a month: BtbN keeps those for two years, a daily one for 14 days.
+FFMPEG_BUILD = "autobuild-2026-10-31-12-59"
 
+# (url, sha256): every download is pinned to the exact file, like the ones below.
 TOOLS = {
     "windows": {
-        "lilypond": [f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
-                     f"lilypond-{LILYPOND}-mingw-x86_64.zip"],
-        "ffmpeg": ["https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
-                   "ffmpeg-master-latest-win64-lgpl-shared.zip"],
+        "lilypond": (f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
+                     f"lilypond-{LILYPOND}-mingw-x86_64.zip",
+                     "14ddddc233b469ef60d4ffc1c7f35520f15ac6b58e38cab458c60bdcc3af650c"),
+        "ffmpeg": (f"https://github.com/BtbN/FFmpeg-Builds/releases/download/{FFMPEG_BUILD}/"
+                   "ffmpeg-N-128227-g4811625b5f-win64-lgpl-shared.zip",
+                   "df0064c654faad1537cbf31c399cd93d3aaf6147e23de094a62884ecd480a6bf"),
     },
     "mac": {
-        "lilypond": [f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
-                     f"lilypond-{LILYPOND}-darwin-x86_64.tar.gz"],
-        "ffmpeg": [],  # filled in by the Mac build (static builds are per architecture)
+        "lilypond": (f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
+                     f"lilypond-{LILYPOND}-darwin-x86_64.tar.gz",
+                     "6dcbca34b13ad6d4ba3606a0b48edd02688284fcd52e9c00141242df1996a148"),
+        "ffmpeg": None,  # filled in by the Mac build (static builds are per architecture)
     },
 }
 
@@ -190,13 +196,13 @@ def fetch(platform: str, dest: Path) -> None:
     work = ROOT / "build" / "unpacked"
     dest.mkdir(parents=True, exist_ok=True)
 
-    top = unpack(download(urls["lilypond"][0]), work / "lilypond")
+    top = unpack(verified(*urls["lilypond"]), work / "lilypond")
     shutil.rmtree(dest / "lilypond", ignore_errors=True)
     shutil.copytree(top, dest / "lilypond")
     assert (dest / "lilypond" / "bin" / f"lilypond{exe}").is_file(), "no lilypond in the LilyPond download"
 
     if urls["ffmpeg"]:
-        top = unpack(download(urls["ffmpeg"][0]), work / "ffmpeg")
+        top = unpack(verified(*urls["ffmpeg"]), work / "ffmpeg")
         shutil.rmtree(dest / "ffmpeg", ignore_errors=True)
         shutil.copytree(top / "bin", dest / "ffmpeg" / "bin")
         for name in ("LICENSE.txt", "LICENSE"):

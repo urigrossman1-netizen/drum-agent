@@ -27,6 +27,10 @@ web = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9", "httpx>=0.2
 desktop = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9", "httpx>=0.27", "anthropic>=2.3",
            "pywebview>=5"]
 
+# the drum separation (HTDemucs), pinned to what the benchmarks in docs/ ran on. For CPU PyTorch,
+# first install those two from https://download.pytorch.org/whl/cpu
+separation = ["torch==2.15.0", "torchaudio==2.11.1", "demucs==4.1.0"]
+
 [project.scripts]
 drum-agent = "drum_agent.cli:main"
 
