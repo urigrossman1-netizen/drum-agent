@@ -4,12 +4,15 @@
 #
 # The test (packaging/smoke_test.py) runs the packaged app: every tool ready, a beat, an
 # uploaded recording separated and transcribed, a song typed by name found in a music folder
-# and charted, and a real catalog search (MusicBrainz, iTunes, Deezer).
+# and charted, and a real catalog search (MusicBrainz, iTunes, Deezer). On a pull request the
+# installer is built and tested and kept as this run's artifact; nothing is published.
 name: Windows app
 
 on:
   push:
     branches: [claude/peaceful-noether-qz2xmc]
+    paths: ["drum_agent/**", "packaging/**", "pyproject.toml", ".github/workflows/windows-app.yml"]
+  pull_request:
     paths: ["drum_agent/**", "packaging/**", "pyproject.toml", ".github/workflows/windows-app.yml"]
   workflow_dispatch:
 
@@ -134,6 +137,7 @@ jobs:
           retention-days: 14
 
       - name: Publish "Drum Agent for Windows"
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,4 +1,4 @@
-# Runs the tests on every push to the working branches and on every pull request:
+# Runs the tests on every pull request and on every push to the live line:
 #  - the fast suite (pytest -m "not slow") on Linux and on Windows, the app's two homes;
 #  - the browser journeys (tests/test_web_e2e.py: Playwright through node) on Linux.
 #
@@ -8,7 +8,7 @@ name: Tests
 
 on:
   push:
-    branches: [claude/peaceful-noether-qz2xmc, claude/transcription-platform]
+    branches: [claude/peaceful-noether-qz2xmc]
   pull_request:
   workflow_dispatch:
 
