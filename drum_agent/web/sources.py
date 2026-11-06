@@ -87,9 +87,8 @@ def find_asset(song: dict) -> dict | None:
 
 
 def resolve(store: Store, song: dict) -> dict:
-    charts = store.charts_for(song["id"])
-    if charts:
-        c = charts[0]
+    c = store.latest_chart(song["id"])
+    if c is not None:
         return {"case": "EXISTING_CHART", "chart_id": c["id"], "chart_status": c["status"],
                 "detail": f"chart version {c['version']} ({c['status']})"}
     sources = store.sources_for(song["id"])
@@ -181,8 +180,9 @@ def decode_source(store: Store, source: dict) -> dict:
         store.drop_source(source["id"])
         file.unlink(missing_ok=True)
         raise
+    decoded = store.update_source(source["id"], info=meta)  # first: a crash here must not lose the upload
     file.unlink(missing_ok=True)
-    return store.update_source(source["id"], info=meta)
+    return decoded
 
 
 def add_local(store: Store, song: dict, path: Path, about: dict) -> dict:

@@ -182,13 +182,26 @@ def test_idle_buckets_are_forgotten(monkeypatch):
     assert list(b.state) == ["new"]
 
 
+def test_a_crowd_of_new_visitors_doesnt_cost_a_sweep_on_every_request(monkeypatch):
+    monkeypatch.setattr(guard, "MAX_TRACKED", 1)
+    now = [100.0]
+    b = Buckets(clock=lambda: now[0])
+    limit = Limit(burst=1, per_hour=1)
+    for k in range(3):
+        b.take(limit, [(k, 1)])
+    assert b.pruned == 100.0  # nothing swept yet: the last sweep was just now
+    now[0] += guard.PRUNE_EVERY_S + 1
+    b.take(limit, [(9, 1)])
+    assert b.pruned == now[0]
+
+
 def test_every_limit_refills_within_the_idle_time():
     assert all(limit.burst / limit.per_hour * 3600 <= guard.IDLE_S for limit in guard.LIMITS.values())
 
 
 @pytest.mark.parametrize("method, path, name", [
     ("POST", "/api/charts/ch_1/explain", "claude"), ("POST", "/api/charts/ch_1/suggest-sections", "claude"),
-    ("POST", "/api/beats/command", "claude"), ("GET", "/api/search", "search"), ("POST", "/api/songs/s_1/upload", "jobs"),
+    ("POST", "/api/beats/command", "words"), ("GET", "/api/search", "search"), ("POST", "/api/songs/s_1/upload", "jobs"),
     ("POST", "/api/songs/s_1/jobs", "jobs"), ("POST", "/api/jobs/job_1/retry", "jobs"), ("POST", "/api/beats", "jobs"),
     ("POST", "/api/preview", "preview"), ("POST", "/api/projects/s_1/versions", "save"),
     ("POST", "/api/charts/ch_1/rechart", "save"), ("GET", "/api/charts/ch_1/listen", "listen"),
@@ -326,6 +339,61 @@ def test_a_file_that_only_decoding_can_judge_fails_its_job_and_isnt_kept(tmp_pat
         good = take(tmp_path / "b.wav")
         r = upload(c, sid, good.read_bytes())
         assert r.status_code == 200 and r.json()["created"] is True
+
+
+@needs_ffmpeg
+def test_a_job_queued_on_a_refused_upload_says_so(tmp_path):
+    with studio_client(make_app(tmp_path, start_worker=False)) as c:
+        runner, sid = c.app.state.runner, song(c)
+        silent = take(tmp_path / "a.wav", level=0.0).read_bytes()
+        files = {"file": ("take.wav", silent, "audio/wav")}
+        first = c.post(f"/api/songs/{sid}/upload", files=files, data={"rights": "original"}).json()["job"]
+        second = c.post(f"/api/songs/{sid}/upload", files=files, data={"rights": "original", "bpm": "100"}).json()["job"]
+        assert first["id"] != second["id"] and first["source_id"] == second["source_id"]
+        assert runner.run(first["id"])["error_code"] == "silent"
+        done = runner.run(second["id"])
+        assert done["status"] == "failed" and done["error_code"] == "source_missing"
+
+
+@needs_ffmpeg
+def test_uploading_a_recording_whose_audio_has_gone_brings_it_back(tmp_path):
+    store, s = store_with_song(tmp_path)
+    from drum_agent.web.jobs import JobRunner
+    runner = JobRunner(store, start=False)
+    src = sources.decode_source(store, uploaded(store, s, take(tmp_path / "a.wav")))
+    job, _ = runner.submit(s["id"], src["id"])
+    store.update_job(job["id"], status="succeeded")
+    assert runner.submit(s["id"], src["id"])[1] is False  # asked again: the same job
+    Path(src["path"]).unlink()
+    again = uploaded(store, s, tmp_path / "a.wav")
+    assert again["id"] == src["id"] and again["info"].get("waiting")
+    new, created = runner.submit(s["id"], again["id"])
+    assert created and new["id"] != job["id"]
+    assert Path(sources.decode_source(store, again)["path"]).is_file()
+
+
+@needs_ffmpeg
+def test_a_crash_after_decoding_cant_lose_the_recording(tmp_path, monkeypatch):
+    store, s = store_with_song(tmp_path)
+    src = uploaded(store, s, take(tmp_path / "a.wav"))
+    real = Path.unlink
+
+    def dies(self, *a, **k):
+        if self.parent.name == "uploads":
+            raise KeyboardInterrupt
+        return real(self, *a, **k)
+    monkeypatch.setattr(Path, "unlink", dies)
+    with pytest.raises(KeyboardInterrupt):
+        sources.decode_source(store, src)
+    monkeypatch.undo()
+    assert "waiting" not in store.get_source(src["id"])["info"] and Path(src["path"]).is_file()
+
+
+def test_the_song_is_the_transcription_not_its_practice_version(tmp_path):
+    store, s = store_with_song(tmp_path)
+    for k, origin in enumerate(("transcription", "simplified")):
+        store.add_chart(chart_id=f"ch_{k}", song_id=s["id"], status="COMPLETE", origin=origin, bars=1, validation={}, summary={})
+    assert sources.resolve(store, s)["chart_id"] == "ch_0"
 
 
 @needs_ffmpeg

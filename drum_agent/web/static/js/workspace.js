@@ -217,6 +217,8 @@ class Workspace {
     this.scrub = h("input", { type: "range", min: 0, max: 1, step: 0.05, value: 0, "aria-label": "Position in the song" });
     this.scrub.addEventListener("input", () => this.seekMoving(Number(this.scrub.value)));
     this.scrub.addEventListener("change", () => this.seekTo(Number(this.scrub.value)));
+    // Dragged back to where it started there's no change event: the thumb must still follow again.
+    this.scrub.addEventListener("pointerup", () => setTimeout(() => { this.scrubbing = false; }));
     this.speedNoteEl = h("span", {});
     this.speedBusyEl = h("span", { class: "engraving", hidden: true, role: "status" }, h("span", { class: "spinner" }), this.speedNoteEl);
     t.replaceChildren(
@@ -272,6 +274,7 @@ class Workspace {
    *  that speed first, and what's playing plays on until it is. */
   async speedChanged() {
     const seq = ++this.speedSeq;
+    this.speedBusyEl.hidden = true;
     if (player.recordingOn) {
       const waiting = player.speed !== 1 && player.stretched?.speed !== player.speed;
       this.speedNoteEl.textContent = `Preparing the recording at ${Math.round(player.speed * 100)}%…`;
@@ -350,6 +353,9 @@ class Workspace {
 
   /** One section, round and round: it becomes the selection, looped. */
   loopSection(first, last) {
+    const end = this.score.measures.length - 1;
+    if (first > end) { toast("Those bars aren't in this working copy.", "bad"); return; }
+    last = Math.min(last, end);
     this.select([first, last], true);
     this.setSelOnly(true);
     player.loop = true;

@@ -107,7 +107,8 @@ class JobRunner:
             raise KeyError("source not found for this song")
         key = f"{song_id}|{source['sha256']}|{ENGINE}" + (f"|{_json(dict(sorted(hints.items())))}" if hints else "")
         existing = self.store.job_by_key(key)
-        if existing is not None:
+        # A finished job doesn't answer for a recording uploaded again because its audio had gone.
+        if existing is not None and not (existing["status"] == "succeeded" and source["info"].get("waiting")):
             return existing, False
         job = self.store.create_job(song_id=song_id, source_id=source_id, engine=ENGINE, key=key,
                                     params={"hints": hints} if hints else {})
@@ -255,6 +256,8 @@ class JobRunner:
         song = song or self.store.get_song(job["song_id"])
         source = source or self.store.get_source(job["source_id"])
         step("prepare")
+        if source is None:  # refused by another job on the same upload
+            raise AudioError("source_missing", "this recording couldn't be used, so it wasn't kept: upload it again")
         source = sources.decode_source(self.store, source)
         wav = Path(source["path"])
         if not wav.is_file():

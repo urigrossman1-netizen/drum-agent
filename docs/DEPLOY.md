@@ -34,7 +34,13 @@ annotations. Only an image that passes is pushed to `ghcr.io/<owner>/<repo>:late
 - **Persistent `/data`.** It holds the database, the uploaded audio (normalized) and every
   chart version. Without a volume, a restart loses them.
 - **Limits.** Uploads up to `DRUM_AGENT_MAX_UPLOAD_MB` (200) and recordings up to
-  `DRUM_AGENT_MAX_AUDIO_MINUTES` (20).
+  `DRUM_AGENT_MAX_AUDIO_MINUTES` (20). Requests are limited per visitor and per address
+  (`docs/WEB_APP.md`, Protections).
+- **Behind a proxy** every visitor arrives from the proxy's address, so the per-address
+  limits work as limits for the whole server: a busy site slows down, and a bill can't run
+  away. To limit each visitor's real address, tell uvicorn which proxy to trust with
+  `FORWARDED_ALLOW_IPS` (its address; `*` lets any visitor claim any address).
+- **Scripts** that call the API must send an `X-Drum-Agent` header on writes.
 
 ## Environment
 

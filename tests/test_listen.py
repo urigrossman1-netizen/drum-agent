@@ -85,6 +85,13 @@ def test_a_rendition_is_made_once_and_only_a_few_are_kept(take, tmp_path, monkey
         listen.rendition(tmp_path / "r", take, 0.33)
 
 
+def test_a_ready_copy_doesnt_wait_for_another_being_made(take, tmp_path):
+    folder = tmp_path / "r"
+    made = listen.rendition(folder, take, 1.0)
+    with listen._lock(str(folder)):  # another speed is being made
+        assert listen.rendition(folder, take, 1.0) == made
+
+
 def test_a_failure_says_why_and_leaves_nothing_behind(take, tmp_path, monkeypatch):
     with pytest.raises(listen.ListenError, match="could not prepare"):
         listen.rendition(tmp_path / "r", tmp_path / "missing.wav", 1.0)

@@ -28,8 +28,8 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Playback | synchronized with the chart | **Complete and verified** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Since phase 4: a time line to seek, a real pause, section loops, speed with the pitch kept, a compressed copy to listen to (`tests/test_listen.py`; the browser behaviour checked in the browser pane, not by an automated test) |
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Since phase 4 an Adjust tool sets a note's loudness, drum and place. Not done: dragging notes (loudness is a slider, moving is by buttons) |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 948 passed, 1 skipped (2026-11-06, phase 4); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
-| Security | upload and API protection | **Partially implemented** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Missing: rate limits, CSRF guard, streaming size cap, Host allowlist, decode outside the request |
+| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 1,027 passed, 1 skipped (2026-11-06, phase 5); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
+| Security | upload and API protection | **Implemented; live server checks pending** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Since phase 5: size cap while streaming, decoding in the job, rate limits, a cross-site write guard, a Host allowlist in personal mode, HSTS (`web/guard.py`, `tests/test_guard.py`), pinned downloads (`tests/test_supply_chain.py`). A security review of the branch found nothing at its confidence bar (2026-11-06). Not yet tried on a public deployment |
 
 ## Log
 
@@ -284,3 +284,22 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
 
 **Tests:** 948 passed, 1 skipped (fast suite).
 
+### 2026-11-06: phase 5, hardening
+
+**Request guard** (`web/guard.py`, `tests/test_guard.py`).
+- The personal app answers only to its own names. A body is refused by its declared size, or cut off while it streams once past the limit. Writes need the `X-Drum-Agent` header. A shared server has token buckets per visitor and per address, and sends HSTS over HTTPS.
+- Tried against the running server with curl: a wrong Host, a write without the header, a form post from another origin, a CORS preflight and an oversized declared body are all refused.
+
+**Uploads.** The request now checks only what needs no decoder; the job decodes. A file only decoding can judge fails the job, and neither it nor its source is kept. In the browser pane: a silent WAV uploaded through the real form failed with its reason, the form came back without "Try again", and a good file went through.
+
+**Data.** A copy has its own source row, so it keeps the recording when the original is deleted; older copies get theirs at start-up. A `personal` asset is refused on a shared server. The live studio no longer caches anything between runs. A chart whose recording is gone no longer offers it. MusicBrainz is asked at most once a second.
+
+**Supply chain** (`tests/test_supply_chain.py`). LilyPond, FFmpeg and cloudflared are exact files with SHA-256s; torch, torchaudio and demucs are pinned. The pinned Windows LilyPond and FFmpeg were fetched through `fetch_tools.py` and matched, and that FFmpeg has libopus and `atempo`. The Linux and Mac LilyPond hashes were computed from their downloads here. The cloudflared hash comes from GitHub's release data and hasn't been checked against a download.
+
+**CI** (`.github/workflows/tests.yml`). Fast tests on Linux and Windows, browser journeys on Linux. **It has never run:** nothing has been pushed yet. The Docker and Windows builds with the pinned versions haven't run either.
+
+**Reviews.**
+- Security review of the branch: nothing at its confidence bar. Ownership and XSS conclusions come from reading the code; LilyPond escaping was tested with 36 hostile cases on the real binary. It noted LilyPond 2.26 has no safe mode, so `ly_string` is the only barrier (`docs/WEB_APP.md`).
+- Code review: ten findings, all fixed, with tests for the server-side ones. The main ones: a re-upload after the audio was lost never decoded; a job queued on a refused upload crashed; typed edits used up the Claude limit; the song's source panel could point at a practice version.
+
+**Tests:** 1,027 passed, 1 skipped (fast suite).

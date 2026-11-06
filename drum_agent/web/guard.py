@@ -40,6 +40,7 @@ UPLOAD = re.compile(r"/api/songs/[^/]+/upload")
 ADDRESS_FACTOR = 5  # how much more an address may do than one visitor
 MAX_TRACKED = 50_000  # buckets kept before the idle ones are forgotten
 IDLE_S = 3600  # every bucket below is full again by then
+PRUNE_EVERY_S = 60
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class Limit:
 
 LIMITS = {
     "claude": Limit(5, 20),  # each one is paid for
+    "words": Limit(20, 120),  # a typed edit: rules first, Claude only for what they can't read
     "search": Limit(10, 120),  # other services' quotas
     "jobs": Limit(10, 30),  # minutes of CPU each
     "save": Limit(20, 120),  # a full engraving each
@@ -58,7 +60,7 @@ LIMITS = {
 }
 ROUTES = tuple((method, re.compile(path), name) for method, path, name in (
     ("POST", r"/api/charts/[^/]+/(suggest-sections|explain)", "claude"),
-    ("POST", r"/api/beats/command", "claude"),
+    ("POST", r"/api/beats/command", "words"),
     ("GET", r"/api/search", "search"),
     ("POST", r"/api/songs/[^/]+/(upload|jobs|use-asset|library)", "jobs"),
     ("POST", r"/api/jobs/[^/]+/retry", "jobs"),
@@ -81,6 +83,7 @@ class Buckets:
     def __init__(self, clock=time.monotonic):
         self.clock = clock
         self.state: dict[tuple, tuple[float, float]] = {}  # key -> (tokens, when they were counted)
+        self.pruned = clock()
 
     def take(self, limit: Limit, keys: list[tuple[tuple, int]]) -> float:
         """0 if the request may go, else the seconds to wait. `keys`: (bucket, how many times the limit)."""
@@ -95,7 +98,8 @@ class Buckets:
             return wait
         for key, tokens, _ in levels:
             self.state[key] = (tokens - 1, now)
-        if len(self.state) > MAX_TRACKED:
+        if len(self.state) > MAX_TRACKED and now - self.pruned > PRUNE_EVERY_S:
+            self.pruned = now
             self.state = {k: v for k, v in self.state.items() if now - v[1] < IDLE_S}
         return 0.0
 

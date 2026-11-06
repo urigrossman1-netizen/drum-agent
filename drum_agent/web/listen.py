@@ -35,14 +35,23 @@ def _lock(key: str) -> threading.Lock:
         return _locks.setdefault(key, threading.Lock())
 
 
+def _ready(out: Path) -> bool:
+    try:
+        os.utime(out)  # most recently used
+    except OSError:
+        return False
+    return True
+
+
 def rendition(folder: Path, source: Path, speed: float) -> Path:
     """The Opus rendition of `source` at `speed` in `folder`, made on first use."""
     if speed not in SPEEDS:
         raise ValueError(f"speed must be one of {SPEEDS[0]}..{SPEEDS[-1]} in steps of 0.05")
     out = folder / f"{round(speed * 100):03d}.ogg"
+    if _ready(out):  # before the lock: a copy that's ready never waits for another being made
+        return out
     with _lock(str(folder)):  # one at a time per recording: pruning reads the folder too
-        if out.is_file():
-            os.utime(out)  # most recently used
+        if _ready(out):
             return out
         exe = shutil.which("ffmpeg")
         if exe is None:

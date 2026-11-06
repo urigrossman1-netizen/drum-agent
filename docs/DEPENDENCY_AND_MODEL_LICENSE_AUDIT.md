@@ -78,10 +78,10 @@ lawyer before a commercial launch.
 | Program | Version | Licence | How it is used | Notes |
 |---|---|---|---|---|
 | LilyPond | 2.26.0 | GPL-3.0-or-later | separate program: engraves every chart | the Windows app ships it unmodified with a source link (`NOTICES.txt`): aggregation, not linking |
-| FFmpeg (BtbN LGPL shared build) | "latest" (N-128352, 2026-11-03) | LGPL-2.1-or-later (no GPL parts) | separate program: decoding, and the listen-along copies (libopus, `atempo`) | **unpinned**: `fetch_tools.py` takes the rolling "latest" build. Pinning is planned (phase 5) |
+| FFmpeg (BtbN LGPL shared build) | N-128227, 2026-10-31 (pinned SHA-256; the Windows app) | LGPL-2.1-or-later (no GPL parts) | separate program: decoding, and the listen-along copies (libopus, `atempo`) | the last build of October: BtbN keeps a month's last build for two years, a daily one for 14 days. The Linux image uses Debian's package |
 | FluidSynth | 2.6.2 (pinned SHA-256) | LGPL-2.1-or-later | separate program: sampled drums, `synth` | added 2026-11-04 (`fetch_tools.py --sounds`) |
 | FluidR3_GM.sf2 (Frank Wen) | Debian 3.1-5.3 (pinned SHA-256) | MIT | the General MIDI soundfont | the same file the Linux image installs |
-| cloudflared | latest | Apache-2.0 | CI only (`live-studio.yml` tunnel) | unpinned, no checksum (phase 5) |
+| cloudflared | 2026.10.7 (pinned SHA-256) | Apache-2.0 | CI only (`live-studio.yml` tunnel) | |
 | PyInstaller | build tool | GPL-2.0 with bootloader exception | packages the Windows app | the exception permits distributing the built app |
 | Inno Setup | build tool | Inno Setup licence (free, commercial use allowed) | Windows installer | |
 
@@ -129,7 +129,7 @@ rule (owner, 2026-10-29) is no audio from video or streaming services.
 |---|---|---|
 | YouTube Data API v3 + embedded player | YouTube API Services Terms and Developer Policies: no downloading or separating audio; quota 10,000 units/day (a search costs 100); stored API data has refresh limits (**verify** the exact rule for stored video ids) | `search.list` + `videos.list` only; `youtube-nocookie.com` embed; no extraction code (yt-dlp removed in `643b357`) |
 | Spotify Web API | Developer Terms: no downloading, no using Spotify content to train models, attribution | client-credentials `/v1/search` only, metadata shown with a link |
-| MusicBrainz | core data CC0; at most about 1 request/second; meaningful User-Agent | User-Agent set; no throttling yet (phase 5) |
+| MusicBrainz | core data CC0; at most about 1 request/second; meaningful User-Agent | User-Agent set; at most one request a second from the process (`song/lookup.py`) |
 | iTunes Search API | Apple's terms for promoting Apple Media content | metadata search only |
 | Deezer API | Deezer's API terms: **verify** commercial-use conditions before launch | search + track BPM only |
 | Anthropic API | Commercial Terms; pay-as-you-go | text only: section names, beat descriptions, typed edit commands, chart explanations. Never note data invented by the model |
@@ -150,4 +150,4 @@ rule (owner, 2026-10-29) is no audio from video or streaming services.
 2. **Our classifier's GPL/CC BY-SA training samples.** Mitigation: legal review, or retrain permissive-only, and add E-GMD/StemGMD (CC BY 4.0) real-kit audio.
 3. **Benchmarking on MDB Drums (CC BY-NC-SA).** Mitigation: legal review; a commercially licensed or self-recorded benchmark set.
 4. **Deezer and YouTube stored-data terms.** Verify before launch.
-5. **Unpinned FFmpeg, cloudflared, torch and demucs.** Pinning is planned in phase 5. Supply-chain risk, not a licence risk.
+5. **Supply chain.** Done in phase 5: LilyPond (all platforms), FFmpeg (Windows) and cloudflared are exact files checked by SHA-256, and torch, torchaudio and demucs are pinned versions (the `separation` extra; `tests/test_supply_chain.py`). Still floating: the Docker base image tag, Debian's packages in the image, and the GitHub Actions' version tags.
