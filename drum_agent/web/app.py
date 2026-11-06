@@ -43,7 +43,7 @@ from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
 from ..rights import RightsError, shareable
 from ..song.fetch import FetchError
-from . import claude, library, owners, sources
+from . import claude, library, listen, owners, sources
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
 from .store import Store, default_data_dir, song_id_for
@@ -140,6 +140,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; "
             "object-src 'none'; frame-ancestors 'none'; "
             "frame-src https://www.youtube-nocookie.com")  # YouTube's own player, for songs found there
+        if request.url.path.startswith("/static/"):  # checked each time (a 304 when unchanged), so an update arrives
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     @app.middleware("http")
@@ -361,6 +363,22 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         if src is None or not Path(src["path"]).is_file():
             raise HTTPException(404, "this chart has no source audio")
         return FileResponse(src["path"], media_type="audio/wav", headers={"Cache-Control": "private, no-store"})
+
+    @app.get("/api/charts/{chart_id}/listen")
+    def chart_listen(chart_id: str, speed: float = 1.0):
+        """The recording for listening along: compressed, at `speed` with its pitch kept
+        (web/listen.py). The first request for a speed takes a few seconds."""
+        c = _chart(store, chart_id)
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        if src is None or not Path(src["path"]).is_file():
+            raise HTTPException(404, "this chart has no source audio")
+        try:
+            path = listen.rendition(store.listen_dir(src["sha256"]), Path(src["path"]), round(speed, 2))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except listen.ListenError as exc:
+            raise HTTPException(503, str(exc)) from None
+        return FileResponse(path, media_type="audio/ogg", headers={"Cache-Control": "private, no-store"})
 
     @app.post("/api/charts/{chart_id}/suggest-sections")
     def suggest(chart_id: str):

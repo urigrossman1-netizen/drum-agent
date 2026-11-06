@@ -330,6 +330,12 @@ def client(tmp_path):
         yield c
 
 
+def test_scripts_are_checked_each_time_so_an_update_reaches_the_browser(client):
+    r = client.get("/static/js/player.js")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache" and r.headers["etag"]
+    assert client.get("/static/js/player.js", headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+
+
 def _song(client, title="Test Song", artist="Tester"):
     return client.post("/api/songs", json={"title": title, "artist": artist}).json()
 

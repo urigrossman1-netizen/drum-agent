@@ -125,7 +125,7 @@ def _project(store, project_id: str, *, write: bool = False) -> dict:
 
 def project_card(store, s: dict) -> dict:
     charts = store.charts_for(s["id"])
-    c = charts[0] if charts else None
+    c = store.latest_chart(s["id"])
     summary = (c or {}).get("summary") or {}
     return {"id": s["id"], "kind": s.get("kind") or "song", "title": s["title"], "artist": s["artist"],
             "album": s.get("album"), "year": s.get("year"), "version": s.get("version"),

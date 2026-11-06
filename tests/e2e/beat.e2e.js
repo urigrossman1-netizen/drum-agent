@@ -66,7 +66,7 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
     await page.waitForFunction(() => /Bar 2/.test(document.querySelector(".position").textContent), null, { timeout: 8000 });
     expect(await page.locator(".box.current").count() === 1, "the playing bar is highlighted in the notation");
     await shot("b04-playing");
-    await page.click(".transport .play");
+    await page.click('.transport button[aria-label="Stop"]');
     // 8-9. Edit a hit in the grid; the notation is re-engraved with it.
     const before = await page.$eval(".page img", (i) => i.src);
     const cell = page.locator('.cell[data-bar="0"][data-pos="1/8"][data-inst="tom1"]');

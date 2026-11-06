@@ -170,6 +170,10 @@ class Store:
     def chart_dir(self, chart_id: str) -> Path:
         return self.root / "charts" / chart_id
 
+    def listen_dir(self, sha256: str) -> Path:
+        """Where a recording's listening renditions live (web/listen.py)."""
+        return self.root / "listen" / sha256
+
     # ---- songs -----------------------------------------------------------
     def upsert_song(self, *, title: str, artist: str, album: str | None = None, year: int | None = None,
                     duration_s: float | None = None, isrc: str | None = None, version: str | None = None,
@@ -256,7 +260,7 @@ class Store:
         for src in self.sources_for(song_id):
             others = self._q("SELECT id FROM sources WHERE sha256=? AND song_id!=?", (src["sha256"], song_id))
             if not others:
-                paths.append(src["path"])
+                paths += [src["path"], str(self.listen_dir(src["sha256"]))]
         with self._lock:
             for table in ("charts", "jobs", "sources"):
                 self._db.execute(f"DELETE FROM {table} WHERE song_id=?", (song_id,))
@@ -341,8 +345,10 @@ class Store:
         return self._q("SELECT * FROM charts WHERE song_id=? ORDER BY version DESC", (song_id,))
 
     def latest_chart(self, song_id: str) -> dict | None:
+        """The song's chart: its newest version that isn't a simplified practice version
+        (those are derived from a transcription and never take its place)."""
         r = self.charts_for(song_id)
-        return r[0] if r else None
+        return next((c for c in r if c["origin"] != "simplified"), r[0] if r else None)
 
     def close(self) -> None:
         with self._lock:
