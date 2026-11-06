@@ -33,7 +33,7 @@ const overflowing = (page) => page.evaluate(() => {
   try {
     await page.goto(BASE + "/");
     await page.waitForSelector("#create-view");
-    const made = await (await page.request.post(BASE + "/api/songs", { data: { title: "Phone Song", artist: "Nobody" } })).json();
+    const made = await (await page.request.post(BASE + "/api/songs", { data: { title: "Phone Song", artist: "Nobody" }, headers: { "X-Drum-Agent": "test" } })).json();
     const songs = (await (await page.request.get(BASE + "/api/songs")).json()).songs;
     const example = songs.find((s) => s.chart && s.chart.id);
     expect(!!example, "the example song has a chart");

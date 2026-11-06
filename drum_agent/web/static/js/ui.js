@@ -78,7 +78,7 @@ export class ApiError extends Error {
 }
 
 export async function api(path, opts = {}) {
-  const init = { method: opts.method || (opts.json !== undefined ? "POST" : "GET"), headers: { Accept: "application/json" } };
+  const init = { method: opts.method || (opts.json !== undefined ? "POST" : "GET"), headers: { Accept: "application/json", "X-Drum-Agent": "studio" } };
   if (opts.json !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.json); }
   if (opts.signal) init.signal = opts.signal;
   let res;

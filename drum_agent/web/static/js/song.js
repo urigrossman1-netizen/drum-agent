@@ -185,10 +185,13 @@ function uploadPanel(id, app, again, lib, onStarted) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!chosen || !select.value) { msg.style.color = "var(--coral)"; msg.textContent = "Choose a file and your rights basis."; return; }
+    const limit = app.health?.limits?.max_upload_mb;
+    if (limit && chosen.size > limit * 2 ** 20) { msg.style.color = "var(--coral)"; msg.textContent = `That file is over the ${limit} MB limit.`; return; }
     const fd = new FormData();
     fd.append("file", chosen); fd.append("rights", select.value);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api/songs/${id}/upload`);
+    xhr.setRequestHeader("X-Drum-Agent", "studio");
     xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) { bar.hidden = false; bar.firstChild.style.width = `${(100 * ev.loaded) / ev.total}%`; } };
     xhr.onload = () => {
       let body = null; try { body = JSON.parse(xhr.responseText); } catch { body = null; }
@@ -198,7 +201,7 @@ function uploadPanel(id, app, again, lib, onStarted) {
       msg.textContent = "The file was not accepted: " + ((body && (body.detail || body.error)) || `HTTP ${xhr.status}`);
     };
     xhr.onerror = () => { go.disabled = false; msg.style.color = "var(--coral)"; msg.textContent = "The upload failed (network error)."; };
-    go.disabled = true; msg.style.color = ""; msg.textContent = "Uploading, then checking and decoding the audio…";
+    go.disabled = true; msg.style.color = ""; msg.textContent = "Uploading…";
     xhr.send(fd);
   });
   return form;

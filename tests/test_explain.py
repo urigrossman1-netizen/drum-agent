@@ -6,7 +6,7 @@ sent and what is accepted, not what the live model writes."""
 import json
 
 import pytest
-from conftest import needs_lilypond
+from conftest import needs_lilypond, studio_client
 
 from drum_agent.charts import compile_spec
 from drum_agent.web import claude, providers
@@ -103,13 +103,11 @@ def test_long_answers_are_cut_and_a_refusal_is_said_plainly(configured):
 
 @needs_lilypond
 def test_the_studio_keeps_the_answer_with_its_version_and_changes_nothing(tmp_path, monkeypatch):
-    from fastapi.testclient import TestClient
-
     from drum_agent.web.app import create_app
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         sid = c.post("/api/songs", json={"title": "Test Song", "artist": "Tester"}).json()["song"]["id"]
         cid = app.state.runner._save_chart(app.state.store.get_song(sid), song(), lambda stage: None, origin="library_chart")["id"]
         before = c.get(f"/api/charts/{cid}/files/chart.json").content

@@ -63,3 +63,9 @@ def artifacts() -> Path:
     p = ROOT / "tests" / "_artifacts"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def studio_client(app):
+    """A client as the server expects one: on this computer's own address, sending the page's header."""
+    from fastapi.testclient import TestClient
+    return TestClient(app, base_url="http://127.0.0.1", headers={"X-Drum-Agent": "test"})

@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import soundfile as sf
-from conftest import needs_lilypond
+from conftest import needs_lilypond, studio_client
 
 from drum_agent.web import listen, providers
 
@@ -96,8 +96,6 @@ def test_a_failure_says_why_and_leaves_nothing_behind(take, tmp_path, monkeypatc
 
 @needs_lilypond
 def test_the_studio_serves_it_to_the_chart_only_and_removes_it_with_the_song(tmp_path, monkeypatch):
-    from fastapi.testclient import TestClient
-
     from drum_agent.audio import separate
     from drum_agent.charts import compile_spec
     from drum_agent.synth import synthesize
@@ -109,7 +107,7 @@ def test_the_studio_serves_it_to_the_chart_only_and_removes_it_with_the_song(tmp
     wav = synthesize(spec, tmp_path / "take.wav", method="numpy").read_bytes()
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         sid = c.post("/api/songs", json={"title": "Listen", "artist": "Tester"}).json()["song"]["id"]
         r = c.post(f"/api/songs/{sid}/upload", files={"file": ("t.wav", wav, "audio/wav")}, data={"rights": "original"})
         done = app.state.runner.wait(r.json()["job"]["id"], timeout=300)

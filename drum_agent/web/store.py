@@ -4,7 +4,9 @@ Tables:
   songs    one row per recording the user picked (stable id from the provider's id,
            or from title and artist when the provider gives none)
   sources  audio a user supplied for a song, with the rights basis they stated; the file
-           itself lives under data/sources/<sha256>.wav (normalized) and is never served
+           itself lives under data/sources/<sha256>.wav (normalized), shared by every source
+           of that recording and removed with the last of them. An upload waits under
+           data/uploads until its job has decoded it (info: {"waiting": file name})
   jobs     one transcription run: status, current stage, stage log, error, attempts
   charts   a chart version: score.json and its exports under data/charts/<id>/, its
            validation, status and the job that made it
@@ -148,6 +150,15 @@ class Store:
                 + f"INSERT INTO jobs ({old}, kind, params) SELECT {old}, 'transcribe', '{{}}' FROM jobs_v1;"
                 "DROP TABLE jobs_v1;")
             self._db.execute("PRAGMA foreign_keys=ON")
+        # Copies made before a copy got its own source row: its chart points at the original's.
+        for r in self._db.execute("SELECT DISTINCT c.song_id AS copy, s.* FROM charts c JOIN sources s "
+                                  "ON s.id = c.source_id WHERE s.song_id != c.song_id").fetchall():
+            sid = new_id("src")
+            self._db.execute("INSERT INTO sources (id, song_id, kind, rights, sha256, original_name, path, info, "
+                             "created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                             (sid, r["copy"], r["kind"], r["rights"], r["sha256"], r["original_name"], r["path"],
+                              r["info"], r["created_at"]))
+            self._db.execute("UPDATE charts SET source_id=? WHERE song_id=? AND source_id=?", (sid, r["copy"], r["id"]))
 
     # ---- helpers ---------------------------------------------------------
     def _row(self, row: sqlite3.Row | None) -> dict | None:
@@ -258,8 +269,10 @@ class Store:
         """Delete a project with its jobs, sources and chart versions; returns the files to remove."""
         paths = [c["dir"] for c in self.charts_for(song_id)]
         for src in self.sources_for(song_id):
+            if src["info"].get("waiting"):
+                paths.append(str(self.root / "uploads" / Path(src["info"]["waiting"]).name))
             others = self._q("SELECT id FROM sources WHERE sha256=? AND song_id!=?", (src["sha256"], song_id))
-            if not others:
+            if not others:  # the audio is shared by every source of the recording: the last one takes it
                 paths += [src["path"], str(self.listen_dir(src["sha256"]))]
         with self._lock:
             for table in ("charts", "jobs", "sources"):
@@ -286,6 +299,25 @@ class Store:
 
     def sources_for(self, song_id: str) -> list[dict]:
         return self._q("SELECT * FROM sources WHERE song_id=? ORDER BY created_at DESC", (song_id,))
+
+    def sources_with_sha(self, sha256: str) -> list[dict]:
+        return self._q("SELECT * FROM sources WHERE sha256=?", (sha256,))
+
+    def update_source(self, source_id: str, *, info: dict) -> dict:
+        self._x("UPDATE sources SET info=? WHERE id=?", (json.dumps(info), source_id))
+        return self.get_source(source_id)
+
+    def drop_source(self, source_id: str) -> None:
+        """Forget a source that couldn't be used. Its failed job stays, with no source."""
+        with self._lock:
+            self._db.execute("UPDATE jobs SET source_id=NULL WHERE source_id=?", (source_id,))
+            self._db.execute("DELETE FROM sources WHERE id=?", (source_id,))
+            self._db.commit()
+
+    def share_source(self, source: dict, song_id: str) -> dict:
+        """The same recording as a source of another song (a copy): one audio file, two rows."""
+        return self.add_source(song_id=song_id, kind=source["kind"], rights=source["rights"], sha256=source["sha256"],
+                               path=source["path"], original_name=source["original_name"], info=source["info"])
 
     # ---- jobs ------------------------------------------------------------
     def create_job(self, *, song_id: str, source_id: str | None, engine: str, key: str, kind: str = "transcribe",

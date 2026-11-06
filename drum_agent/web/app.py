@@ -6,7 +6,7 @@ Routes (all JSON unless noted):
   POST /api/songs                          pick a search result: stores it, resolves its source
   GET  /api/songs                          the catalog
   GET  /api/songs/{id}                     song, status, source resolution, jobs, chart versions
-  POST /api/songs/{id}/upload              multipart file + rights: validated, normalized, queued
+  POST /api/songs/{id}/upload              multipart file + rights: checked and queued; its job decodes it
   GET  /api/songs/{id}/library             personal app: the user's audio files that match the song
   POST /api/songs/{id}/library             personal app: chart the best match (or the picked file) for
                                            the user's own practice
@@ -48,6 +48,7 @@ from ..rights import RightsError, shareable
 from ..simplify import simplify
 from ..song.fetch import FetchError
 from . import claude, library, listen, owners, sources
+from .guard import Guard
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
 from .store import Store, default_data_dir, song_id_for
@@ -139,6 +140,10 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
                     log.warning("could not render the %s sample", inst["id"])
         threading.Thread(target=warm, name="drum-agent-samples", daemon=True).start()
 
+    # Added first, so it runs last, inside the two below: a refusal gets their headers, and the
+    # visitor's token is known. Reading the body through them would hide its 413 from the route.
+    app.add_middleware(Guard)
+
     @app.middleware("http")
     async def headers(request: Request, call_next):
         response = await call_next(request)
@@ -150,6 +155,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             "frame-src https://www.youtube-nocookie.com")  # YouTube's own player, for songs found there
         if request.url.path.startswith("/static/"):  # checked each time (a 304 when unchanged), so an update arrives
             response.headers["Cache-Control"] = "no-cache"
+        if _https(request):
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
     @app.middleware("http")
@@ -167,9 +174,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         finally:
             owners.leave(token)
         if fresh:
-            https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
             response.set_cookie(owners.COOKIE, owner, max_age=owners.MAX_AGE_S, httponly=True, samesite="lax",
-                                secure=https, path="/")
+                                secure=_https(request), path="/")
         return response
 
     @app.exception_handler(AudioError)
@@ -341,7 +347,7 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         song_row = store.get_song(c["song_id"])
         return {**_public_chart(c), "song": _public_song(song_row), "view": view,
                 "versions": [_public_chart(v) for v in store.charts_for(c["song_id"])],
-                "has_audio": bool(c["source_id"]),
+                "has_audio": _has_audio(store, c),
                 "can_rechart": c["origin"] != "simplified" and _log_version(d / "chart.detections.json") >= 2,
                 "files": {k: f"/api/charts/{c['id']}/files/{k}" for k in FILES if (d / k).is_file()}}
 
@@ -647,6 +653,16 @@ def _song_detail(store: Store, s: dict) -> dict:
             "sources": [_public_source(x) for x in store.sources_for(s["id"])],
             "jobs": [_public_job(j) for j in store.jobs_for(s["id"])][:10],
             "charts": [_public_chart(c) for c in store.charts_for(s["id"])]}
+
+
+def _https(request: Request) -> bool:
+    forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
+    return request.url.scheme == "https" or forwarded == "https"
+
+
+def _has_audio(store: Store, chart: dict) -> bool:
+    src = store.get_source(chart["source_id"]) if chart["source_id"] else None
+    return src is not None and Path(src["path"]).is_file()
 
 
 def _claude_error(exc: claude.ClaudeUnavailable) -> JSONResponse:

@@ -6,7 +6,7 @@ from fractions import Fraction as F
 from pathlib import Path
 
 import pytest
-from conftest import needs_lilypond
+from conftest import needs_lilypond, studio_client
 
 from drum_agent.charts import compile_spec, load_any
 from drum_agent.export.lilypond import header
@@ -142,8 +142,6 @@ def test_on_every_groove_in_the_library_it_only_ever_leaves_notes_out(path):
 
 @pytest.fixture
 def studio(tmp_path, monkeypatch):
-    from fastapi.testclient import TestClient
-
     from drum_agent.audio import separate
     from drum_agent.synth import synthesize
     from drum_agent.web import providers
@@ -155,7 +153,7 @@ def studio(tmp_path, monkeypatch):
     wav = synthesize(spec, tmp_path / "take.wav", method="numpy").read_bytes()
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         sid = c.post("/api/songs", json={"title": "Practice", "artist": "Tester"}).json()["song"]["id"]
         r = c.post(f"/api/songs/{sid}/upload", files={"file": ("t.wav", wav, "audio/wav")}, data={"rights": "original"})
         done = app.state.runner.wait(r.json()["job"]["id"], timeout=300)
@@ -206,13 +204,11 @@ def test_it_stays_a_practice_version_whatever_is_done_to_it(studio):
 
 @needs_lilypond
 def test_a_beat_is_not_a_transcription(tmp_path):
-    from fastapi.testclient import TestClient
-
     from drum_agent.web import providers
     from drum_agent.web.app import create_app
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         job = c.post("/api/beats", json={"prompt": "a rock beat at 120 BPM, 4 bars"}).json()["job"]
         done = app.state.runner.wait(job["id"], timeout=120)
         assert done["status"] == "succeeded", done["error"]

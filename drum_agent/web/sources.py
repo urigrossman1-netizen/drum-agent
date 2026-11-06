@@ -29,10 +29,10 @@ import tempfile
 from pathlib import Path
 
 from .. import rights as rights_gate
-from ..audio.prepare import EXTENSIONS, MAX_BYTES, AudioError, file_sha256, prepare
+from ..audio.prepare import EXTENSIONS, MAX_BYTES, AudioError, check_file, file_sha256, prepare
 from ..model import RIGHTS
 from ..song.lookup import artist_key, title_key
-from .store import Store
+from .store import Store, new_id
 
 CASES = ("EXISTING_CHART", "AUTHORIZED_ASSET", "USER_UPLOAD", "LOCAL_FILE", "MUSIC_FOLDERS", "LICENSED_SOURCE",
          "NEEDS_SOURCE")
@@ -51,7 +51,8 @@ def asset_dir() -> Path | None:
 
 def asset_manifest() -> list[dict]:
     """Entries of <asset dir>/assets.json: [{"file", "title", "artist", "rights"}]. Entries
-    without a valid rights basis, or whose file is outside the directory, are ignored."""
+    without a rights basis this server accepts ("personal" is one person's, on their own
+    computer: never a shared server's), or whose file is outside the directory, are ignored."""
     root = asset_dir()
     if root is None or not (root / "assets.json").is_file():
         return []
@@ -61,12 +62,20 @@ def asset_manifest() -> list[dict]:
         return []
     out = []
     for e in entries if isinstance(entries, list) else []:
-        if not isinstance(e, dict) or e.get("rights") not in RIGHTS:
+        if not isinstance(e, dict) or not _accepted(e.get("rights")):
             continue
         path = (root / str(e.get("file", ""))).resolve()
         if path.is_file() and root in path.parents and path.suffix.lower() in EXTENSIONS:
             out.append({**e, "path": path})
     return out
+
+
+def _accepted(rights) -> bool:
+    try:
+        rights_gate.require_rights(rights if isinstance(rights, str) else None, "asset", personal_ok=personal_mode())
+    except rights_gate.RightsError:
+        return False
+    return True
 
 
 def find_asset(song: dict) -> dict | None:
@@ -132,19 +141,48 @@ def song_status(store: Store, song: dict) -> str:
 
 
 def add_upload(store: Store, song: dict, upload_path: Path, original_name: str, rights: str) -> dict:
-    """Validate and normalize an uploaded file and record it as a source for the song.
-    The rights gate runs first: nothing is decoded without a stated basis."""
+    """Check an uploaded file and record it as a source for the song. The rights gate runs first:
+    nothing is kept without a stated basis. Decoding takes a while and runs a decoder on whatever
+    was sent, so it's the job's first step (`decode_source`); here the file only has to look
+    like audio. It's moved out of `upload_path`, unless this song already has the recording."""
     rights_gate.require_rights(rights, original_name, personal_ok=personal_mode())
+    check_file(upload_path, original_name)
     sha = file_sha256(upload_path)
-    for s in store.sources_for(song["id"]):
-        if s["sha256"] == sha and Path(s["path"]).is_file():
-            return s  # the same recording again: no second decode, and the same job later
-    wav = store.root / "sources" / f"{sha}.wav"
-    info = prepare(upload_path, wav, original_name=original_name)
-    meta = info.to_dict()
-    meta.pop("path")
-    return store.add_source(song_id=song["id"], kind="upload", rights=rights, sha256=sha, path=str(wav),
-                            original_name=safe_name(original_name), info=meta)
+    same = next((s for s in store.sources_for(song["id"]) if s["sha256"] == sha), None)
+    if same is not None and (same["info"].get("waiting") or Path(same["path"]).is_file()):
+        return same  # the same recording again: no second decode, and the same job later
+    kept = upload_path.with_name(new_id("up") + Path(original_name).suffix.lower())
+    upload_path.replace(kept)
+    if same is not None:  # its audio has gone
+        return store.update_source(same["id"], info={"waiting": kept.name})
+    return store.add_source(song_id=song["id"], kind="upload", rights=rights, sha256=sha,
+                            path=str(store.root / "sources" / f"{sha}.wav"),
+                            original_name=safe_name(original_name), info={"waiting": kept.name})
+
+
+def decode_source(store: Store, source: dict) -> dict:
+    """The first step of an upload's job: decode what's waiting into the source's WAV. A file that
+    can't be used is refused here (`AudioError`, on the job) and neither it nor its source is kept."""
+    waiting = source["info"].get("waiting")
+    if not waiting:
+        return source
+    file = store.root / "uploads" / Path(waiting).name
+    wav = Path(source["path"])
+    twin = next((s for s in store.sources_with_sha(source["sha256"]) if not s["info"].get("waiting")), None)
+    try:
+        if twin is not None and wav.is_file():
+            meta = twin["info"]  # this recording, already decoded for another song
+        elif file.is_file():
+            meta = prepare(file, wav, original_name=source["original_name"]).to_dict()
+            meta.pop("path")
+        else:
+            raise AudioError("source_missing", "the uploaded file is missing; upload it again")
+    except AudioError:
+        store.drop_source(source["id"])
+        file.unlink(missing_ok=True)
+        raise
+    file.unlink(missing_ok=True)
+    return store.update_source(source["id"], info=meta)
 
 
 def add_local(store: Store, song: dict, path: Path, about: dict) -> dict:
@@ -169,6 +207,9 @@ def add_asset(store: Store, song: dict) -> dict | None:
     if asset is None:
         return None
     sha = file_sha256(asset["path"])
+    for s in store.sources_for(song["id"]):
+        if s["sha256"] == sha and Path(s["path"]).is_file():
+            return s
     wav = store.root / "sources" / f"{sha}.wav"
     info = prepare(asset["path"], wav, original_name=asset["path"].name)
     meta = info.to_dict()

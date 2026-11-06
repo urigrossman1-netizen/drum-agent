@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import needs_lilypond
+from conftest import needs_lilypond, studio_client
 
 from drum_agent.charts import compile_spec
 from drum_agent.web import providers
@@ -15,12 +15,10 @@ GROOVE = {"hh": "x-x-x-x-", "sn": "--x---x-", "bd": "x---x---"}
 
 @pytest.fixture
 def client(tmp_path):
-    from fastapi.testclient import TestClient
-
     from drum_agent.web.app import create_app
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         c.app_state = app.state
         yield c
 

@@ -15,7 +15,7 @@ import httpx
 import numpy as np
 import pytest
 import soundfile as sf
-from conftest import needs_fluidsynth, needs_lilypond
+from conftest import needs_fluidsynth, needs_lilypond, studio_client
 
 from drum_agent.audio.prepare import (
     INTERNAL_CHANNELS,
@@ -321,12 +321,10 @@ def test_store_versions_and_dedupes(tmp_path):
 
 @pytest.fixture
 def client(tmp_path):
-    from fastapi.testclient import TestClient
-
     from drum_agent.web.app import create_app
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         c.app_state = app.state
         yield c
 

@@ -3,7 +3,7 @@
 A job turns one authorized source (a normalized WAV with a stated rights basis) into a
 chart version:
 
-  prepare   read the normalized audio
+  prepare   decode an upload into the normalized audio, and read it
   separate  pull the drums out of the band mix (HTDemucs), when it is installed
   detect    onset detection and instrument classification (the trained classifier)
   beats     tempo, meter and downbeat tracking
@@ -43,6 +43,7 @@ from ..model import Score
 from ..pipeline import ExportError, ExportOptions, export_all
 from ..song.fetch import FetchError
 from ..validate import chart_status, validate_score
+from . import sources
 from .store import Store, new_id
 from .view import build_view
 
@@ -137,6 +138,8 @@ class JobRunner:
         if job["kind"] == "library":
             new, _ = self.submit_library(job["song_id"], job["params"].get("file"))
             return new
+        if job["source_id"] is None:
+            raise ValueError("this recording couldn't be used, so it wasn't kept: upload it again")
         new, _ = self.submit(job["song_id"], job["source_id"], (job["params"] or {}).get("hints"))
         return new
 
@@ -252,6 +255,7 @@ class JobRunner:
         song = song or self.store.get_song(job["song_id"])
         source = source or self.store.get_source(job["source_id"])
         step("prepare")
+        source = sources.decode_source(self.store, source)
         wav = Path(source["path"])
         if not wav.is_file():
             raise AudioError("source_missing", "the prepared audio for this source is missing; upload it again")

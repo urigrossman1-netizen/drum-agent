@@ -369,8 +369,11 @@ def duplicate(project_id: str, request: Request):
     if latest is not None:
         cid = new_id("ch")
         shutil.copytree(latest["dir"], store.chart_dir(cid))
+        # The copy has the recording as a source of its own, so it outlives the original.
+        src = store.get_source(latest["source_id"]) if latest.get("source_id") else None
         store.add_chart(chart_id=cid, song_id=pid, status=latest["status"], origin="duplicate", bars=latest["bars"],
-                        validation=latest["validation"], summary=latest["summary"], source_id=latest.get("source_id"),
+                        validation=latest["validation"], summary=latest["summary"],
+                        source_id=store.share_source(src, pid)["id"] if src else None,
                         parent_id=latest["id"], note=f"Copy of “{s['title']}” v{latest['version']}")
     if s.get("draft"):
         store.set_draft(pid, s["draft"])
