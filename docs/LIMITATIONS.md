@@ -190,8 +190,10 @@ Charts of non-commercial-licensed material are not committed.
    12/8 for a section (the boundary can be a bar off) and short bars that
    shift the downbeat (2/4, 1/4, 3/4 inside 4/4, found from crash
    placement). A meter given with `--time-signature` holds for the whole
-   take. Odd meters (5/4, 7/8) from audio are not supported: use MIDI, a game
-   chart or a chart spec.
+   take. Odd meters aren't detected from audio:
+   - 5/4, 6/4, 7/4 and 9/8 can be given (`--time-signature`, or "Chart again" in the studio);
+   - 7/8 and 5/8 (beats of unequal length) need MIDI, a game chart or a chart spec;
+   - a second beat tracker (Beat This!) was measured and didn't find them either.
 7. **Bass bleed.** In full mixes bass notes can turn into kicks. A density
    warning catches the extreme cases; a drum stem (`--drums-only`) avoids it.
 8. **Sparse passages.** Calibration is relative to the recording, so an

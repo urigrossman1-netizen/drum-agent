@@ -22,7 +22,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Drum separation | actual source separation | **Complete and verified** | HTDemucs (`audio/separate.py`); MDB band mixes 0.591 → 0.733 F with it. Runs on this PC from the local weights (`doctor`, 2026-11-04). Since phase 1, a failure falls back to the band mix with a note instead of ending the job |
 | Transcription | actual model inference | **Complete and verified** | onset classifier (`audio/classifier.py`), measured on the MDB Drums held-out split (re-measured on this PC in phase 2: drum stems 0.772, separated band mixes 0.732). Phase 2 measured two other models and a band-mix check; none was adopted (`scripts/eval_backends.py`, `docs/MODELS.md`) |
 | Instrument detection | multiple individual drum classes | **Partially implemented** | 11 classes from audio. Never from audio: china, splash, crash2, rimshot, cowbell, half-open hi-hat. Cymbals 0.14 and toms 0.43 F on separated band mixes |
-| Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Since phase 3: repeated sections recognized (A, B, A2), fills marked on bars, tempo/meter/downbeat/feel hints in the studio (upload, and "Chart again" in seconds from the stored strokes; `drum-agent rechart`). Missing: odd meters from audio (a second beat tracker, Beat This!, not yet tried) |
+| Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Since phase 3: repeated sections recognized (A, B, A2), fills marked on bars, tempo/meter/downbeat/feel hints in the studio (upload, and "Chart again" in seconds from the stored strokes; `drum-agent rechart`). Odd meters aren't detected from audio: 5/4, 6/4, 7/4 and 9/8 can be given as hints, while 7/8 and 5/8 can't. A second beat tracker, Beat This!, was measured and didn't detect them either (`scripts/compare_beat_trackers.py`) |
 | Arrangement | complete-song representation | **Complete and verified** | Every bar of the recording is charted, with sections, repeats (A2) and fills marked: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test; `tests/test_structure.py` (constructed bars and the library's fill chart g64; not measured on real recordings, whose annotations have no sections) |
 | Chart generation | genuine drum notation | **Complete and verified** | LilyPond 2.26 engraving; MusicXML 4.0 (XSD); MIDI; three-way read-back on every export; 113-chart library |
 | Playback | synchronized with the chart | **Partially implemented** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Missing: timestamp seek, pitch-preserving speed, whole-section loop |
@@ -239,6 +239,15 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
   - A change of cymbal into a new section was missed when the fill bar before it had none.
   - The studio's checks panel printed a stray "null".
 
-**Not done yet:** Beat This! as a second beat tracker, which would give odd meters from audio.
+**A second beat tracker, Beat This! (CPJKU, MIT; final0 checkpoint): measured, not adopted** (`scripts/compare_beat_trackers.py`, 2026-11-06). The comparison used synthesized charts with known tempo and meter, each drums only and with a band:
+- **The ten standard 4/4 charts.**
+  - Both trackers get the tempo right.
+  - Our bar counts are exact or one off.
+  - Beat This!'s downbeats are noisy: wrong bar counts on 13 of 20, and the 60-bar Northbound drum stem became 106 bars.
+- **The library's odd-meter grooves** (g58–g63: 7/8, 5/4, 5/8, 9/8).
+  - Ours can only answer 3/4 or 4/4.
+  - Beat This! found 1 to 4 beats per bar; only one 7/8 groove came out plausibly (3 beats, as 2+2+3).
+  - So it doesn't give odd meters either.
+- **Meanwhile:** 5/4, 6/4, 7/4 and 9/8 can be given as a hint (`--time-signature`, or "Chart again" in the studio). 7/8 and 5/8 still need MIDI, a game chart or a chart spec.
 
 **Tests:** 841 passed, 1 skipped.
