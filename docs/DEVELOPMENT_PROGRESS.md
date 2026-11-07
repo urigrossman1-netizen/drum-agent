@@ -9,7 +9,7 @@ The living record of what is done, with its evidence. Statuses:
 
 ## Requirement matrix
 
-Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11-04.
+Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11-07.
 
 | Requirement | Expected | Status | Evidence / what is missing |
 |---|---|---|---|
@@ -25,10 +25,10 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Musical analysis | tempo, rhythm and structure | **Partially implemented** | Tempo, swing, tuplets, 3/4 and 4/4, 12/8 sections, short bars. Since phase 3: repeated sections recognized (A, B, A2), fills marked on bars, tempo/meter/downbeat/feel hints in the studio (upload, and "Chart again" in seconds from the stored strokes; `drum-agent rechart`). Odd meters aren't detected from audio: 5/4, 6/4, 7/4 and 9/8 can be given as hints, while 7/8 and 5/8 can't. A second beat tracker, Beat This!, was measured and didn't detect them either (`scripts/compare_beat_trackers.py`) |
 | Arrangement | complete-song representation | **Complete and verified** | Every bar of the recording is charted, with sections, repeats (A2) and fills marked: 60-bar synthetic song at notation F 0.978, 8.5-minute stress test; `tests/test_structure.py` (constructed bars and the library's fill chart g64; not measured on real recordings, whose annotations have no sections) |
 | Chart generation | genuine drum notation | **Complete and verified** | LilyPond 2.26 engraving; MusicXML 4.0 (XSD); MIDI; three-way read-back on every export; 113-chart library |
-| Playback | synchronized with the chart | **Complete and verified** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Since phase 4: a time line to seek, a real pause, section loops, speed with the pitch kept, a compressed copy to listen to (`tests/test_listen.py`; the browser behaviour checked in the browser pane, not by an automated test) |
+| Playback | synchronized with the chart | **Complete and verified** | Recording plays on the chart's bar clock, with current-bar highlight, metronome, count-in, loop and speed (`tests/e2e/song.e2e.js`). Since phase 4: a time line to seek, a real pause, section loops, speed with the pitch kept, a compressed copy to listen to (`tests/test_listen.py`; in a real browser by `tests/e2e/song.e2e.js`, which passed in CI on 2026-11-07) |
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Since phase 4 an Adjust tool sets a note's loudness, drum and place. Not done: dragging notes (loudness is a slider, moving is by buttons) |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
-| Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 1,027 passed, 1 skipped (2026-11-06, phase 5); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
+| Testing | actual tests and documented results | **Complete and verified** | In CI on commit `016b128` (2026-11-07): fast tests 1,028 passed on Linux and on Windows, browser journeys 4 passed, and the server image and the built Windows app each passed a full run. On this PC: fast 1,027 passed, slow 131 passed (3 more timed out while the laptop slept and pass when run again). The other slow tests run only on this PC, not in CI. Real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
 | Security | upload and API protection | **Complete and verified** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Since phase 5: size cap while streaming, decoding in the job, rate limits, a cross-site write guard, a Host allowlist in personal mode, HSTS (`web/guard.py`, `tests/test_guard.py`), pinned downloads (`tests/test_supply_chain.py`). A security review of the branch found nothing at its confidence bar (2026-11-06), and the server image passed the whole workflow in CI with these protections on. The rate limits' numbers haven't met real traffic |
 
 ## Log
@@ -313,12 +313,20 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
 
 **The exports of that chart, version 2.** Chart, MIDI and MusicXML each hold 273 strokes. The MusicXML is valid against the 4.0 schema and opens in Verovio. The PDF page was read by eye: it's labelled an unverified automatic transcription, and all 17 bars carry a review flag.
 
-**In CI, pull request #2, the first run ever of these workflows.**
-- Fast tests on Linux: passed.
+**In CI, pull request #2, the first run ever of these workflows.** The first run (commit `7ae798d`) had one failure, on Windows: a test helper grouped notes by rounded height and split a system when fonts moved the page. The test was fixed, not the app.
+
+The final run, all on commit `016b128` (Tests run 42389149183, server image run 42389149234, Windows app run 42389149184):
+- Fast tests: 1,028 passed on Linux, 1,028 passed on Windows.
 - Browser journeys: 4 passed, in Chromium through Playwright. These ran for the first time on the code of phases 3 to 5, including the new steps: seek, 75% with the pitch kept, section loop, Adjust, practice version, silent upload.
-- Server image with the pinned versions: built (2.53 GB). A visitor's whole workflow passed on the real recording with separation, F 0.896 there. The small difference from this PC (0.904) hasn't been looked into.
+- Server image with the pinned versions: built (2.53 GB). A visitor's whole workflow passed on the real recording with separation, F 0.899 there (0.896 in the first run, 0.904 on this PC). This one track's score moves by up to 0.008 between runs; why hasn't been looked into.
+- Windows app with the pinned tools: built. The built app passed `packaging/smoke_test.py`: tools ready, a beat, an upload separated and transcribed, a song found in a music folder and charted, a real catalog search.
+- Installer: `DrumAgent-Setup.exe` built (353 MB), installed silently, and the installed app started with its example chart in place after 15 s. Its window's screenshot was looked at by eye: the studio, "Engine ready", the example chart listed.
 
 **Not done.**
 - Step 2 of the plan's journey, a YouTube result playing in the official player: no YouTube key is set.
 - "Explain this chart" against the live API: no Anthropic key is set.
+- Spotify search on this line: no Spotify keys are set.
+- The owner's 0.90 target: not reached (held-out split, finished charts: 0.772 on drum stems, 0.732 on separated band mixes).
+- The slow tests other than the browser journeys ran only on this PC. CI runs the fast tests and the browser journeys.
+- Publishing: the new installer and server image go out when pull request #2 is merged. Until then the download page has the 2026-10-30 installer.
 
