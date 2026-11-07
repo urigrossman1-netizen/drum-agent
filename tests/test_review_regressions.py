@@ -386,11 +386,20 @@ def _svg_positions(ly_path, tmp_path):
     subprocess.run([find_lilypond(), "-dbackend=svg", "-o", str(tmp_path / "tagged"), str(src)],
                    capture_output=True, check=True)
     svg = (tmp_path / "tagged.svg").read_text()
-    rows: dict[int, list] = {}
+    found = []
     for m in re.finditer(r'<g class="(BarLine|TimeSig|Grace)"[^>]*>(.*?)</g>', svg, re.S):
         x, y = map(float, re.search(r'translate\(([\d.\-]+),\s*([\d.\-]+)\)', m.group(2)).groups())
-        rows.setdefault(round(y), []).append((x, m.group(1)))
-    return [sorted(r) for _, r in sorted(rows.items())]
+        found.append((y, x, m.group(1)))
+    # One system spans a staff's height; the next is further away. (Rounding y instead splits a
+    # system when the fonts move the page by a fraction, as on another machine.)
+    systems: list[list] = []
+    last = None
+    for y, x, kind in sorted(found):
+        if last is None or y - last > 6:
+            systems.append([])
+        systems[-1].append((x, kind))
+        last = y
+    return [sorted(r) for r in systems]
 
 
 @needs_lilypond

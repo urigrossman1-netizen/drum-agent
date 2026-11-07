@@ -13,7 +13,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 
 | Requirement | Expected | Status | Evidence / what is missing |
 |---|---|---|---|
-| Existing project | preserved and improved | **In progress** | Work continues on branch `claude/transcription-platform`, made from `a9b52095`. Local recovery tag `pre-platform-v2`. Nothing was rewritten |
+| Existing project | preserved and improved | **Complete, awaiting merge** | Built on branch `claude/transcription-platform` from `a9b52095`, in pull request #2. Local recovery tag `pre-platform-v2`. Nothing was rewritten |
 | Historical work | recovered wherever accessible | **Complete and verified** | `docs/PROJECT_RECOVERY_REPORT.md`: 14 cloud sessions, 1 claude.ai chat, 5 artifacts, the repository and its CI. The inaccessible material is listed there |
 | Skills and integrations | inventoried, relevant ones used | **Complete** (inventory) | `docs/AVAILABLE_TOOLS_AND_SKILLS.md` |
 | YouTube | song search and authorized playback | **Implemented, not fully verified** | Data API `search.list` / `videos.list` + `youtube-nocookie` embed (`web/providers.py`, `static/js/song.js`). Tested with recorded responses, never against the live API: needs `YOUTUBE_API_KEY` |
@@ -29,7 +29,7 @@ Product requirements from the 2026-11-03 brief, section 21. Last updated 2026-11
 | Editing | user can correct detected hits | **Partially implemented** | Grid editor (add/remove, accent, ghost, flam, undo/redo, versions) and CLI `edit`. Since phase 1, every note keeps the detector strokes behind it and an "edited" mark, and every detection is kept beside the chart (`tests/test_detections.py`). Since phase 4 an Adjust tool sets a note's loudness, drum and place. Not done: dragging notes (loudness is a slider, moving is by buttons) |
 | Exports | verified output formats | **Complete and verified** | PDF, PNG, MusicXML, MIDI and JSON; `verify.py`; `tests/test_exports.py`, `tests/test_fuzz_exports.py` |
 | Testing | actual tests and documented results | **In progress** | 936 passed in CI (2026-10-29); fast suite on Windows 1,027 passed, 1 skipped (2026-11-06, phase 5); real-recording benchmark at detector and finished-chart level, each run kept in `benchmarks/results/`, other models included (`scripts/eval_backends.py`). `docs/TESTING_AND_BENCHMARKS.md` |
-| Security | upload and API protection | **Implemented; live server checks pending** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Since phase 5: size cap while streaming, decoding in the job, rate limits, a cross-site write guard, a Host allowlist in personal mode, HSTS (`web/guard.py`, `tests/test_guard.py`), pinned downloads (`tests/test_supply_chain.py`). A security review of the branch found nothing at its confidence bar (2026-11-06). Not yet tried on a public deployment |
+| Security | upload and API protection | **Complete and verified** | Upload validation, per-browser owner scoping, CSP and security headers, rights gate. Since phase 5: size cap while streaming, decoding in the job, rate limits, a cross-site write guard, a Host allowlist in personal mode, HSTS (`web/guard.py`, `tests/test_guard.py`), pinned downloads (`tests/test_supply_chain.py`). A security review of the branch found nothing at its confidence bar (2026-11-06), and the server image passed the whole workflow in CI with these protections on. The rate limits' numbers haven't met real traffic |
 
 ## Log
 
@@ -303,3 +303,22 @@ On the development split, the same split by style: other styles 0.913 / 0.893, j
 - Code review: ten findings, all fixed, with tests for the server-side ones. The main ones: a re-upload after the audio was lost never decoded; a job queued on a refused upload crashed; typed edits used up the Claude limit; the song's source panel could point at a practice version.
 
 **Tests:** 1,027 passed, 1 skipped (fast suite).
+
+### 2026-11-07: phase 6, final verification
+
+**On this PC.**
+- Fast suite: 1,027 passed, 1 skipped.
+- Slow suite: 131 passed, 4 skipped (the browser journeys, no Node here), 3 failed. All 3 were LilyPond timeouts caused by the laptop sleeping from 00:50 to 17:51 during the run (Windows' power log). Run again, the three charts pass in 8 s together.
+- `acceptance_run.py` on a real annotated recording (MDB Britpop, shared server, drum separation on): passed. Finished chart F 0.904 for that one track (P 0.876, R 0.934), mean timing error 9.1 ms. It's a development-split recording, not a measure of the whole.
+
+**The exports of that chart, version 2.** Chart, MIDI and MusicXML each hold 273 strokes. The MusicXML is valid against the 4.0 schema and opens in Verovio. The PDF page was read by eye: it's labelled an unverified automatic transcription, and all 17 bars carry a review flag.
+
+**In CI, pull request #2, the first run ever of these workflows.**
+- Fast tests on Linux: passed.
+- Browser journeys: 4 passed, in Chromium through Playwright. These ran for the first time on the code of phases 3 to 5, including the new steps: seek, 75% with the pitch kept, section loop, Adjust, practice version, silent upload.
+- Server image with the pinned versions: built (2.53 GB). A visitor's whole workflow passed on the real recording with separation, F 0.896 there. The small difference from this PC (0.904) hasn't been looked into.
+
+**Not done.**
+- Step 2 of the plan's journey, a YouTube result playing in the official player: no YouTube key is set.
+- "Explain this chart" against the live API: no Anthropic key is set.
+
