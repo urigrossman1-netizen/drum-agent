@@ -78,7 +78,7 @@ export class ApiError extends Error {
 }
 
 export async function api(path, opts = {}) {
-  const init = { method: opts.method || (opts.json !== undefined ? "POST" : "GET"), headers: { Accept: "application/json" } };
+  const init = { method: opts.method || (opts.json !== undefined ? "POST" : "GET"), headers: { Accept: "application/json", "X-Drum-Agent": "studio" } };
   if (opts.json !== undefined) { init.headers["Content-Type"] = "application/json"; init.body = JSON.stringify(opts.json); }
   if (opts.signal) init.signal = opts.signal;
   let res;
@@ -177,6 +177,15 @@ export function statusBadge(status, kind) {
   if (kind === "beat" && status === "FAILED") label = "Generation failed";
   if (kind === "song" && status === "FAILED") label = "Transcription failed";
   return h("span", { class: `badge ${cls}` }, label);
+}
+
+/** A chart version's badge. A practice version isn't a transcription, so it shows what it is
+ *  and no transcription status. */
+export function chartBadge(c, kind) {
+  if (c.origin !== "simplified") return statusBadge(c.status, kind);
+  const level = (c.summary?.chart_type || "").replace("practice_", "");
+  return h("span", { class: "badge warn plain", title: "Simplified from the transcription, not what was played" },
+    level ? `Practice version: ${level[0].toUpperCase()}${level.slice(1)}` : "Practice version");
 }
 
 export function menu(button, items) {

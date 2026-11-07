@@ -1,0 +1,14 @@
+title: "Case 16: A Practice Version's Label"
+artist: Drum Agent regression suite (original)
+chart_type: practice_intermediate
+status: simplified
+rights: original
+tempo: 104
+patterns:
+  groove:
+    hh: "x-x-x-x-x-x-x-x-"
+    sn: "----x-------x---"
+    bd: "x-------x-x-----"
+sections:
+  - label: A
+    bars: [groove, groove, groove, groove]

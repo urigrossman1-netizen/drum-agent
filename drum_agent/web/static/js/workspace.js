@@ -3,12 +3,13 @@
 // re-engraved for the screen as you go, kept as a draft on the server (and in this browser),
 // and saved as the next version when you choose.
 
-import { h, icon, api, toast, dialog, prefs, menu, statusBadge, ago, reducedMotion } from "./ui.js";
-import { Frac, clone, sameScore, barTimes, hitCount } from "./score.js";
+import { h, icon, api, toast, dialog, prefs, menu, chartBadge, ago, reducedMotion } from "./ui.js";
+import { Frac, clone, sameScore, barLength, hitCount } from "./score.js";
 import { GridEditor } from "./grid.js";
 import { Player } from "./player.js";
 
 export const player = new Player();
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 let current = null; // the open workspace, for keyboard shortcuts and navigation guards
 // Read-only handles for automated browser tests: what the player scheduled, and the working score.
 window.__drumAgent = { player, get score() { return current && current.score; }, get workspace() { return current; } };
@@ -57,6 +58,8 @@ class Workspace {
     this.draftTimer = null;
     this.pendingDraft = false;
     this.draftState = "saved";
+    this.playFrom = null; // {bar, frac}: where Play carries on from, after a pause or a seek
+    this.speedSeq = 0;
     this.kind = project.kind === "beat" || saved.chart_type === "original_beat" ? "beat" : "song";
     this.generated = !!(saved.analysis && saved.analysis.generator);
     this._keys = (e) => this.onKey(e);
@@ -71,11 +74,13 @@ class Workspace {
     player.loop = false;
     player.range = null;
     player.recording = null;  // another chart, another recording
+    player.stretched = null;
+    player.recordingUrl = null;
     player.timeline = null;
     player.recordingOn = false;
     player.drumsOn = true;
     player.setVolume(prefs.get("volume", 0.85));
-    player.onPosition = (bar, sec) => this.onPosition(bar, sec);
+    player.onPosition = (bar, sec, t) => { this.onPosition(bar, sec); this.showTime(t * player.runSpeed); };
     player.onState = (s) => this.onPlayState(s);
     player.onHit = (e) => this.onHit(e);
   }
@@ -91,9 +96,19 @@ class Workspace {
 
   get dirty() { return !sameScore(this.score, this.saved); }
 
+  get practice() { return this.chart.origin === "simplified"; }
+
+  /** The transcription a practice version was made from. */
+  transcription() {
+    let c = this.chart;
+    while (c && c.origin === "simplified") c = (this.project.charts || []).find((x) => x.id === c.parent_id);
+    return c || null;
+  }
+
   // ---- layout --------------------------------------------------------------------
   mount() {
     this.headEl = h("div", { class: "ws-head" });
+    this.noticeEl = h("div", {});
     this.bannerEl = h("div", {});
     this.transportEl = h("div", { class: "transport", role: "toolbar", "aria-label": "Playback" });
     this.pagesEl = h("div", { class: "pages" });
@@ -111,7 +126,7 @@ class Workspace {
       this.pagesEl);
     this.gridEl = h("section", { class: "gridpanel", "aria-label": "Beat grid editor" });
     this.sideEl = h("aside", { class: "ws-side", "aria-label": "Chart tools" });
-    this.root.replaceChildren(this.headEl, this.bannerEl, this.transportEl,
+    this.root.replaceChildren(this.headEl, this.noticeEl, this.bannerEl, this.transportEl,
       h("div", { class: "ws-body" }, h("div", { class: "ws-main" }, this.notationEl, this.gridEl), this.sideEl));
     this.grid = new GridEditor(this.gridEl, { kit: this.app.kitInfo.instruments, player,
       onEdit: (score, label) => this.commit(score, label),
@@ -128,7 +143,7 @@ class Workspace {
   }
 
   renderHead() {
-    const kindBadge = this.kind === "beat" ? h("span", { class: "badge ai plain" }, "Original beat")
+    const kindBadge = this.practice ? null : this.kind === "beat" ? h("span", { class: "badge ai plain" }, "Original beat")
       : this.chart.origin === "library_chart" ? h("span", { class: "badge plain" }, "Library chart")
       : h("span", { class: "badge busy plain" }, this.chart.source_id ? "Transcription" : "Chart");
     const title = h("h1", { title: this.project.title }, this.project.title);
@@ -147,11 +162,15 @@ class Workspace {
     this.headEl.replaceChildren(
       h("a", { class: "btn icon-only ghost", href: this.kind === "beat" ? "#/library" : `#/song/${this.project.id}`, "aria-label": "Back" }, icon("arrowLeft")),
       h("div", { class: "ws-title" }, title, rename, kindBadge,
-        h("span", { class: "badge plain num" }, `v${this.chart.version}`), statusBadge(this.chart.status, this.kind),
+        h("span", { class: "badge plain num" }, `v${this.chart.version}`), chartBadge(this.chart, this.kind),
         this.kind !== "beat" && this.chart.shareable === false ? h("span", { class: "badge warn plain",
           title: "Transcribed for your own practice: play along and print it for yourself. Posting it publicly needs the music publisher's permission." }, "Personal practice") : null),
       this.saveStateEl, this.undoBtn, this.redoBtn, this.saveBtn, h("div", { class: "menu" }, exportBtn),
       h("button", { class: "btn", type: "button", onclick: () => this.print() }, icon("print"), "Print"));
+    const from = this.practice ? this.transcription() : null;
+    this.noticeEl.replaceChildren(...(this.practice ? [h("div", { class: "banner info", role: "note" }, icon("info"),
+      h("span", {}, "Simplified from the transcription, not what was played."), h("span", { class: "spacer" }),
+      from ? h("a", { class: "btn sm", href: `#/chart/${from.id}` }, "Open the transcription") : null)] : []));
     this.updateSaveState();
   }
 
@@ -182,7 +201,7 @@ class Workspace {
     const speed = h("input", { type: "range", min: 50, max: 150, step: 5, value: 100, "aria-label": "Practice speed" });
     const speedLabel = h("span", { class: "small muted num" }, "100%");
     speed.addEventListener("input", () => { player.speed = speed.value / 100; speedLabel.textContent = `${speed.value}%`; });
-    speed.addEventListener("change", () => { if (player.state === "playing") this.restartPlayback(); });
+    speed.addEventListener("change", () => this.speedChanged());
     const vol = h("input", { type: "range", min: 0, max: 100, value: Math.round(player.volume * 100), "aria-label": "Volume" });
     vol.addEventListener("input", () => { player.setVolume(vol.value / 100); prefs.set("volume", vol.value / 100); });
     const kit = h("select", { class: "select", style: { width: "136px", "min-height": "34px" }, "aria-label": "Drum sounds" },
@@ -190,14 +209,24 @@ class Workspace {
       h("option", { value: "electronic", selected: player.kit === "electronic" }, "Electronic kit"));
     kit.addEventListener("change", () => { player.kit = kit.value; prefs.set("kit", kit.value); if (player.state === "playing") this.restartPlayback(); });
     this.selOnly = false;
-    const selBtn = h("button", { class: "btn sm", type: "button", "aria-pressed": "false", title: "Play only the selected bars", "aria-label": "Play only the selected bars" }, icon("layers"), h("span", { class: "lbl" }, "Selection"));
-    selBtn.addEventListener("click", () => { this.selOnly = !this.selOnly; selBtn.setAttribute("aria-pressed", String(this.selOnly)); if (player.state === "playing") this.restartPlayback(); });
+    this.selBtn = h("button", { class: "btn sm", type: "button", "aria-pressed": "false", title: "Play only the selected bars", "aria-label": "Play only the selected bars" }, icon("layers"), h("span", { class: "lbl" }, "Selection"));
+    this.selBtn.addEventListener("click", () => { this.setSelOnly(!this.selOnly); if (player.state === "playing") this.restartPlayback(); });
+    this.loopBtn = toggle("loop", "Loop", "loop", () => player.loop, (v) => (player.loop = v));
+    this.timeNowEl = h("span", { class: "num small" }, "0:00");
+    this.timeEndEl = h("span", { class: "num small muted" }, "0:00");
+    this.scrub = h("input", { type: "range", min: 0, max: 1, step: 0.05, value: 0, "aria-label": "Position in the song" });
+    this.scrub.addEventListener("input", () => this.seekMoving(Number(this.scrub.value)));
+    this.scrub.addEventListener("change", () => this.seekTo(Number(this.scrub.value)));
+    // Dragged back to where it started there's no change event: the thumb must still follow again.
+    this.scrub.addEventListener("pointerup", () => setTimeout(() => { this.scrubbing = false; }));
+    this.speedNoteEl = h("span", {});
+    this.speedBusyEl = h("span", { class: "engraving", hidden: true, role: "status" }, h("span", { class: "spinner" }), this.speedNoteEl);
     t.replaceChildren(
       h("div", { class: "group" }, this.playBtn,
-        h("button", { class: "btn icon-only", type: "button", "aria-label": "Stop", onclick: () => { player.stop(); this.onPosition(this.selection[0], 0); } }, icon("stop")),
+        h("button", { class: "btn icon-only", type: "button", "aria-label": "Stop", title: "Stop and go back to the selected bar", onclick: () => this.rewind() }, icon("stop")),
         this.posEl),
       h("div", { class: "group" },
-        toggle("loop", "Loop", "loop", () => player.loop, (v) => (player.loop = v)), selBtn,
+        this.loopBtn, this.selBtn,
         toggle("countin", "Count-in", "count", () => player.countIn, (v) => (player.countIn = v)),
         toggle("metronome", "Click", "metronome", () => player.metronome, (v) => (player.metronome = v))),
       h("div", { class: "group" }, h("label", { class: "mini" }, "BPM", this.bpmInput)),
@@ -205,7 +234,9 @@ class Workspace {
       h("div", { class: "group optional" }, h("label", { class: "mini" }, icon("volume"), vol)),
       h("div", { class: "group" }, kit, this.soundSelect(),
         toggle("follow", "Follow", "score", () => this.follow, (v) => (this.follow = v))),
-      this.engravingEl);
+      this.engravingEl, this.speedBusyEl,
+      h("div", { class: "scrub" }, this.timeNowEl, this.scrub, this.timeEndEl));
+    this.refreshClock();
   }
 
   /** What you hear: the chart's drums, the recording it was transcribed from, or both, the
@@ -222,7 +253,7 @@ class Workspace {
         sel.disabled = true;
         const was = this.posEl.textContent;
         this.posEl.textContent = "Loading the recording…";
-        try { await player.loadRecording(`/api/charts/${this.chart.id}/audio`, timeline); }
+        try { await player.loadRecording(`/api/charts/${this.chart.id}`, timeline); }
         catch (e) { toast(e.message, "bad"); sel.value = "drums"; }
         sel.disabled = false;
         this.posEl.textContent = was;
@@ -233,9 +264,104 @@ class Workspace {
         toast("The recording can't follow this version: its bars no longer match the recording's.", "bad");
         player.recordingOn = false; player.drumsOn = true; sel.value = "drums";
       }
-      if (player.state === "playing") this.restartPlayback();
+      this.refreshClock();
+      this.speedChanged();
     });
     return sel;
+  }
+
+  /** A new practice speed, or the recording just switched on: the recording is made ready at
+   *  that speed first, and what's playing plays on until it is. */
+  async speedChanged() {
+    const seq = ++this.speedSeq;
+    this.speedBusyEl.hidden = true;
+    if (player.recordingOn) {
+      const waiting = player.speed !== 1 && player.stretched?.speed !== player.speed;
+      this.speedNoteEl.textContent = `Preparing the recording at ${Math.round(player.speed * 100)}%…`;
+      this.speedBusyEl.hidden = !waiting;
+      try { await player.prepareSpeed(); }
+      catch { if (seq === this.speedSeq) toast("The recording couldn't be prepared at this speed, so its pitch will change with the speed.", "bad", 6000); }
+      if (seq !== this.speedSeq) return;
+      this.speedBusyEl.hidden = true;
+    }
+    if (player.state === "playing") this.restartPlayback();
+  }
+
+  // ---- the time line -------------------------------------------------------------
+  // Seconds at normal speed on the clock you hear: the recording's own while it plays along
+  // (so 1:23 is 1:23 into the recording), else the written tempo's.
+  refreshClock() {
+    const c = (this.clock = player.barClock(this.score));
+    const end = c[c.length - 1].start + c[c.length - 1].dur;
+    this.scrub.min = String(c[0].start);
+    this.scrub.max = String(end);
+    this.timeEndEl.textContent = mmss(end);
+    if (this.playFrom && this.playFrom.bar >= c.length) this.playFrom = null;
+    if (player.state === "playing") return;
+    const p = this.playFrom;
+    this.showTime(p ? c[p.bar].start + p.frac * c[p.bar].dur : c[this.selection[0]].start);
+  }
+
+  showTime(sec) {
+    const text = mmss(sec);
+    if (this.timeNowEl.textContent !== text) {
+      this.timeNowEl.textContent = text;
+      this.scrub.setAttribute("aria-valuetext", text);
+    }
+    if (!this.scrubbing) this.scrub.value = String(sec);
+  }
+
+  placeAt(sec) {
+    const c = this.clock;
+    let bar = 0;
+    for (let i = 0; i < c.length; i++) if (c[i].start <= sec + 1e-6) bar = i;
+    return { bar, frac: Math.max(0, Math.min(1, (sec - c[bar].start) / c[bar].dur)) };
+  }
+
+  /** Stopped at `place`: shown there, and Play carries on from it. */
+  park(place) {
+    this.playFrom = place;
+    const b = this.clock[place.bar];
+    this.onPosition(place.bar, place.frac * b.dur, false, this.clock);
+    this.showTime(b.start + place.frac * b.dur);
+  }
+
+  seekMoving(sec) {
+    this.scrubbing = true;
+    this.showTime(sec);
+    if (player.state !== "playing") this.park(this.placeAt(sec));
+  }
+
+  seekTo(sec) {
+    this.scrubbing = false;
+    this.setSelOnly(false);
+    player.range = null;
+    const place = this.placeAt(sec);
+    if (player.state === "playing") player.play(this.score, place.bar, place.frac * this.clock[place.bar].dur).catch((e) => toast(e.message, "bad"));
+    else this.park(place);
+  }
+
+  setSelOnly(on) { this.selOnly = on; this.selBtn.setAttribute("aria-pressed", String(on)); }
+
+  /** Stop, and go back to the selected bar. */
+  rewind() {
+    this.playFrom = null;
+    player.stop();
+    this.onPosition(this.selection[0], 0, false, this.clock);
+    this.showTime(this.clock[this.selection[0]].start);
+  }
+
+  /** One section, round and round: it becomes the selection, looped. */
+  loopSection(first, last) {
+    const end = this.score.measures.length - 1;
+    if (first > end) { toast("Those bars aren't in this working copy.", "bad"); return; }
+    last = Math.min(last, end);
+    this.select([first, last], true);
+    this.setSelOnly(true);
+    player.loop = true;
+    this.loopBtn.setAttribute("aria-pressed", "true");
+    player.range = [first, last];
+    player.play(this.score).catch((e) => toast(e.message, "bad"));
   }
 
   // ---- notation ------------------------------------------------------------------
@@ -266,6 +392,7 @@ class Workspace {
       for (const sb of b.score_bars) if (!this.barToBox.has(sb - 1)) this.barToBox.set(sb - 1, i);
     });
     this.playheadEl = h("div", { class: "playhead", hidden: true });
+    this.playBar = null; // the page is new: the next position puts the playhead on it
     this.pagesEl.classList.remove("stale", "reveal");
     this.pagesEl.replaceChildren(...pages);
     if (first && !reducedMotion()) { this.pagesEl.classList.add("reveal"); setTimeout(() => this.pagesEl.classList.remove("reveal"), 900); }
@@ -302,6 +429,7 @@ class Workspace {
 
   select(sel, scrollNotation) {
     this.selection = sel;
+    this.playFrom = null;
     this.grid.setSelection(sel);
     this.grid.render(this.score, { flags: this.flags(), focusBar: sel[0] });
     this.markSelection();
@@ -310,7 +438,11 @@ class Workspace {
       if (i !== undefined && this.boxes[i] && this.tab !== "both") this.boxes[i].scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
     }
     this.renderReview();
-    if (!player.state || player.state === "stopped") this.onPosition(sel[0], 0, true);
+    if (!player.state || player.state === "stopped") {
+      this.clearPlayhead();
+      this.onPosition(sel[0], 0, true);
+      this.showTime(this.clock[sel[0]].start);
+    }
   }
 
   range() { const out = []; for (let b = this.selection[0]; b <= this.selection[1]; b++) out.push(b + 1); return out; }
@@ -333,6 +465,7 @@ class Workspace {
     const tempo = score.measures[0].tempo || 120;
     if (this.bpmInput && Number(this.bpmInput.value) !== Math.round(tempo)) this.bpmInput.value = Math.round(tempo);
     if (this.selection[1] >= score.measures.length) this.selection = [0, 0];
+    this.refreshClock();
     this.renderGrid();
     this.renderSections();
     this.renderReview();
@@ -462,6 +595,7 @@ class Workspace {
     this.score = clone(saved);
     this.view = chart.view; this.viewSrc = { kind: "chart", id: chart.id }; this.validation = chart.validation;
     this.generated = !!(saved.analysis && saved.analysis.generator);
+    this.refreshClock();
     this.renderHead();
     await this.renderPages();
     this.renderGrid();
@@ -499,34 +633,57 @@ class Workspace {
 
   // ---- playback ------------------------------------------------------------------
   async togglePlay() {
-    if (player.state === "playing") { player.stop(); return; }
+    if (player.state === "playing") { // pause: the next Play carries on from here
+      const at = this.selOnly ? null : player.place();
+      this.playFrom = at;
+      player.stop();
+      if (at) this.park(at);
+      return;
+    }
     try {
+      const from = this.selOnly ? null : this.playFrom;
+      this.playFrom = null;
       player.range = this.selOnly ? [this.selection[0], this.selection[1]] : null;
-      await player.play(this.score, this.selOnly ? null : this.selection[0]);
+      const offset = from ? from.frac * player.barClock(this.score)[from.bar].dur : 0;
+      await player.play(this.score, this.selOnly ? null : from ? from.bar : this.selection[0], offset);
     } catch (e) {
       toast(e.message || "Playback could not start", "bad");
     }
   }
 
   restartPlayback() {
-    const bar = this.playBar ?? this.selection[0];
+    const at = player.place();
     player.range = this.selOnly ? [this.selection[0], this.selection[1]] : null;
-    player.play(this.score, this.selOnly ? null : bar).catch((e) => toast(e.message, "bad"));
+    if (this.selOnly || !at) { player.play(this.score, this.selOnly ? null : this.selection[0]).catch((e) => toast(e.message, "bad")); return; }
+    const clock = player.barClock(this.score);
+    const bar = Math.min(at.bar, clock.length - 1);
+    player.play(this.score, bar, at.frac * clock[bar].dur).catch((e) => toast(e.message, "bad"));
   }
 
   onPlayState(s) {
     this.playBtn.replaceChildren(icon(s === "playing" ? "pause" : "play", "fill"));
     this.playBtn.setAttribute("aria-label", s === "playing" ? "Pause (Space)" : "Play (Space)");
     this.posEl.classList.toggle("playing", s === "playing");
-    if (s !== "playing") { if (this.playheadEl) this.playheadEl.hidden = true; for (const el of this.boxes || []) el && el.classList.remove("current"); this.grid.playhead(-1, 0); this.playBar = null; }
+    if (s !== "playing") {
+      this.clearPlayhead();
+      if (!this.playFrom) this.showTime(this.clock[this.selection[0]].start);
+    }
   }
 
-  onPosition(bar, sec, idle = false) {
-    const times = this._times && this._timesFor === this.score ? this._times : (this._times = barTimes(this.score, player.speed), this._timesFor = this.score, this._times);
-    const tempo = times[bar]?.tempo || 120;
-    const pos = (sec * tempo) / 240; // whole notes into the bar
+  clearPlayhead() {
+    if (this.playheadEl) this.playheadEl.hidden = true;
+    for (const el of this.boxes || []) el && el.classList.remove("current");
+    this.grid.playhead(-1, 0);
+    this.playBar = null;
+  }
+
+  /** The position shown: `sec` into `bar` on the clock `times` (this run's, by default). */
+  onPosition(bar, sec, idle = false, times = player.times) {
     const m = this.score.measures[bar];
     if (!m) return;
+    const b0 = times?.[bar];
+    const len = barLength(m).value;
+    const pos = b0 && b0.dur > 0 ? Math.min(len, (sec / b0.dur) * len) : 0; // whole notes into the bar
     const [num, den] = m.time.split("/").map(Number);
     const beatLen = den === 8 && num % 3 === 0 ? 3 / 8 : 1 / den;
     this.posEl.textContent = `Bar ${bar + 1} · ${Math.floor(pos / beatLen + 1e-6) + 1}`;
@@ -603,7 +760,9 @@ class Workspace {
     const panels = [];
     if (this.kind === "beat" && this.generated) panels.push(this.panel("Shape the beat", "wand", this.shapeBody(), true));
     this.reviewEl = h("div", { class: "body" });
-    if (this.kind === "song") panels.push(this.panel("Review flagged bars", "alert", this.reviewEl, true));
+    if (this.kind === "song" && !this.practice) panels.push(this.panel("Review flagged bars", "alert", this.reviewEl, true));
+    if (this.kind === "song") panels.push(this.panel("Practice versions", "layers", this.practiceBody(), this.practice));
+    if (this.kind === "song") panels.push(this.panel("Explain this chart", "sparkle", this.explainBody(), false));
     panels.push(this.panel("Edit with words", "sparkle", this.wordsBody(), this.kind === "beat"));
     this.sectionsEl = h("div", { class: "body" });
     panels.push(this.panel("Sections", "layers", this.sectionsEl, false));
@@ -613,6 +772,70 @@ class Workspace {
     panels.push(this.panel("Details", "info", this.detailsBody(), false));
     this.sideEl.replaceChildren(...panels);
     this.renderSections(); this.renderChecks(); this.renderReview();
+  }
+
+  // Easier charts made from this transcription: new versions beside it (POST /api/charts/{id}/simplify).
+  practiceBody() {
+    if (this.practice) {
+      const a = this.saved.analysis?.simplified;
+      return h("div", {}, h("p", { class: "small muted" }, "An easier chart for working towards the real part. It leaves notes out and adds none, so it isn't a record of what was played."),
+        a ? h("p", { class: "small muted" }, `It keeps ${a.kept} of the transcription's ${a.of} notes.`) : null);
+    }
+    const levels = [["beginner", "Beginner", "The time on the hi-hat or ride, with kick, snare and toms on the beats."],
+      ["intermediate", "Intermediate", "The groove without ghost notes and ornaments, with busy fills thinned out."]];
+    const rows = levels.map(([level, name, what]) => {
+      const made = (this.project.charts || []).find((c) => c.origin === "simplified" && c.parent_id === this.chart.id && c.note === `${name} practice version`);
+      const go = made ? h("a", { class: "btn sm", href: `#/chart/${made.id}` }, "Open") : h("button", { class: "btn sm", type: "button" }, "Make");
+      if (!made) go.addEventListener("click", () => this.makePractice(level, name, go));
+      return h("div", { class: "row", style: { "align-items": "flex-start" } },
+        h("div", { style: { flex: 1 } }, h("strong", { class: "small" }, name), h("div", { class: "tiny muted" }, what)), go);
+    });
+    return h("div", { class: "stack", style: { gap: "8px" } }, h("p", { class: "small muted" }, "Easier charts made from this version, to work up to it. They only leave notes out, and this chart stays as it is."), ...rows);
+  }
+
+  // Claude's guide to the saved version: text beside the chart, from the chart's own facts.
+  explainBody() {
+    const ready = this.app.health?.claude?.configured;
+    const out = h("div", { "aria-live": "polite" });
+    const go = h("button", { class: "btn sm ai", type: "button", disabled: !ready }, icon("sparkle"), "Explain and plan");
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      out.replaceChildren(h("p", { class: "small muted" }, h("span", { class: "spinner" }), " Claude is reading the chart…"));
+      try {
+        const r = await api(`/api/charts/${this.chart.id}/explain`, { method: "POST" });
+        out.replaceChildren(...this.explanation(r.explanation));
+      } catch (e) {
+        out.replaceChildren(h("p", { class: "small" }, `Claude is unavailable: ${e.message}`));
+        go.disabled = false;
+      }
+    });
+    return h("div", {},
+      h("p", { class: "small muted" }, "What this chart holds and a plan for practising it, from its sections, tempo, density and flagged bars. Claude reads the saved version, hasn't heard the recording, and can't change a note."),
+      h("div", { class: "row" }, go, ready ? null : h("span", { class: "tiny muted" }, "Not configured: needs ANTHROPIC_API_KEY on the server")), out);
+  }
+
+  explanation(x) {
+    const steps = x.practice_plan.map((s) => h("li", {}, h("strong", { class: "small" }, s.title), " ",
+      h("button", { class: "btn sm ghost num", type: "button", title: "Loop these bars", onclick: () => this.loopSection(s.first_bar - 1, s.last_bar - 1) }, icon("loop"),
+        s.first_bar === s.last_bar ? `Bar ${s.first_bar}` : `Bars ${s.first_bar}–${s.last_bar}`),
+      h("div", { class: "small muted" }, s.how)));
+    return [h("p", { class: "small" }, x.summary), h("ol", { class: "plan" }, steps),
+      x.watch_out.length ? h("div", {}, h("strong", { class: "small" }, "Check by ear"), h("ul", { class: "plan" }, x.watch_out.map((w) => h("li", { class: "small muted" }, w)))) : null,
+      h("p", { class: "tiny muted" }, "Written by Claude from the chart's data. It hasn't heard the recording.")].filter(Boolean);
+  }
+
+  async makePractice(level, name, button) {
+    if (this.dirty && !(await dialog({ title: "Make it from the saved version?", body: `Your unsaved edits won't be in it. Save first to include them.`, confirm: `Make ${name}` }))) return;
+    button.disabled = true;
+    button.textContent = "Making…";
+    try {
+      const n = await api(`/api/charts/${this.chart.id}/simplify`, { json: { level } });
+      location.hash = `#/chart/${n.id}`;
+    } catch (e) {
+      toast(e.message, "bad");
+      button.disabled = false;
+      button.textContent = "Make";
+    }
   }
 
   panel(title, ic, body, open) {
@@ -694,8 +917,13 @@ class Workspace {
       secs.forEach((s, k) => { sc.measures[s.i].section = inputs[k].value.trim() || s.name; });
       this.commit(sc, "Renamed sections");
     } }, "Apply names");
-    const rows = secs.map((s, k) => h("div", { class: "row" },
-      h("button", { class: "btn sm ghost num", type: "button", style: { width: "64px" }, onclick: () => this.select([s.i, s.i], true) }, `Bar ${s.i + 1}`), h("div", { style: { flex: 1 } }, inputs[k])));
+    const rows = secs.map((s, k) => {
+      const last = (secs[k + 1]?.i ?? this.score.measures.length) - 1;
+      return h("div", { class: "row" },
+        h("button", { class: "btn sm ghost num", type: "button", style: { width: "64px" }, onclick: () => this.select([s.i, s.i], true) }, `Bar ${s.i + 1}`),
+        h("div", { style: { flex: 1 } }, inputs[k]),
+        h("button", { class: "btn sm icon-only ghost", type: "button", title: `Loop this section (bars ${s.i + 1}–${last + 1})`, "aria-label": `Loop ${s.name}, bars ${s.i + 1} to ${last + 1}`, onclick: () => this.loopSection(s.i, last) }, icon("loop")));
+    });
     const parts = [...rows, h("div", { class: "row" }, apply)];
     if (this.kind === "song" && !this.dirty) {
       const ask = h("button", { class: "btn sm ai", type: "button", disabled: !this.app.health?.claude?.configured }, icon("sparkle"), "Suggest with Claude");
@@ -720,9 +948,11 @@ class Workspace {
       icon(c.ok ? "check" : "alert"), h("span", {}, h("strong", {}, c.name), " — ", c.detail)));
     const head = this.kind === "beat"
       ? h("p", { class: "small muted" }, "An original beat is checked for structure and playability. It isn't compared with any recording.")
+      : this.practice ? h("p", { class: "small muted" }, "A practice version is checked for structure and playability. It leaves notes out on purpose, so it isn't held to the recording.")
       : h("p", { class: "small muted" }, "These checks prove the chart is consistent and covers the recording. They don't prove every stroke matches it: listen to the flagged bars.");
-    this.checksEl.replaceChildren(head, h("ul", { class: "checks" }, items),
-      this.viewSrc.kind === "preview" ? h("p", { class: "tiny muted" }, "For the working copy. Saving re-checks every export.") : null);
+    // replaceChildren() would print a null as the text "null": only real nodes go in.
+    this.checksEl.replaceChildren(...[head, h("ul", { class: "checks" }, items),
+      this.viewSrc.kind === "preview" ? h("p", { class: "tiny muted" }, "For the working copy. Saving re-checks every export.") : null].filter(Boolean));
   }
 
   renderReview() {
@@ -748,7 +978,7 @@ class Workspace {
     const list = h("div", { class: "versions" }, (this.project.charts || []).map((c) => h("div", { class: `v${c.id === this.chart.id ? " current" : ""}` },
       h("strong", { class: "num" }, `v${c.version}`), h("span", { class: "muted", style: { flex: 1, overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }, title: c.note || c.origin }, c.note || c.origin.replace("_", " ")),
       c.id === this.chart.id ? h("span", { class: "tiny muted" }, "open") : h("a", { class: "btn sm ghost", href: `#/chart/${c.id}` }, "Open"),
-      c.id !== this.chart.id ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => {
+      c.id !== this.chart.id && c.origin !== "simplified" ? h("button", { class: "btn sm ghost", type: "button", onclick: async () => {
         const ok = await dialog({ title: `Restore version ${c.version}?`, body: "It becomes the newest version; nothing is deleted.", confirm: "Restore" });
         if (!ok) return;
         try { const n = await api(`/api/charts/${c.id}/restore`, { method: "POST" }); toast(`Version ${c.version} restored as version ${n.version}`); location.hash = `#/chart/${n.id}`; } catch (e) { toast(e.message, "bad"); }
@@ -776,6 +1006,46 @@ class Workspace {
     }
     const notes = gen?.notes || [];
     return h("div", {}, h("dl", { class: "kv" }, rows),
-      notes.length ? h("div", { class: "understood" }, notes.map((n) => h("span", { class: `note-chip src-${n.source}` }, `${n.field.replace(/_/g, " ")}:`, h("b", {}, String(n.value))))) : null);
+      notes.length ? h("div", { class: "understood" }, notes.map((n) => h("span", { class: `note-chip src-${n.source}` }, `${n.field.replace(/_/g, " ")}:`, h("b", {}, String(n.value))))) : null,
+      this.rechartForm());
+  }
+
+  // Chart the same detected strokes again with what the user knows (tempo, meter, bar 1, feel):
+  // a new version in seconds, no audio processed again (POST /api/charts/{id}/rechart).
+  rechartForm() {
+    if (this.kind !== "song" || !this.chart.can_rechart) return null;
+    const field = (label, el) => h("label", { class: "field small" }, h("span", { class: "muted" }, label), el);
+    const bpm = h("input", { class: "input", type: "number", min: 30, max: 320, step: "0.1", placeholder: "auto" });
+    const meter = h("select", { class: "input" }, ["", "4/4", "3/4", "2/4", "6/8", "12/8", "9/8", "5/4", "6/4", "7/4"]
+      .map((m) => h("option", { value: m }, m || "auto")));
+    const down = h("input", { class: "input", type: "number", min: 0, step: "0.01", placeholder: "auto" });
+    const feel = h("select", { class: "input" }, ["auto", "straight", "swing", "triplet"].map((f) => h("option", { value: f }, f)));
+    const go = h("button", { class: "btn sm", type: "button" }, "Chart again");
+    go.addEventListener("click", async () => {
+      const json = { feel: feel.value };
+      if (bpm.value) json.bpm = Number(bpm.value);
+      if (meter.value) json.time_signature = meter.value;
+      if (down.value !== "") json.downbeat = Number(down.value);
+      if (!json.bpm && !json.time_signature && json.downbeat === undefined && json.feel === "auto") {
+        toast("Give a tempo, a time signature, where bar 1 starts, or a feel.", "bad");
+        return;
+      }
+      if (this.dirty && !(await dialog({ title: "Chart again without your unsaved edits?", body: "Charting again starts from the detected strokes. Save first to keep your edits as a version.", confirm: "Chart again" }))) return;
+      go.disabled = true;
+      go.textContent = "Charting…";
+      try {
+        const n = await api(`/api/charts/${this.chart.id}/rechart`, { json });
+        toast(`Charted again as version ${n.version}`);
+        location.hash = `#/chart/${n.id}`;
+      } catch (e) { toast(e.message, "bad"); }
+      go.disabled = false;
+      go.textContent = "Chart again";
+    });
+    return h("div", { class: "rechart", style: { "margin-top": "12px" } },
+      h("strong", { class: "small" }, "Wrong tempo, meter or bar 1?"),
+      h("p", { class: "small muted" }, "Chart the same strokes again with what you know. It takes seconds and makes a new version; edits made by hand in this version are not carried over."),
+      h("div", { class: "row", style: { "flex-wrap": "wrap", gap: "8px" } },
+        field("Tempo (BPM)", bpm), field("Time", meter), field("Bar 1 starts at (s)", down), field("Feel", feel)),
+      h("div", { class: "row", style: { "margin-top": "6px" } }, go));
   }
 }

@@ -9,9 +9,11 @@
 // Listening along: a chart transcribed from a recording knows where each bar starts in it
 // (the performed bar starts). With the recording on, the bars and strokes are moved onto the
 // recording's own time and the recording plays on the same clock, so the cursor, the loop
-// and the chart's strokes follow the real performance, tempo drift included.
+// and the chart's strokes follow the real performance, tempo drift included. At a practice
+// speed it plays a rendition from the server with the pitch kept (web/listen.py), decoded and on
+// that same clock: a section loop restarts on the sample, which a media element can't do.
 
-import { events as buildEvents, beats } from "./score.js";
+import { events as buildEvents, beats, barTimes } from "./score.js";
 
 const LOOKAHEAD = 0.12;
 const TICK_MS = 25;
@@ -42,6 +44,10 @@ export class Player {
     this.recordingOn = false; // play the recording, in time with the chart
     this.drumsOn = true; // play the chart's own drum sounds
     this.following = false; // this run plays the recording
+    this.stretched = null; // {speed, buffer}: the recording at a practice speed, pitch kept
+    this.recordingUrl = null;
+    this.runSpeed = 1; // the speed this run started at (a new speed takes effect on the next run)
+    this._stretchSeq = 0;
     this._sources = [];
   }
 
@@ -73,13 +79,46 @@ export class Player {
     }));
   }
 
-  /** The chart's recording, decoded once, and the performed start of every bar in it. */
-  async loadRecording(url, timeline) {
-    await this.init();
+  async _decode(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`The recording could not be loaded (HTTP ${res.status}).`);
-    this.recording = await this.ctx.decodeAudioData(await res.arrayBuffer());
+    return this.ctx.decodeAudioData(await res.arrayBuffer());
+  }
+
+  /** The chart's recording, decoded once (`chartUrl`: /api/charts/<id>), and the performed start
+   *  of every bar in it. The compressed copy when this browser can decode it, else the WAV. */
+  async loadRecording(chartUrl, timeline) {
+    await this.init();
+    this.recordingUrl = chartUrl;
+    this.stretched = null;
+    try { this.recording = await this._decode(`${chartUrl}/listen?speed=1`); }
+    catch { this.recording = await this._decode(`${chartUrl}/audio`); }
     this.timeline = timeline;
+  }
+
+  /** Get the recording ready at the current practice speed, with its pitch kept. Only the
+   *  latest request counts; without a rendition the recording plays at this rate, pitch shifted. */
+  async prepareSpeed() {
+    const speed = this.speed;
+    const seq = ++this._stretchSeq;
+    if (speed === 1 || !this.recordingUrl) { this.stretched = null; return; }
+    if (this.stretched?.speed === speed) return;
+    const buffer = await this._decode(`${this.recordingUrl}/listen?speed=${speed}`);
+    if (seq === this._stretchSeq) this.stretched = { speed, buffer };
+  }
+
+  /** One stroke now, to hear what an edit did. */
+  async audition(inst, vel) {
+    await this.init();
+    if (this.kit === "acoustic") await this.loadSamples([inst]);
+    this._voice(inst, this.ctx.currentTime + 0.01, vel / 127, null);
+  }
+
+  /** Each bar's start and length at normal speed on the time the listener hears: the
+   *  recording's own while it plays along, else the written tempo's. */
+  barClock(score) {
+    const times = barTimes(score, 1);
+    return this.recordingOn && this.canFollow(score) ? this._warp(times, 1).times : times;
   }
 
   /** Can the recording follow this score: one start per bar, in order, inside the recording? */
@@ -96,13 +135,15 @@ export class Player {
     return !this.muted.has(inst);
   }
 
-  /** Start playing `score` from `fromBar` (or the start of the range). */
-  async play(score, fromBar = null) {
+  /** Start playing `score` from `fromBar` (or the start of the range), `offset` seconds (at
+   *  normal speed) into that bar; a loop comes back to the start of the bar. */
+  async play(score, fromBar = null, offset = 0) {
     await this.init();
     const used = [...new Set(score.measures.flatMap((m) => m.hits.map((h) => h.inst)))];
     if (this.kit === "acoustic") await this.loadSamples(used);
     this.stop(true);
     this.score = score;
+    this.runSpeed = this.speed;
     const built = buildEvents(score, this.speed);
     this.times = built.times;
     const first = this.range ? this.range[0] : (fromBar ?? 0);
@@ -119,6 +160,9 @@ export class Player {
     this.segStart = this.times[first].start;
     this.segEnd = this.times[last].start + this.times[last].dur;
     this.events = events.filter((e) => e.t >= this.segStart - 0.06 && e.t < this.segEnd - 1e-6);
+    // A count-in leads into a bar, so it starts from the top of it.
+    const startAt = this.range || this.countIn ? this.segStart
+      : Math.min(this.segEnd - 0.01, this.segStart + offset / this.speed);
     const lead = 0.08;
     let countInDur = 0;
     if (this.countIn) {
@@ -129,12 +173,15 @@ export class Player {
       const t0 = this.ctx.currentTime + lead;
       bts.forEach(([s], k) => this._click(t0 + s.value * spw, k === 0));
     }
-    this.t0 = this.ctx.currentTime + lead + countInDur - this.segStart; // audio time of song time 0
-    this.cursor = 0; this.clickCursor = 0; this.pass = 0;
+    this.t0 = this.ctx.currentTime + lead + countInDur - startAt; // audio time of song time 0
+    const skip = (list) => { const k = list.findIndex((e) => e.t >= startAt - 1e-6); return k < 0 ? list.length : k; };
+    this.cursor = startAt > this.segStart ? skip(this.events) : 0;
+    this.clickCursor = startAt > this.segStart ? skip(this.clicks) : 0;
+    this.pass = 0;
     this.scheduledLog = [];
     this.state = "playing";
     this.countInUntil = this.ctx.currentTime + lead + countInDur;
-    if (this.following) this._startRecording(this.t0 + this.segStart);
+    if (this.following) this._startRecording(this.t0 + startAt, startAt);
     this.onState && this.onState(this.state);
     this._timer = setInterval(() => this._schedule(), TICK_MS);
     this._schedule();
@@ -162,6 +209,19 @@ export class Player {
     return t;
   }
 
+  /** Where playback is: the bar and how far through it (0 to 1), or null when it isn't running.
+   *  Not seconds, so the place survives a change of speed or of clock (recording or written). */
+  place() {
+    let t = this.now();
+    if (t === null) return null;
+    const len = this.segEnd - this.segStart;
+    if (this.loop && len > 0) t = this.segStart + ((t - this.segStart) % len + len) % len;
+    t = Math.min(Math.max(t, this.segStart), this.segEnd);
+    let bar = 0;
+    for (let i = 0; i < this.times.length; i++) if (this.times[i].start <= t + 1e-6) bar = i;
+    return { bar, frac: Math.min(1, (t - this.times[bar].start) / this.times[bar].dur) };
+  }
+
   _schedule() {
     const horizon = this.ctx.currentTime + LOOKAHEAD;
     const len = this.segEnd - this.segStart;
@@ -183,7 +243,7 @@ export class Player {
       if (this.loop) {
         if (base + this.segEnd > horizon) break; // the next pass starts when this one ends
         this.pass += 1; this.cursor = 0; this.clickCursor = 0;
-        if (this.following) this._startRecording(this.t0 + this.pass * len + this.segStart);
+        if (this.following) this._startRecording(this.t0 + this.pass * len + this.segStart, this.segStart);
         continue;
       }
       if (this.ctx.currentTime > base + this.segEnd + 0.05) { this.stop(); }
@@ -216,11 +276,11 @@ export class Player {
   }
 
   /** The bars on the recording's own time at this speed, and the map of a chart time in a bar onto it. */
-  _warp(times) {
+  _warp(times, speed = this.speed) {
     const p = this.timeline;
     const warped = times.map((b, i) => {
-      const next = i + 1 < p.length ? p[i + 1] : Math.min(this.recording.duration, p[i] + b.dur * this.speed);
-      return { ...b, start: p[i] / this.speed, dur: Math.max(0.05, (next - p[i]) / this.speed) };
+      const next = i + 1 < p.length ? p[i + 1] : Math.min(this.recording.duration, p[i] + b.dur * speed);
+      return { ...b, start: p[i] / speed, dur: Math.max(0.05, (next - p[i]) / speed) };
     });
     const at = (t, bar) => {
       const b = times[bar], w = warped[bar];
@@ -229,14 +289,17 @@ export class Player {
     return { times: warped, at };
   }
 
-  /** The recording from the segment's start, at `at` on the audio clock, for one pass. */
-  _startRecording(at) {
+  /** The recording from song time `from` to the segment's end, at `at` on the audio clock.
+   *  A rendition at this speed already runs on song time; the original plays at the speed's rate. */
+  _startRecording(at, from) {
+    const kept = this.stretched?.speed === this.runSpeed;
+    const rate = kept ? 1 : this.runSpeed;
     const src = this.ctx.createBufferSource();
-    src.buffer = this.recording;
-    src.playbackRate.value = this.speed;
+    src.buffer = kept ? this.stretched.buffer : this.recording;
+    src.playbackRate.value = rate;
     src.connect(this.master);
     const late = Math.max(0, this.ctx.currentTime - at);
-    src.start(at + late, (this.segStart + late) * this.speed, Math.max(0.01, (this.segEnd - this.segStart - late) * this.speed));
+    src.start(at + late, (from + late) * rate, Math.max(0.01, (this.segEnd - from - late) * rate));
     this._sources.push(src);
   }
 

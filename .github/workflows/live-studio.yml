@@ -3,8 +3,8 @@
 # runs it as a shared server, opens a Cloudflare quick tunnel (a random
 # https://*.trycloudflare.com address), tests the public address as a visitor
 # (scripts/acceptance_run.py: a real recording uploaded, separated, transcribed, edited, saved,
-# reopened, exported, scored against its annotations) and only then posts the link. Charts made
-# in one run are cached for the next.
+# reopened, exported, scored against its annotations) and only then posts the link. What visitors
+# upload and chart stays on the runner and goes with it: nothing is carried over to the next run.
 #
 # Start it: change the date in .github/live-studio and commit (GitHub's web editor will do, on a
 # phone too). "Run workflow" in the Actions tab works only once this file is on the default branch.
@@ -51,13 +51,6 @@ jobs:
         timeout-minutes: 30
         run: docker build -q -t drum-agent .
 
-      - name: Restore the charts saved by the last run
-        uses: actions/cache/restore@v4
-        with:
-          path: .studio-data
-          key: studio-data-v3-${{ github.run_id }}
-          restore-keys: studio-data-v3-  # v3: the server image's /data
-
       - name: Start the studio
         timeout-minutes: 5
         run: |
@@ -74,7 +67,9 @@ jobs:
       - name: Open the public link
         timeout-minutes: 5
         run: |
-          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          # A pinned, checked file: every visitor's traffic goes through this program.
+          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-amd64
+          echo "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872  cloudflared" | sha256sum -c -
           chmod +x cloudflared
           nohup ./cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8000 > tunnel.log 2>&1 &
           url=""
@@ -177,10 +172,3 @@ jobs:
             gh issue edit "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file link.md || true
             gh issue close "$STUDIO_ISSUE" --repo "$GITHUB_REPOSITORY" --comment "Offline now." || true
           fi
-
-      - name: Save the charts for the next run
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: .studio-data
-          key: studio-data-v3-${{ github.run_id }}

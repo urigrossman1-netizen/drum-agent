@@ -4,7 +4,8 @@
 # annotated recording (scripts/acceptance_run.py: pick the song, upload it, the job with the
 # drum separation, the chart, an edit saved as a version, both versions reopened, the exports,
 # and the chart scored against the human annotations). Only then is the image pushed to this
-# repository's container registry:
+# repository's container registry (on a pull request the image is built and tested, and nothing
+# is published or deployed):
 #   ghcr.io/<owner>/<repo>:latest   (docker run -p 8000:8000 -v drum-agent-data:/data ...)
 #
 # Then the same commit is deployed to a permanent public address, a Hugging Face Space built
@@ -16,6 +17,10 @@ name: Server image
 on:
   push:
     branches: [claude/peaceful-noether-qz2xmc]
+    paths: ["drum_agent/**", "Dockerfile", ".dockerignore", "pyproject.toml", "scripts/acceptance_run.py",
+            "scripts/eval_real.py", "scripts/install_lilypond.sh", "scripts/deploy_space.py",
+            ".github/workflows/container.yml"]
+  pull_request:
     paths: ["drum_agent/**", "Dockerfile", ".dockerignore", "pyproject.toml", "scripts/acceptance_run.py",
             "scripts/eval_real.py", "scripts/install_lilypond.sh", "scripts/deploy_space.py",
             ".github/workflows/container.yml"]
@@ -79,6 +84,7 @@ jobs:
           echo "the separation used the model inside the image"
 
       - name: Publish the tested image
+        if: github.event_name != 'pull_request'
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}:latest"
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -88,6 +94,7 @@ jobs:
 
   deploy:
     needs: image
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     concurrency:

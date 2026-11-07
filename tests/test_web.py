@@ -6,6 +6,7 @@ transport (isolated tests only); nothing here reaches the network.
 
 import io
 import json
+import re
 import shutil
 import subprocess
 from fractions import Fraction
@@ -14,7 +15,7 @@ import httpx
 import numpy as np
 import pytest
 import soundfile as sf
-from conftest import needs_fluidsynth, needs_lilypond
+from conftest import needs_fluidsynth, needs_lilypond, studio_client
 
 from drum_agent.audio.prepare import (
     INTERNAL_CHANNELS,
@@ -224,9 +225,17 @@ class FakeMessages:
 
     def create(self, **kw):
         self.calls.append(kw)
+        thinking = type("T", (), {"type": "thinking", "thinking": ""})()  # current models always think
         block = type("B", (), {"type": "text", "text": self.text})()
         usage = type("U", (), {"input_tokens": 300, "output_tokens": 80})()
-        return type("R", (), {"content": [block], "stop_reason": self.stop_reason, "usage": usage, "model": kw["model"]})()
+        return type("R", (), {"content": [thinking, block], "stop_reason": self.stop_reason, "usage": usage,
+                              "model": kw["model"]})()
+
+
+def fake_client(text, stop_reason="end_turn"):
+    """A stand-in for anthropic.Anthropic: requests go through client.beta.messages (fallbacks)."""
+    messages = FakeMessages(text, stop_reason)
+    return type("C", (), {"beta": type("Beta", (), {"messages": messages})(), "messages": messages})()
 
 
 def test_claude_suggestion_is_structured_and_validated(monkeypatch):
@@ -236,24 +245,39 @@ def test_claude_suggestion_is_structured_and_validated(monkeypatch):
     answer = {"sections": [{"first_bar": 1, "name": "Verse 1", "reason": "groove"},
                            {"first_bar": 5, "name": "Chorus", "reason": "same groove, later"}],
               "confidence": "low", "comment": "Two identical sections."}
-    fake = type("C", (), {"messages": FakeMessages(json.dumps(answer))})()
+    fake = fake_client(json.dumps(answer))
     out = claude.suggest_section_names(s, client=fake)
     assert [x["name"] for x in out["sections"]] == ["Verse 1", "Chorus"]
-    sent = fake.messages.calls[0]
+    sent = fake.beta.messages.calls[0]
     assert sent["model"] == "test-model" and sent["output_config"]["format"]["type"] == "json_schema"
+    assert sent["output_config"]["effort"] == "low" and sent["max_tokens"] >= 16000  # room for thinking
+    assert sent["fallbacks"] == "default" and claude.FALLBACK_BETA in sent["betas"]
     assert "test-key" not in json.dumps(sent)  # the key goes in the client, never in the prompt
 
     moved = {**answer, "sections": [{**answer["sections"][0]}, {**answer["sections"][1], "first_bar": 4}]}
-    fake = type("C", (), {"messages": FakeMessages(json.dumps(moved))})()
     with pytest.raises(claude.ClaudeUnavailable) as e:
-        claude.suggest_section_names(s, client=fake)
+        claude.suggest_section_names(s, client=fake_client(json.dumps(moved)))
     assert e.value.code == "invalid_answer"
     bad = {**answer, "sections": [{**answer["sections"][0], "name": "Banana"}, answer["sections"][1]]}
     with pytest.raises(claude.ClaudeUnavailable):
-        claude.suggest_section_names(s, client=type("C", (), {"messages": FakeMessages(json.dumps(bad))})())
+        claude.suggest_section_names(s, client=fake_client(json.dumps(bad)))
     with pytest.raises(claude.ClaudeUnavailable) as e:
-        claude.suggest_section_names(s, client=type("C", (), {"messages": FakeMessages("", "refusal")})())
+        claude.suggest_section_names(s, client=fake_client("", "refusal"))
     assert e.value.code == "refused"
+
+
+def test_claude_defaults_to_the_current_model_and_needs_only_a_key(monkeypatch):
+    monkeypatch.delenv("DRUM_AGENT_ANTHROPIC_MODEL", raising=False)
+    monkeypatch.delenv("DRUM_AGENT_ANTHROPIC_EFFORT", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    cfg = claude.config()
+    assert cfg["configured"] is False and cfg["missing"] == ["ANTHROPIC_API_KEY"]
+    assert cfg["model"] == "claude-opus-5-5" and cfg["effort"] == "low"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.setenv("DRUM_AGENT_ANTHROPIC_EFFORT", "HIGH")
+    assert claude.config()["configured"] and claude.config()["effort"] == "high"
+    monkeypatch.setenv("DRUM_AGENT_ANTHROPIC_EFFORT", "turbo")  # not a level: the default
+    assert claude.config()["effort"] == "low"
 
 
 def test_claude_not_configured_and_api_errors_are_reported(monkeypatch):
@@ -297,14 +321,26 @@ def test_store_versions_and_dedupes(tmp_path):
 
 @pytest.fixture
 def client(tmp_path):
-    from fastapi.testclient import TestClient
-
     from drum_agent.web.app import create_app
     app = create_app(tmp_path / "data", providers=providers.Providers(
         spotify=providers.Spotify(None, None), youtube=providers.YouTube(None), public=False))
-    with TestClient(app) as c:
+    with studio_client(app) as c:
         c.app_state = app.state
         yield c
+
+
+def test_an_update_reaches_the_browser_whole(client):
+    """Old cached scripts beside new ones leave a blank page: the page's files have a path of
+    their own for each build, and are checked each time they're loaded."""
+    page = client.get("/")
+    assert page.headers["cache-control"] == "no-cache"
+    entry = re.search(r'src="(/static/[0-9a-f]{12}/js/main\.js)"', page.text).group(1)
+    r = client.get(entry)
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache" and r.headers["etag"]
+    assert client.get(entry, headers={"If-None-Match": r.headers["etag"]}).status_code == 304
+    assert client.get(entry.replace("main.js", "ui.js")).status_code == 200  # main.js imports it relatively
+    assert client.get("/static/js/main.js").content == r.content
+    assert 'href="/static/' in page.text and 'href="/static/css' not in page.text
 
 
 def _song(client, title="Test Song", artist="Tester"):
@@ -361,8 +397,9 @@ def test_api_upload_transcribe_view_download_review(client, tmp_path):
     job = r.json()["job"]
     done = client.app_state.runner.wait(job["id"], timeout=300)
     assert done["status"] == "succeeded", done
-    assert [s["name"] for s in done["stages"]] == ["prepare", "detect", "beats", "measures", "sections", "validate",
-                                                   "render", "view", "save"]
+    from drum_agent.audio import separate  # with demucs installed, the drums are separated first
+    assert [s["name"] for s in done["stages"]] == ["prepare", *(["separate"] if separate.available() else []), "detect",
+                                                   "beats", "measures", "sections", "validate", "render", "view", "save"]
     # The same recording again: no second analysis.
     r2 = client.post(f"/api/songs/{sid}/upload", files={"file": ("take.wav", data, "audio/wav")}, data={"rights": "original"})
     assert r2.json()["job"]["id"] == job["id"] and r2.json()["created"] is False
@@ -391,6 +428,26 @@ def test_api_upload_transcribe_view_download_review(client, tmp_path):
     # Claude isn't configured in tests: a clear 503, not a fake suggestion.
     r = client.post(f"/api/charts/{chart['id']}/suggest-sections")
     assert r.status_code == 503 and r.json()["error"] == "not_configured"
+
+    # What the detector heard is kept beside the chart, and every later version keeps it.
+    log = client.get(chart["files"]["chart.detections.json"]).json()
+    assert log["summary"]["strokes"] > 0 and "unaccounted" not in log["summary"]["fates"]
+    assert "chart.detections.json" in client.get(f"/api/charts/{v2['id']}").json()["files"]
+    # A person's change is marked; the other notes keep their link to the detector's strokes.
+    score = client.get(chart["files"]["chart.json"]).json()
+    bar1 = score["measures"][0]
+    taken = {(h["pos"], h["inst"]) for h in bar1["hits"]}
+    pos = next(p for p in ("0", "1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8") if (p, "tom1") not in taken)
+    for h in bar1["hits"]:
+        h.pop("raw", None)  # an editor that doesn't carry provenance: the server restores it
+    bar1["hits"].append({"pos": pos, "inst": "tom1"})
+    r = client.post(f"/api/projects/{sid}/versions", json={"score": score, "base_chart_id": chart["id"]})
+    assert r.status_code == 200, r.text
+    v4 = r.json()
+    saved = client.get(f"/api/charts/{v4['id']}/files/chart.json").json()["measures"][0]["hits"]
+    assert [h.get("edited", False) for h in saved if (h["pos"], h["inst"]) == (pos, "tom1")] == [True]
+    assert all(h.get("raw") and not h.get("edited") for h in saved if (h["pos"], h["inst"]) != (pos, "tom1"))
+    assert "chart.detections.json" in client.get(f"/api/charts/{v4['id']}").json()["files"]
 
 
 @needs_ffmpeg
@@ -535,7 +592,7 @@ def personal(monkeypatch):
 
 
 @pytest.fixture
-def music(tmp_path, monkeypatch):
+def music(tmp_path, monkeypatch, fake_home):
     """The user's music folder: the song as a download would be named, and a live take of it."""
     from drum_agent.synth import synthesize
     folder = tmp_path / "Music"
@@ -543,8 +600,7 @@ def music(tmp_path, monkeypatch):
     wav = synthesize(song_spec(bars=8, tempo=100), folder / "The Placeholders - Test Groove.wav", method="numpy")
     shutil.copy(wav, folder / "Live" / "The Placeholders - Test Groove (Live).wav")
     (folder / "notes.txt").write_text("not audio")
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))  # not the test machine's own ~/Music
-    monkeypatch.setenv("DRUM_AGENT_MUSIC_DIRS", str(folder))
+    monkeypatch.setenv("DRUM_AGENT_MUSIC_DIRS", str(folder))  # fake_home: not the machine's own ~/Music
     return {"folder": folder, "wav": wav, "seconds": sf.info(str(wav)).duration}
 
 
@@ -573,8 +629,7 @@ def test_shared_server_never_reads_its_disk_or_accepts_personal_charts(client, t
         assert client.get(f"/api/songs/{sid}/{old}").status_code in (404, 405)
 
 
-def test_personal_app_without_a_music_folder_says_so(client, personal, monkeypatch, tmp_path):
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+def test_personal_app_without_a_music_folder_says_so(client, personal, monkeypatch, fake_home):
     monkeypatch.delenv("DRUM_AGENT_MUSIC_DIRS", raising=False)
     body = client.get("/api/health").json()
     assert body["mode"] == "personal" and "personal" in body["rights_options"]

@@ -73,26 +73,74 @@ def _ffmpeg_decode(path: Path, start: float | None, duration: float | None, caus
     return np.frombuffer(proc.stdout, dtype=np.float32).copy()
 
 
+def _check_meter(opts: TranscribeOptions) -> None:
+    if opts.time_signature and opts.time_signature not in AUDIO_SIMPLE_METERS:
+        raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
+                         f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
+                         f"transcribe from MIDI or write a chart spec.")
+
+
 def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untitled",
                      progress: Callable[[str], None] | None = None) -> Score:
     """`progress(stage)` is called as each stage starts: "separate" (drums out of the band, when
     used), "detect" (drum strokes), "beats" (beat, tempo and meter tracking), "measures"
     (quantizing into bars), "sections"."""
     step = progress or (lambda stage: None)
-    if opts.time_signature and opts.time_signature not in AUDIO_SIMPLE_METERS:
-        raise ValueError(f"--time-signature {opts.time_signature} is not supported for audio (beats must be equal "
-                         f"length; supported: {', '.join(sorted(AUDIO_SIMPLE_METERS))}). For 5/8, 7/8 etc. "
-                         f"transcribe from MIDI or write a chart spec.")
-    drums_only, separated = opts.drums_only, None
+    _check_meter(opts)
+    drums_only, separated, separation_note = opts.drums_only, None, None
     if use_separation(opts):
         from .separate import MODEL, separate_drums
         step("separate")
-        y = separate_drums(y, SR)
-        drums_only, separated = True, MODEL
+        try:
+            y = separate_drums(y, SR)
+            drums_only, separated = True, MODEL
+        except Exception as exc:  # noqa: BLE001 - "auto": the band mix is still transcribable
+            if opts.separate == "on":
+                raise
+            import logging
+            logging.getLogger("drum_agent.transcribe").warning("drum separation failed; using the mix", exc_info=True)
+            separation_note = (f"Separating the drums from the band failed ({type(exc).__name__}: "
+                               f"{str(exc)[:160]}), so the band mix was transcribed as given, which is less "
+                               f"accurate. --separate off skips the attempt; --separate on makes it an error.")
     step("detect")
     det = detect(y, DetectOptions(drums_only=drums_only, sensitivity=opts.sensitivity, method=opts.detector))
     if not det.hits:
         raise ValueError("no drum strokes detected; is there a drum part? Try --sensitivity 1.5")
+    if det.log is not None:
+        det.log.mark_detected(det.hits, det.stats.get("near_misses", []))
+    return _chart(det, opts, title, step, separated, [separation_note] if separation_note else [])
+
+
+def rechart(detections: dict, opts: TranscribeOptions, title: str = "Untitled",
+            progress: Callable[[str], None] | None = None) -> Score:
+    """Chart a recording again from its stored detection log (`Score.detections`, written as
+    `<stem>.detections.json`) with other hints: `opts.bpm`, `time_signature`, `downbeat`, `feel`.
+    The strokes are the ones detected before. No audio is read and nothing is separated or
+    detected again, so it takes seconds; the new chart gets its own log."""
+    from .detect import Detection
+    from .detections import DetectionLog
+    from .features import HOP
+    step = progress or (lambda stage: None)
+    _check_meter(opts)
+    log = DetectionLog.from_dict(detections)
+    hits = log.detected_hits()
+    if not hits:
+        raise ValueError("the detection log holds no strokes passed to notation")
+    duration = float(detections.get("duration_s") or max(h.time for h in hits) + 1.0)
+    frames = int(detections.get("frames") or round(duration * SR / HOP) + 1)
+    det = Detection(hits=hits, onset_env=np.zeros(frames, dtype=np.float32), candidates=len(log.candidates),
+                    duration=duration, stats={"detector": log.detector,
+                                              "near_misses": [tuple(x) for x in log.near_misses]}, log=log)
+    given = [f"{opts.bpm:g} BPM" if opts.bpm else None, opts.time_signature,
+             f"beat 1 at {opts.downbeat:g} s" if opts.downbeat is not None else None,
+             f"{opts.feel} feel" if opts.feel != "auto" else None]
+    given = [g for g in given if g]
+    note = ("Charted again from the strokes detected before" + (f", with {', '.join(given)}." if given else "."))
+    return _chart(det, opts, title, step, detections.get("separation"), [note])
+
+
+def _chart(det, opts: TranscribeOptions, title: str, step, separated: str | None, extra_notes: list[str]) -> Score:
+    """Detected strokes -> Score: beats, bars, quantization, sections and the analysis report."""
     pre_feel = opts.feel if opts.feel != "auto" else None
     step("beats")
     grid = estimate_grid(det.hits, det.onset_env, det.duration, opts.bpm, opts.time_signature, opts.downbeat, pre_feel)
@@ -121,7 +169,8 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         ibi = beats[-1] - beats[-2]
         while len(beat_slice) < pos + 1:
             beat_slice.append(beat_slice[-1] + ibi)
-    onsets = [Onset(h.time, h.inst, h.velocity, h.confidence, accent=h.accent, ghost=h.ghost, flam=h.flam)
+    onsets = [Onset(h.time, h.inst, h.velocity, h.confidence, accent=h.accent, ghost=h.ghost, flam=h.flam,
+                    ids=(h.rid, *h.also) if h.rid >= 0 else ())
               for h in det.hits]
     qopts = QuantizeOptions(feel=opts.feel, allow_32nds=opts.allow_32nds, fixed_tempo=None)
     step("measures")
@@ -153,6 +202,21 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
     counts = Counter(h.inst for m in measures for h in m.hits)
     low = sum(1 for m in measures for h in m.hits if h.confidence < 0.5)
     score = Score(measures=measures, title=title, chart_type="full_transcription", status="unverified_auto")
+    lost = {"merged": 0, "dropped": 0}
+    if det.log is not None:
+        reasons = {"off_grid": "outside the beat grid (before the first or after the last beat)",
+                   "hihat_conflict": "another hi-hat state was more confident at the same instant",
+                   "merged": None}
+        for ids, why, into in res.trace:
+            for sid in ids:
+                if why == "merged":
+                    det.log.fate(sid, "merged", "a second detection of a stroke already in that slot", into)
+                else:
+                    det.log.fate(sid, "dropped", reasons.get(why, why), into or None)
+        score.detections = det.log.finish(measures, separation=separated, duration_s=round(det.duration, 3),
+                                          frames=len(det.onset_env))
+        fates = score.detections["summary"]["fates"]
+        lost = {"merged": fates.get("merged", 0), "dropped": fates.get("dropped", 0)}
     score.swing = res.feel == "swing"
     # Strokes one drummer can't play together are a detection error somewhere in that bar.
     from ..playability import check, flag_bars
@@ -167,15 +231,22 @@ def transcribe_audio(y: np.ndarray, opts: TranscribeOptions, title: str = "Untit
         "detected_onsets": len(det.hits),
         "instrument_counts": dict(counts.most_common()),
         "low_confidence_hits": low,
+        # Detected strokes not written as notes of their own (each one, and why, is in the
+        # detection log, <stem>.detections.json): merged duplicates, and strokes a rule dropped.
+        "merged_hits": lost["merged"],
+        "dropped_hits": lost["dropped"],
         "bars_with_near_misses": doubtful,
         "rolls_notated": rolls,
         "mean_abs_offset_ms": res.mean_abs_offset_ms,
         "grid_counts": res.grid_counts,
         "sections": [f"{r['label']}: bar {r['first_bar']}, {r['bars']} bars, {r['main_cymbal'] or 'no cymbal'}"
-                     + (f", {r['fills']} fill bar(s)" if r["fills"] else "") for r in roadmap],
+                     + (f", {r['fills']} fill bar(s)" if r["fills"] else "")
+                     + (f", like {r['repeat_of']} ({r['similarity']:.0%} alike)" if r.get("repeat_of") else "")
+                     for r in roadmap],
         "separation": separated,
         "notes": ([f"The drums were separated from the band ({separated}) before the strokes were detected."]
-                  if separated else []) + grid.notes + meter_notes + ([density_note] if density_note else []) + (
+                  if separated else []) + extra_notes + grid.notes + meter_notes
+        + ([density_note] if density_note else []) + (
             [f"{unplayable} bar(s) contain strokes one drummer can't play together (flagged); a stroke there was "
              f"probably detected on the wrong instrument."] if unplayable else []) + [
             "Section letters are pattern-based; rename them with --sections once you know the song form.",
@@ -281,6 +352,8 @@ def _notate_rolls(measures) -> int:
                     if not others:  # the hands are busy with the roll
                         head.roll = length
                         head.confidence = min(h.confidence for h in run)
+                        from .detections import union
+                        head.raw = union(*(h.raw for h in run)) or None  # every stroke of the roll
                         for h in run[1:]:
                             m.hits.remove(h)
                         count += 1

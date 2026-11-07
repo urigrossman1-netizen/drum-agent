@@ -9,6 +9,7 @@ const path = require("path");
 const BASE = process.env.E2E_BASE;
 const MIX = process.env.E2E_MIX;
 const CORRUPT = process.env.E2E_CORRUPT;
+const SILENT = process.env.E2E_SILENT;
 const OUT = process.env.E2E_OUT;
 const log = (...a) => console.log("[song]", ...a);
 function expect(cond, what) { if (!cond) throw new Error("expectation failed: " + what); log("ok -", what); }
@@ -70,6 +71,12 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
     await page.waitForFunction(() => /storage unavailable/.test(document.querySelector(".upload").textContent));
     expect(true, "a failed upload request is reported");
     await page.unroute("**/upload");
+    await page.setInputFiles("#upload-file", SILENT);
+    await page.click("text=Upload and transcribe");
+    await page.waitForSelector('.progress-card[data-status="failed"]', { timeout: 60000 });
+    await page.waitForSelector(".upload");
+    expect(/silent/.test(await page.textContent(".progress-card")), "a silent recording fails its job with a reason");
+    expect(await page.locator('.progress-card button:has-text("Try again")').count() === 0, "it wasn't kept, so there's nothing to try again, and the upload form is back");
 
     // The real thing: a full band mix, uploaded with a rights basis, transcribed.
     await page.setInputFiles("#upload-file", MIX);
@@ -112,9 +119,70 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
     expect(true, "the recording plays with the chart, the cursor moving through the bars");
     await shot("s05b-listening");
     await page.click(".transport .play");
+
+    // Practising: Pause keeps the place, the time line seeks, a slower speed keeps the pitch
+    // (a copy made on the server, on the audio clock), and a section loops.
+    const paused = await page.evaluate(() => window.__drumAgent.workspace.playFrom);
+    expect(paused && paused.bar >= 1, "pause keeps the place");
+    await page.evaluate(() => {
+      const s = document.querySelector(".scrub input");
+      s.value = String((Number(s.min) + Number(s.max)) / 2);
+      s.dispatchEvent(new Event("input", { bubbles: true }));
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const sought = await page.evaluate(() => window.__drumAgent.workspace.playFrom.bar);
+    expect(sought > 20 && sought < 40, `the time line goes to the middle of the song (bar ${sought + 1})`);
+    await page.click(".transport .play");
+    await page.waitForFunction(() => window.__drumAgent.player.scheduledLog.length > 0, null, { timeout: 15000 });
+    expect(await page.evaluate((b) => window.__drumAgent.player.scheduledLog[0].bar >= b, sought), "play carries on from there");
+    await page.evaluate(() => {
+      const s = document.querySelector('.transport input[aria-label="Practice speed"]');
+      s.value = 75;
+      s.dispatchEvent(new Event("input", { bubbles: true }));
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForFunction(() => window.__drumAgent.player.stretched?.speed === 0.75 && window.__drumAgent.player.runSpeed === 0.75, null, { timeout: 60000 });
+    expect(await page.evaluate(() => window.__drumAgent.player._sources.at(-1).playbackRate.value === 1), "at 75% the recording plays a copy with its pitch kept, not a slowed buffer");
+    await page.locator(".side-panel summary", { hasText: "Sections" }).click();
+    await page.locator('.side-panel button[aria-label^="Loop "]').first().click();
+    await page.waitForFunction(() => window.__drumAgent.player.range !== null && window.__drumAgent.player.loop);
+    expect(await page.evaluate(() => window.__drumAgent.workspace.selOnly), "a section loops from its row");
+    await page.click('.transport button[aria-label="Stop"]');
+    await page.locator(".side-panel summary", { hasText: "Sections" }).click();
+    await page.evaluate(() => {
+      const w = window.__drumAgent;
+      w.player.loop = false; w.workspace.loopBtn.setAttribute("aria-pressed", "false"); w.workspace.setSelOnly(false); w.player.range = null;
+      const s = document.querySelector('.transport input[aria-label="Practice speed"]');
+      s.value = 100;
+      s.dispatchEvent(new Event("input", { bubbles: true }));
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
     await page.selectOption(".transport select.sound", "recording");
     expect(await page.evaluate(() => window.__drumAgent.player.recordingOn && !window.__drumAgent.player.drumsOn), "the recording can be heard alone");
     await page.selectOption(".transport select.sound", "drums");
+
+    // The Adjust tool: one note's loudness and place, undone again.
+    await page.click('.seg.tools button:has-text("Adjust")');
+    const cell = page.locator(".cell.on").first();
+    const before = await page.evaluate(() => JSON.stringify(window.__drumAgent.score.measures));
+    await cell.click();
+    await page.waitForSelector(".note-tools input[type=range]");
+    await page.evaluate(() => {
+      const s = document.querySelector(".note-tools input[type=range]");
+      s.value = 77;
+      s.dispatchEvent(new Event("input", { bubbles: true }));
+      s.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const picked = await page.evaluate(() => { const g = window.__drumAgent.workspace.grid, p = g.picked; return g._hit(g.score, p); });
+    expect(picked.velocity === 77, "the Adjust tool sets a note's loudness");
+    await page.click('.note-tools [data-act="later"]');
+    expect(await page.evaluate((v) => JSON.stringify(window.__drumAgent.score.measures) !== v, before), "and moves it a step");
+    await page.click('button[aria-label="Undo"]');
+    await page.click('button[aria-label="Undo"]');
+    expect(await page.evaluate((v) => JSON.stringify(window.__drumAgent.score.measures) === v, before), "undo takes both back");
+    await page.click('.seg.tools button:has-text("Hit")');
+    await page.waitForFunction(() => document.querySelector(".engraving").hidden, null, { timeout: 60000 });
 
     // Review one flagged bar and save it as a new version.
     if (flags) {
@@ -128,6 +196,18 @@ function expect(cond, what) { if (!cond) throw new Error("expectation failed: " 
       await page.waitForSelector(".page img");
       expect(await page.locator(".box.flag").count() === flags - 1, "the checked bar is no longer flagged in version 2");
     }
+
+    // A practice version: an easier chart beside the transcription, labelled as not what was played.
+    const transcription = page.url();
+    await page.locator(".side-panel summary", { hasText: "Practice versions" }).click();
+    await page.locator(".side-panel .row", { hasText: "Beginner" }).locator("button").click();
+    await page.waitForFunction(() => window.__drumAgent.workspace?.chart?.origin === "simplified", null, { timeout: 120000 });
+    await page.waitForSelector(".page img");
+    expect(/Practice version: Beginner/.test(await page.textContent(".ws-head")), "the Beginner version says what it is");
+    expect(/not what was played/.test(await page.textContent(".banner")), "and that it isn't what was played");
+    await shot("s06-practice-version");
+    await page.goto(transcription);
+    await page.waitForSelector(".page img");
 
     // The PDF.
     await page.click(".ws-head >> text=Export");

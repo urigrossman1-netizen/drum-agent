@@ -37,8 +37,11 @@ from sf2info import presets  # noqa: E402
 
 SR = 44100
 CACHE = Path(os.environ.get("DRUM_AGENT_DATA", Path.home() / ".cache" / "drum-agent")) / "adt" / "oneshots"
-SF2 = "/usr/share/sounds/sf2"
-HYDROGEN = "/usr/share/hydrogen/data/drumkits"
+# Where the Debian/Ubuntu packages are installed: "/" on Linux; elsewhere the folder
+# scripts/adt/fetch_sources.py unpacks them into.
+SAMPLE_ROOT = Path(os.environ.get("DRUM_AGENT_SAMPLE_ROOT", "/"))
+SF2 = (SAMPLE_ROOT / "usr" / "share" / "sounds" / "sf2").as_posix()
+HYDROGEN = (SAMPLE_ROOT / "usr" / "share" / "hydrogen" / "data" / "drumkits").as_posix()
 VELOCITIES = (20, 40, 62, 84, 106, 127)
 MAX_LEN = {"crash": 3.0, "ride": 2.5, "ride_bell": 2.5, "hihat_open": 1.6, "tom": 1.5, "kick": 1.0,
            "snare": 1.0, "other": 1.2}

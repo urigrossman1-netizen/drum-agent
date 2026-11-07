@@ -20,9 +20,11 @@ Windows 10 or 11, 64-bit. No administrator rights needed. About {size_gb} GB on 
 - Charts of songs you didn't write are for your own practice. They are marked "Transcribed
   for personal practice. Not for distribution." Posting them publicly needs the music
   publisher's permission. Beats you make, and charts of your own songs, are yours to share.
-- Everything happens on your computer. The app connects to the internet only to identify
-  songs (MusicBrainz, iTunes, Deezer): names and lengths, never audio. YouTube and
-  streaming services are never downloaded from.
+- Listening and charting happen on your computer. The app connects to the internet to
+  identify songs (MusicBrainz, iTunes, Deezer): names and lengths, never audio. If you add
+  your own keys to `settings.env`, it also uses YouTube's and Spotify's official search,
+  YouTube's player, and Claude, which receives a chart's facts to name its sections or
+  explain it, never audio. YouTube and streaming services are never downloaded from.
 - In a full band recording, Drum Agent first separates the drums from the other instruments
   (the HTDemucs model, on your computer), then writes out what it hears. The app shows each
   step while it works.

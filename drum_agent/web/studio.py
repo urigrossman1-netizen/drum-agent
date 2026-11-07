@@ -125,7 +125,7 @@ def _project(store, project_id: str, *, write: bool = False) -> dict:
 
 def project_card(store, s: dict) -> dict:
     charts = store.charts_for(s["id"])
-    c = charts[0] if charts else None
+    c = store.latest_chart(s["id"])
     summary = (c or {}).get("summary") or {}
     return {"id": s["id"], "kind": s.get("kind") or "song", "title": s["title"], "artist": s["artist"],
             "album": s.get("album"), "year": s.get("year"), "version": s.get("version"),
@@ -331,6 +331,11 @@ def save_version(project_id: str, body: VersionIn, request: Request):
     base = store.get_chart(body.base_chart_id) if body.base_chart_id else store.latest_chart(project_id)
     if base is not None and base["song_id"] != project_id:
         raise HTTPException(422, "that version belongs to another project")
+    if base is not None and (Path(base["dir"]) / "chart.json").is_file():
+        # Mark what the person added or changed, and keep every unchanged note's link to
+        # the detector's strokes (edit.mark_edits).
+        from ..edit import mark_edits
+        mark_edits(score, Score.load(Path(base["dir"]) / "chart.json"))
     if s.get("kind") == "beat":
         score.title = s["title"]
     src = store.get_source(base["source_id"]) if base and base.get("source_id") else None
@@ -364,8 +369,11 @@ def duplicate(project_id: str, request: Request):
     if latest is not None:
         cid = new_id("ch")
         shutil.copytree(latest["dir"], store.chart_dir(cid))
+        # The copy has the recording as a source of its own, so it outlives the original.
+        src = store.get_source(latest["source_id"]) if latest.get("source_id") else None
         store.add_chart(chart_id=cid, song_id=pid, status=latest["status"], origin="duplicate", bars=latest["bars"],
-                        validation=latest["validation"], summary=latest["summary"], source_id=latest.get("source_id"),
+                        validation=latest["validation"], summary=latest["summary"],
+                        source_id=store.share_source(src, pid)["id"] if src else None,
                         parent_id=latest["id"], note=f"Copy of “{s['title']}” v{latest['version']}")
     if s.get("draft"):
         store.set_draft(pid, s["draft"])

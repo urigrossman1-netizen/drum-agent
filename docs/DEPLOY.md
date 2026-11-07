@@ -34,7 +34,13 @@ annotations. Only an image that passes is pushed to `ghcr.io/<owner>/<repo>:late
 - **Persistent `/data`.** It holds the database, the uploaded audio (normalized) and every
   chart version. Without a volume, a restart loses them.
 - **Limits.** Uploads up to `DRUM_AGENT_MAX_UPLOAD_MB` (200) and recordings up to
-  `DRUM_AGENT_MAX_AUDIO_MINUTES` (20).
+  `DRUM_AGENT_MAX_AUDIO_MINUTES` (20). Requests are limited per visitor and per address
+  (`docs/WEB_APP.md`, Protections).
+- **Behind a proxy** every visitor arrives from the proxy's address, so the per-address
+  limits work as limits for the whole server: a busy site slows down, and a bill can't run
+  away. To limit each visitor's real address, tell uvicorn which proxy to trust with
+  `FORWARDED_ALLOW_IPS` (its address; `*` lets any visitor claim any address).
+- **Scripts** that call the API must send an `X-Drum-Agent` header on writes.
 
 ## Environment
 
@@ -50,7 +56,7 @@ Set these on the host or as its secrets. Never put them in a file in the reposit
 | `DRUM_AGENT_PROVIDER_TIMEOUT` | 8 | seconds per catalog request |
 | `YOUTUBE_API_KEY` | none | YouTube Data API v3 search (metadata, links, the embedded player) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | none | Spotify Web API search (metadata only) |
-| `ANTHROPIC_API_KEY`, `DRUM_AGENT_ANTHROPIC_MODEL` | none | Claude: section names, beat descriptions (never notes) |
+| `ANTHROPIC_API_KEY` (`DRUM_AGENT_ANTHROPIC_MODEL`, `DRUM_AGENT_ANTHROPIC_EFFORT` optional) | none (model `claude-opus-5-5`, effort `low`) | Claude: section names, beat descriptions, typed edits (never notes) |
 | `DRUM_AGENT_ASSET_DIR` | none | recordings the operator is authorized to transcribe, with a manifest |
 | `DRUM_AGENT_TORCH_THREADS` | PyTorch's choice | CPU threads for the separation |
 | `DRUM_AGENT_LILYPOND`, `DRUM_AGENT_LOG_LEVEL` | set in the image, `INFO` | |

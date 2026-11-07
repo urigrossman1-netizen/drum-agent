@@ -244,6 +244,59 @@ def cmd_transcribe(args) -> int:
     return _print_report(report, Path(args.out))
 
 
+def cmd_rechart(args) -> int:
+    """A transcription charted again from its detection log with other tempo, meter, downbeat or
+    feel hints: the same strokes, no audio read, nothing detected again (seconds, not minutes)."""
+    from .audio.transcribe import TranscribeOptions, rechart
+    from .model import Score
+    from .pipeline import export_all
+    from .rights import require_rights
+    src = Path(args.input)
+    before = Score.load(src)
+    log_path = Path(args.detections) if args.detections else src.with_name(f"{src.stem}.detections.json")
+    if not log_path.is_file():
+        raise SystemExit(f"{log_path} not found: rechart reads the detection log that transcribe writes beside "
+                         f"the chart (<stem>.detections.json); pass --detections if it is elsewhere")
+    rights = before.rights or args.rights  # the transcription's basis carries over
+    require_rights(rights, args.input)
+    stem = args.stem or f"{src.stem}-rechart"
+    _guard_input(args.input, args.out, stem)
+    topts = TranscribeOptions(bpm=args.bpm, time_signature=args.time_signature, downbeat=args.downbeat,
+                              feel=args.feel, allow_32nds=not args.no_32nds)
+    try:
+        score = rechart(json.loads(log_path.read_text(encoding="utf-8")), topts, title=before.title)
+    except ValueError as exc:
+        raise SystemExit(f"rechart: {exc}") from None
+    for name in ("artist", "transcriber", "source", "copyright", "chart_type"):
+        setattr(score, name, getattr(before, name))
+    score.rights = rights
+    _apply_sections(score, args.sections)
+    report = export_all(score, args.out, stem, _kit(args), _export_opts(args))
+    return _print_report(report, Path(args.out))
+
+
+def cmd_simplify(args) -> int:
+    """A practice version of a chart: notes left out, none added or moved, and labelled as not
+    what was played (simplify.py). The chart it's made from isn't changed."""
+    from .model import Score
+    from .pipeline import export_all
+    from .rights import require_rights
+    from .simplify import simplify
+    src = Path(args.input)
+    before = Score.load(src)
+    rights = before.rights or args.rights  # the transcription's basis carries over
+    require_rights(rights, args.input)
+    stem = args.stem or f"{src.stem}-{args.level}"
+    _guard_input(args.input, args.out, stem)
+    try:
+        score = simplify(before, args.level)
+    except ValueError as exc:
+        raise SystemExit(f"simplify: {exc}") from None
+    score.rights = rights
+    report = export_all(score, args.out, stem, _kit(args), _export_opts(args))
+    return _print_report(report, Path(args.out))
+
+
 def cmd_analyze(args) -> int:
     from .audio.transcribe import analyze_file
     info = analyze_file(args.input, bpm=args.bpm, time_signature=args.time_signature, detector=args.detector)
@@ -351,6 +404,14 @@ def cmd_edit(args) -> int:
             setattr(score, name, getattr(args, name))
             log.append(f"{name} = {getattr(args, name)}")
     score.validate(kit)
+    if out.resolve() == src.resolve():
+        # Editing in place: the score as it was before the first edit is kept beside it, once,
+        # so the machine's transcription (or any earlier state) is never lost.
+        import shutil
+        keep = src.with_name(f"{src.stem}.original.json")
+        if not keep.exists():
+            shutil.copy2(src, keep)
+            log.append(f"kept the unedited score as {keep.name}")
     score.save(out)
     for line in log:
         print(line)
@@ -358,6 +419,11 @@ def cmd_edit(args) -> int:
     if args.render:
         from .pipeline import ExportOptions, export_all
         report = export_all(score, args.render, out.stem, kit, ExportOptions())
+        detections = src.with_name(f"{src.stem}.detections.json")  # what the detector heard
+        target = Path(args.render) / f"{out.stem}.detections.json"
+        if detections.is_file() and detections.resolve() != target.resolve():
+            import shutil
+            shutil.copy2(detections, target)
         return _print_report(report, Path(args.render))
     return 0
 
@@ -385,6 +451,10 @@ def cmd_serve(args) -> int:
     except ImportError:
         print("error: the web app needs its extra dependencies: pip install -e '.[web]'", file=sys.stderr)
         return 1
+    from .envfile import default_env_file, load_env_file
+    settings = load_env_file(default_env_file(Path.cwd() / ".env"))
+    if settings.path is not None:
+        print(f"settings: {settings.summary()}", file=sys.stderr)
     from .web.app import serve
     if args.personal:
         if args.host not in ("127.0.0.1", "localhost", "::1"):
@@ -492,6 +562,30 @@ def build_parser() -> argparse.ArgumentParser:
     _add_detector_arg(p)
     _add_export_args(p)
     p.set_defaults(func=cmd_transcribe)
+
+    p = sub.add_parser("rechart", help="chart a transcription again from its detection log with other "
+                                       "tempo/meter/downbeat hints (no audio needed, seconds)")
+    p.add_argument("input", help="a chart written by transcribe (score .json); its <stem>.detections.json is read")
+    p.add_argument("--detections", help="the detection log, if not beside the chart")
+    p.add_argument("--rights", choices=sorted(RIGHTS), default=None,
+                   help="basis, if the chart doesn't record one (a transcription's own basis carries over)")
+    p.add_argument("--bpm", type=float, help="tempo hint (quarter notes per minute)")
+    p.add_argument("--time-signature", help="e.g. 4/4, 3/4, 6/8, 12/8 (default: detect)")
+    p.add_argument("--downbeat", type=float, help="time in seconds of a downbeat (beat 1)")
+    p.add_argument("--feel", default="auto", choices=["auto", "straight", "swing", "triplet"])
+    p.add_argument("--no-32nds", action="store_true")
+    p.add_argument("--sections", help='e.g. "Intro:1,Verse:5,Chorus:13" (label:first bar)')
+    _add_export_args(p)
+    p.set_defaults(func=cmd_rechart)
+
+    p = sub.add_parser("simplify", help="a Beginner or Intermediate practice version of a chart "
+                                        "(notes left out, none added or moved)")
+    p.add_argument("input", help="a chart (score .json)")
+    p.add_argument("--level", required=True, choices=["beginner", "intermediate"])
+    p.add_argument("--rights", choices=sorted(RIGHTS), default=None,
+                   help="basis, if the chart doesn't record one (a transcription's own basis carries over)")
+    _add_export_args(p)
+    p.set_defaults(func=cmd_simplify)
 
     p = sub.add_parser("analyze", help="high-level analysis only (tempo, meter, sections); no notation")
     p.add_argument("input")

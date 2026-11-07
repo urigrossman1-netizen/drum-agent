@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "studio",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "scripts\\windows\\studio.cmd", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "studio-posix",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "drum_agent", "serve", "--personal", "--seed-examples", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}

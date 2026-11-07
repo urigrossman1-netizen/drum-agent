@@ -1,15 +1,19 @@
 """Download the tools the Drum Agent app ships with, into DEST (run on the build machine).
 
   LilyPond 2.26.0   engraving                                  GPL-3.0+   https://lilypond.org
-  FFmpeg            decoding audio files                       LGPL-2.1+  https://ffmpeg.org
+  FFmpeg            decoding and converting audio files        LGPL-2.1+  https://ffmpeg.org
                     (Windows build: https://github.com/BtbN/FFmpeg-Builds)
   HTDemucs model    separating the drums from the band         MIT        https://github.com/adefossez/demucs
                     (with --separation; its code, PyTorch and demucs, is in the app itself)
+  FluidSynth 2.6.2  real sampled drums for playback, `synth`   LGPL-2.1+  https://www.fluidsynth.org
+  FluidR3_GM        the General MIDI soundfont it plays        MIT        Debian fluid-soundfont-gm 3.1-5.3
+                    (both with --sounds; FluidSynth's build is fetched for Windows only)
 
-    python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools [--separation]
+    python packaging/fetch_tools.py --platform windows --dest dist/DrumAgent/tools [--separation] [--sounds]
 
 DEST gets lilypond/, ffmpeg/bin/ and NOTICES.txt (what each tool is, its
-licence and where its source is). Downloads are cached in build/downloads.
+licence and where its source is); --sounds adds fluidsynth/bin/ and
+soundfonts/FluidR3_GM.sf2. Downloads are cached in build/downloads.
 """
 
 from __future__ import annotations
@@ -27,23 +31,49 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "build" / "downloads"
 LILYPOND = "2.26.0"
+# The last build of a month: BtbN keeps those for two years, a daily one for 14 days.
+FFMPEG_BUILD = "autobuild-2026-10-31-12-59"
 
+# (url, sha256): every download is pinned to the exact file, like the ones below.
 TOOLS = {
     "windows": {
-        "lilypond": [f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
-                     f"lilypond-{LILYPOND}-mingw-x86_64.zip"],
-        "ffmpeg": ["https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
-                   "ffmpeg-master-latest-win64-lgpl-shared.zip"],
+        "lilypond": (f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
+                     f"lilypond-{LILYPOND}-mingw-x86_64.zip",
+                     "14ddddc233b469ef60d4ffc1c7f35520f15ac6b58e38cab458c60bdcc3af650c"),
+        "ffmpeg": (f"https://github.com/BtbN/FFmpeg-Builds/releases/download/{FFMPEG_BUILD}/"
+                   "ffmpeg-N-128227-g4811625b5f-win64-lgpl-shared.zip",
+                   "df0064c654faad1537cbf31c399cd93d3aaf6147e23de094a62884ecd480a6bf"),
     },
     "mac": {
-        "lilypond": [f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
-                     f"lilypond-{LILYPOND}-darwin-x86_64.tar.gz"],
-        "ffmpeg": [],  # filled in by the Mac build (static builds are per architecture)
+        "lilypond": (f"https://gitlab.com/lilypond/lilypond/-/releases/v{LILYPOND}/downloads/"
+                     f"lilypond-{LILYPOND}-darwin-x86_64.tar.gz",
+                     "6dcbca34b13ad6d4ba3606a0b48edd02688284fcd52e9c00141242df1996a148"),
+        "ffmpeg": None,  # filled in by the Mac build (static builds are per architecture)
     },
 }
 
 # HTDemucs (demucs.pretrained "htdemucs"): torch hub checks that its SHA-256 starts with the name's suffix.
 HTDEMUCS = "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th"
+
+# The sampled drums (drum_agent/web/samples.py) and `synth` play the FluidR3_GM soundfont
+# with FluidSynth. The soundfont is taken from Debian's package, the file the Linux server
+# image installs, so audio rendered on Windows matches CI and the evaluation numbers.
+# (url, sha256): both pinned.
+FLUIDSYNTH = {
+    "windows": ("https://github.com/FluidSynth/fluidsynth/releases/download/v2.6.2/"
+                "fluidsynth-v2.6.2-win10-x64-cpp11.zip",
+                "808295345d43c9c428f3fa87d29fbf97a9926f356df95559ff2689f3bd4072d7"),
+}
+SOUNDFONT_DEB = ("https://deb.debian.org/debian/pool/main/f/fluid-soundfont/fluid-soundfont-gm_3.1-5.3_all.deb",
+                 "6f531493ac4e4d9772fd96b2488ea1790af81c196135fbdd25997da0781fc60e")
+SOUNDFONT = "FluidR3_GM.sf2"
+
+SOUND_NOTICES = """
+FluidSynth 2.6.2 (fluidsynth/): plays the General MIDI soundfont for the sampled drums and
+  `synth`. GNU LGPL v2.1 or later. Source: https://github.com/FluidSynth/fluidsynth
+FluidR3_GM.sf2 (soundfonts/): the General MIDI soundfont by Frank Wen. MIT licence.
+  From Debian's fluid-soundfont-gm 3.1-5.3: https://packages.debian.org/source/fluid-soundfont
+"""
 
 NOTICES = f"""Tools shipped with Drum Agent
 =============================
@@ -52,7 +82,7 @@ Drum Agent runs these programs, unmodified, as separate programs.
 
 LilyPond {LILYPOND} (lilypond/): music engraving. GNU GPL v3 or later.
   Source: https://lilypond.org/source.html  https://gitlab.com/lilypond/lilypond
-FFmpeg (ffmpeg/): decoding audio files. GNU LGPL v2.1 or later (this build has no GPL parts).
+FFmpeg (ffmpeg/): decoding and converting audio files. GNU LGPL v2.1 or later (this build has no GPL parts).
   Source: https://ffmpeg.org/download.html  Build: https://github.com/BtbN/FFmpeg-Builds
 HTDemucs (torch/, when present): the model that separates the drums from the band before
   transcription, run with PyTorch (BSD) and demucs (MIT). MIT licence.
@@ -110,19 +140,69 @@ def fetch_separation(dest: Path) -> None:
     (out / "htdemucs.yaml").write_text(f"models: ['{src.name.split('-')[0]}']\n", encoding="utf-8")
 
 
+def verified(url: str, sha256: str) -> Path:
+    """A cached download whose SHA-256 is the pinned one (a wrong file is deleted, then refused)."""
+    path = download(url)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != sha256:
+        path.unlink()
+        raise SystemExit(f"{path.name}: sha256 {digest[:12]}... is not the pinned {sha256[:12]}...")
+    return path
+
+
+def deb_file(deb: Path, basename: str, out: Path) -> None:
+    """Copy the file named `basename` out of a Debian package (an ar archive holding data.tar.*)."""
+    import io
+    modes = {"data.tar.xz": "r:xz", "data.tar.gz": "r:gz", "data.tar.bz2": "r:bz2", "data.tar": "r:"}
+    with deb.open("rb") as f:
+        if f.read(8) != b"!<arch>\n":
+            raise SystemExit(f"{deb.name} is not a Debian package")
+        while len(header := f.read(60)) == 60:
+            name = header[:16].decode("ascii").strip().rstrip("/")
+            size = int(header[48:58].decode("ascii").strip())
+            if name in modes:
+                with tarfile.open(fileobj=io.BytesIO(f.read(size)), mode=modes[name]) as t:
+                    member = next((m for m in t.getmembers() if m.isfile() and Path(m.name).name == basename), None)
+                    if member is None:
+                        raise SystemExit(f"no {basename} in {deb.name}")
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    with t.extractfile(member) as src, out.open("wb") as dst:
+                        shutil.copyfileobj(src, dst, 1 << 20)
+                return
+            f.seek(size + (size % 2), 1)  # ar members are 2-byte aligned
+    raise SystemExit(f"no data archive in {deb.name}")
+
+
+def fetch_sounds(platform: str, dest: Path) -> None:
+    """FluidSynth (Windows build) into fluidsynth/bin, FluidR3_GM.sf2 into soundfonts/."""
+    exe = ".exe" if platform == "windows" else ""
+    if platform in FLUIDSYNTH:
+        top = unpack(verified(*FLUIDSYNTH[platform]), ROOT / "build" / "unpacked" / "fluidsynth")
+        shutil.rmtree(dest / "fluidsynth", ignore_errors=True)
+        shutil.copytree(top / "bin", dest / "fluidsynth" / "bin")
+        assert (dest / "fluidsynth" / "bin" / f"fluidsynth{exe}").is_file(), "no fluidsynth in its download"
+    sf2 = dest / "soundfonts" / SOUNDFONT
+    if not sf2.is_file():
+        deb_file(verified(*SOUNDFONT_DEB), SOUNDFONT, sf2)
+    notices = dest / "NOTICES.txt"
+    text = notices.read_text(encoding="utf-8") if notices.is_file() else NOTICES
+    if "FluidSynth" not in text:
+        notices.write_text(text + SOUND_NOTICES, encoding="utf-8")
+
+
 def fetch(platform: str, dest: Path) -> None:
     urls = TOOLS[platform]
     exe = ".exe" if platform == "windows" else ""
     work = ROOT / "build" / "unpacked"
     dest.mkdir(parents=True, exist_ok=True)
 
-    top = unpack(download(urls["lilypond"][0]), work / "lilypond")
+    top = unpack(verified(*urls["lilypond"]), work / "lilypond")
     shutil.rmtree(dest / "lilypond", ignore_errors=True)
     shutil.copytree(top, dest / "lilypond")
     assert (dest / "lilypond" / "bin" / f"lilypond{exe}").is_file(), "no lilypond in the LilyPond download"
 
     if urls["ffmpeg"]:
-        top = unpack(download(urls["ffmpeg"][0]), work / "ffmpeg")
+        top = unpack(verified(*urls["ffmpeg"]), work / "ffmpeg")
         shutil.rmtree(dest / "ffmpeg", ignore_errors=True)
         shutil.copytree(top / "bin", dest / "ffmpeg" / "bin")
         for name in ("LICENSE.txt", "LICENSE"):
@@ -140,10 +220,14 @@ def main() -> int:
     p.add_argument("--platform", choices=sorted(TOOLS), required=True)
     p.add_argument("--dest", type=Path, required=True)
     p.add_argument("--separation", action="store_true", help="also the drum separation model (HTDemucs)")
+    p.add_argument("--sounds", action="store_true",
+                   help="also FluidSynth (Windows) and the FluidR3_GM soundfont: real sampled drums")
     args = p.parse_args()
     fetch(args.platform, args.dest.resolve())
     if args.separation:
         fetch_separation(args.dest.resolve())
+    if args.sounds:
+        fetch_sounds(args.platform, args.dest.resolve())
     return 0
 
 

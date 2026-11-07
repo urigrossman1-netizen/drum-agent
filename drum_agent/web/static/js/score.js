@@ -81,6 +81,13 @@ export function barTimes(score, speed = 1) {
   return out;
 }
 
+export const GHOST_MAX = 45; // a ghost note never sounds louder than this,
+export const ACCENT_MIN = 112; // an accent never softer
+/** How loud a stroke sounds (MIDI velocity, 1-127): its marks limit its velocity. */
+export function loudness(hit) {
+  return hit.ghost ? Math.min(hit.velocity ?? 40, GHOST_MAX) : hit.accent ? Math.max(hit.velocity ?? 118, ACCENT_MIN) : (hit.velocity ?? 90);
+}
+
 /** Every stroke the player schedules, in time order: {t, inst, vel, bar, pos, grace, roll}. */
 export function events(score, speed = 1) {
   const times = barTimes(score, speed);
@@ -99,7 +106,7 @@ export function events(score, speed = 1) {
         }
       }
       const t = start + p * spw;
-      const vel = hit.ghost ? Math.min(hit.velocity ?? 40, 45) : hit.accent ? Math.max(hit.velocity ?? 118, 112) : (hit.velocity ?? 90);
+      const vel = loudness(hit);
       if (hit.flam) out.push({ t: t - 0.022, inst: hit.inst, vel: vel * 0.45, bar: i, pos: hit.pos, grace: true });
       if (hit.drag) { out.push({ t: t - 0.05, inst: hit.inst, vel: vel * 0.4, bar: i, pos: hit.pos, grace: true }); out.push({ t: t - 0.027, inst: hit.inst, vel: vel * 0.4, bar: i, pos: hit.pos, grace: true }); }
       if (hit.roll) {

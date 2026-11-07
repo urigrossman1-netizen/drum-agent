@@ -4,7 +4,7 @@ Drum transcription and drum-chart engraving. For any request to make, transcribe
 or fix a drum chart, use the `drum-chart` skill (`.claude/skills/drum-chart/`).
 
 ## Commands
-- Run: `python -m drum_agent <render|midi|gamechart|song|transcribe|analyze|edit|synth|evaluate|verify|doctor>`
+- Run: `python -m drum_agent <render|midi|gamechart|song|transcribe|rechart|simplify|analyze|edit|synth|evaluate|verify|doctor>`
 - Studio (web app): `python -m drum_agent serve --seed-examples` (needs `pip install -e '.[web]'`; docs/WEB_APP.md).
   Personal app, where a typed song is found in the user's music folders and charted: `serve --personal`, or the
   desktop app `python -m drum_agent app` (`drum_agent/desktop.py`; Windows installer: `packaging/`).

@@ -5,7 +5,7 @@
 // allows transcribing it. A song found on YouTube can be played with YouTube's own player;
 // its audio is never downloaded.
 
-import { h, icon, api, toast, prefs, fmtDur, statusBadge, dialog } from "./ui.js";
+import { h, icon, api, toast, prefs, fmtDur, statusBadge, chartBadge, dialog } from "./ui.js";
 import { progressCard, watchJob } from "./progress.js";
 
 const CASE = {
@@ -45,7 +45,7 @@ export async function showSong(root, id, app, params = new URLSearchParams()) {
   const right = h("div", { class: "stack" });
   if (d.charts.length) {
     right.append(h("div", { class: "panel" }, h("h3", {}, "Charts"), h("div", { class: "versions" }, d.charts.map((c) =>
-      h("div", { class: "v" }, h("strong", { class: "num" }, `v${c.version}`), statusBadge(c.status, "song"),
+      h("div", { class: "v" }, h("strong", { class: "num" }, `v${c.version}`), chartBadge(c, "song"),
         h("span", { class: "muted small", style: { flex: 1 } }, `${c.bars} bars · ${c.note || c.origin.replace("_", " ")}`),
         c.shareable === false ? h("span", { class: "badge plain", title: "For your own practice" }, "personal") : null,
         h("a", { class: "btn sm primary", href: `#/chart/${c.id}` }, "Open"))))));
@@ -77,12 +77,15 @@ export async function showSong(root, id, app, params = new URLSearchParams()) {
     const title = j.kind === "library" ? "Finding the song and writing the chart" : "Transcribing the recording";
     const draw = (x) => jobHost.replaceChildren(progressCard(x, { title,
       onCancel: async () => { try { await api(`/api/jobs/${x.id}/cancel`, { method: "POST" }); } catch (e) { toast(e.message, "bad"); } },
-      onRetry: async () => { try { started({ job: await api(`/api/jobs/${x.id}/retry`, { method: "POST" }) }); } catch (e) { toast(e.message, "bad"); } } }));
+      // A recording that couldn't be used wasn't kept: there's nothing to try again, only another upload.
+      onRetry: x.kind === "transcribe" && !x.source_id ? null : async () => { try { started({ job: await api(`/api/jobs/${x.id}/retry`, { method: "POST" }) }); } catch (e) { toast(e.message, "bad"); } } }));
     draw(j);
     if (stopWatch) stopWatch();
     stopWatch = watchJob(j.id, (x, err) => {
       if (err) return;
       draw(x);
+      // It ended without a chart: drawn again, with the source as it now stands and the ways to go on.
+      if (running && (x.status === "failed" || x.status === "cancelled") && location.hash.startsWith(`#/song/${id}`)) { showSong(root, id, app); return; }
       if (x.status === "succeeded" && x.chart_id) {
         if (autoOpen.delete(x.id) && location.hash.startsWith(`#/song/${id}`)) { location.hash = `#/chart/${x.chart_id}`; return; }
         jobHost.querySelector(".progress-card")?.append(h("a", { class: "btn primary", href: `#/chart/${x.chart_id}`, style: { "margin-top": "12px" } }, "Open the chart"));
@@ -185,10 +188,13 @@ function uploadPanel(id, app, again, lib, onStarted) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!chosen || !select.value) { msg.style.color = "var(--coral)"; msg.textContent = "Choose a file and your rights basis."; return; }
+    const limit = app.health?.limits?.max_upload_mb;
+    if (limit && chosen.size > limit * 2 ** 20) { msg.style.color = "var(--coral)"; msg.textContent = `That file is over the ${limit} MB limit.`; return; }
     const fd = new FormData();
     fd.append("file", chosen); fd.append("rights", select.value);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api/songs/${id}/upload`);
+    xhr.setRequestHeader("X-Drum-Agent", "studio");
     xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) { bar.hidden = false; bar.firstChild.style.width = `${(100 * ev.loaded) / ev.total}%`; } };
     xhr.onload = () => {
       let body = null; try { body = JSON.parse(xhr.responseText); } catch { body = null; }
@@ -198,7 +204,7 @@ function uploadPanel(id, app, again, lib, onStarted) {
       msg.textContent = "The file was not accepted: " + ((body && (body.detail || body.error)) || `HTTP ${xhr.status}`);
     };
     xhr.onerror = () => { go.disabled = false; msg.style.color = "var(--coral)"; msg.textContent = "The upload failed (network error)."; };
-    go.disabled = true; msg.style.color = ""; msg.textContent = "Uploading, then checking and decoding the audio…";
+    go.disabled = true; msg.style.color = ""; msg.textContent = "Uploading…";
     xhr.send(fd);
   });
   return form;

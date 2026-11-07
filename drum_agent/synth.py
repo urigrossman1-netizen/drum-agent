@@ -14,6 +14,7 @@ plus the tempo map), which is what makes end-to-end accuracy measurable.
 
 from __future__ import annotations
 
+import os
 import random
 import shutil
 import subprocess
@@ -33,11 +34,26 @@ SOUNDFONTS = ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/soundfonts/Flu
 SR = 44100
 
 
+def soundfont_candidates() -> list[Path]:
+    """Where FluidR3_GM.sf2 is looked for, in order: $DRUM_AGENT_SOUNDFONT; the shipped tools
+    ($DRUM_AGENT_TOOLS/soundfonts, as packaging/fetch_tools.py --sounds lays them out); the
+    repository's own tools/ folder (a development checkout); the Linux package paths."""
+    out = []
+    if os.environ.get("DRUM_AGENT_SOUNDFONT"):
+        out.append(Path(os.environ["DRUM_AGENT_SOUNDFONT"]).expanduser())
+    if os.environ.get("DRUM_AGENT_TOOLS"):
+        out.append(Path(os.environ["DRUM_AGENT_TOOLS"]) / "soundfonts" / "FluidR3_GM.sf2")
+    out.append(Path(__file__).resolve().parents[1] / "tools" / "soundfonts" / "FluidR3_GM.sf2")
+    out += [Path(p) for p in SOUNDFONTS]
+    return out
+
+
 def find_soundfont() -> str:
-    for p in SOUNDFONTS:
-        if Path(p).exists():
-            return p
-    raise FileNotFoundError("FluidR3_GM.sf2 not found (apt-get install fluid-soundfont-gm)")
+    for p in soundfont_candidates():
+        if p.is_file():
+            return str(p)
+    raise FileNotFoundError("FluidR3_GM.sf2 not found (apt-get install fluid-soundfont-gm, or on Windows "
+                            "python packaging/fetch_tools.py --platform windows --dest tools --sounds)")
 
 
 def _humanize_midi(mid: mido.MidiFile, humanize_ms: float, seed: int, tempo_bpm: float) -> None:

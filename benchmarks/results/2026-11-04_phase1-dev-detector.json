@@ -1,0 +1,2974 @@
+{
+ "summary": {
+  "drums": {
+   "KD": {
+    "F": 0.954,
+    "P": 0.957,
+    "R": 0.95,
+    "F30": 0.945,
+    "tp": 628,
+    "ref": 661,
+    "est": 656,
+    "err_ms": 5727.552000000001,
+    "tp30": 622,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 9.1,
+    "R_fast": null
+   },
+   "SD": {
+    "F": 0.851,
+    "P": 0.829,
+    "R": 0.873,
+    "F30": 0.851,
+    "tp": 1138,
+    "ref": 1304,
+    "est": 1372,
+    "err_ms": 10973.932999999999,
+    "tp30": 1138,
+    "ref_fast": 281,
+    "tp_fast": 225,
+    "timing_ms": 9.6,
+    "R_fast": 0.801
+   },
+   "HH": {
+    "F": 0.852,
+    "P": 0.776,
+    "R": 0.945,
+    "F30": 0.851,
+    "tp": 1515,
+    "ref": 1603,
+    "est": 1952,
+    "err_ms": 12901.838999999998,
+    "tp30": 1512,
+    "ref_fast": 4,
+    "tp_fast": 2,
+    "timing_ms": 8.5,
+    "R_fast": 0.5
+   },
+   "TT": {
+    "F": 0.64,
+    "P": 0.8,
+    "R": 0.533,
+    "F30": 0.64,
+    "tp": 8,
+    "ref": 15,
+    "est": 10,
+    "err_ms": 50.635,
+    "tp30": 8,
+    "ref_fast": 2,
+    "tp_fast": 1,
+    "timing_ms": 6.3,
+    "R_fast": 0.5
+   },
+   "CY": {
+    "F": 0.618,
+    "P": 0.871,
+    "R": 0.479,
+    "F30": 0.609,
+    "tp": 128,
+    "ref": 267,
+    "est": 147,
+    "err_ms": 1317.4379999999999,
+    "tp30": 126,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 10.3,
+    "R_fast": null
+   },
+   "KD/SD/HH": {
+    "F": 0.869,
+    "P": 0.824,
+    "R": 0.92,
+    "F30": 0.867,
+    "tp": 3281,
+    "ref": 3568,
+    "est": 3980,
+    "err_ms": 29603.323999999997,
+    "tp30": 3272,
+    "ref_fast": 285,
+    "tp_fast": 227,
+    "timing_ms": 9.0,
+    "R_fast": 0.796
+   },
+   "all 5": {
+    "F": 0.856,
+    "P": 0.826,
+    "R": 0.888,
+    "F30": 0.853,
+    "tp": 3417,
+    "ref": 3850,
+    "est": 4137,
+    "err_ms": 30971.396999999997,
+    "tp30": 3406,
+    "ref_fast": 287,
+    "tp_fast": 228,
+    "timing_ms": 9.1,
+    "R_fast": 0.794
+   },
+   "confusion": {
+    "KD": {
+     "HH": 3,
+     "SD": 5,
+     "missed": 25
+    },
+    "SD": {
+     "CY": 6,
+     "HH": 19,
+     "KD": 6,
+     "missed": 135
+    },
+    "HH": {
+     "KD": 1,
+     "SD": 11,
+     "missed": 76
+    },
+    "TT": {
+     "KD": 1,
+     "SD": 6
+    },
+    "CY": {
+     "HH": 46,
+     "KD": 1,
+     "SD": 5,
+     "missed": 87
+    }
+   },
+   "extra": {
+    "KD": 19,
+    "SD": 207,
+    "HH": 369,
+    "TT": 2,
+    "CY": 13
+   },
+   "mean track F (KD/SD/HH)": 0.887
+  },
+  "mix": {
+   "KD": {
+    "F": 0.673,
+    "P": 0.55,
+    "R": 0.868,
+    "F30": 0.657,
+    "tp": 574,
+    "ref": 661,
+    "est": 1044,
+    "err_ms": 5837.232999999999,
+    "tp30": 560,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 10.2,
+    "R_fast": null
+   },
+   "SD": {
+    "F": 0.631,
+    "P": 0.747,
+    "R": 0.546,
+    "F30": 0.614,
+    "tp": 712,
+    "ref": 1304,
+    "est": 953,
+    "err_ms": 9043.680999999999,
+    "tp30": 693,
+    "ref_fast": 281,
+    "tp_fast": 71,
+    "timing_ms": 12.7,
+    "R_fast": 0.253
+   },
+   "HH": {
+    "F": 0.813,
+    "P": 0.782,
+    "R": 0.846,
+    "F30": 0.777,
+    "tp": 1356,
+    "ref": 1603,
+    "est": 1734,
+    "err_ms": 14531.996000000001,
+    "tp30": 1297,
+    "ref_fast": 4,
+    "tp_fast": 1,
+    "timing_ms": 10.7,
+    "R_fast": 0.25
+   },
+   "TT": {
+    "F": 0.125,
+    "P": 0.077,
+    "R": 0.333,
+    "F30": 0.125,
+    "tp": 5,
+    "ref": 15,
+    "est": 65,
+    "err_ms": 47.098,
+    "tp30": 5,
+    "ref_fast": 2,
+    "tp_fast": 0,
+    "timing_ms": 9.4,
+    "R_fast": 0.0
+   },
+   "CY": {
+    "F": 0.283,
+    "P": 0.47,
+    "R": 0.202,
+    "F30": 0.272,
+    "tp": 54,
+    "ref": 267,
+    "est": 115,
+    "err_ms": 590.273,
+    "tp30": 52,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 10.9,
+    "R_fast": null
+   },
+   "KD/SD/HH": {
+    "F": 0.724,
+    "P": 0.708,
+    "R": 0.74,
+    "F30": 0.699,
+    "tp": 2642,
+    "ref": 3568,
+    "est": 3731,
+    "err_ms": 29412.91,
+    "tp30": 2550,
+    "ref_fast": 285,
+    "tp_fast": 72,
+    "timing_ms": 11.1,
+    "R_fast": 0.253
+   },
+   "all 5": {
+    "F": 0.696,
+    "P": 0.691,
+    "R": 0.702,
+    "F30": 0.672,
+    "tp": 2701,
+    "ref": 3850,
+    "est": 3911,
+    "err_ms": 30050.281,
+    "tp30": 2607,
+    "ref_fast": 287,
+    "tp_fast": 72,
+    "timing_ms": 11.1,
+    "R_fast": 0.251
+   },
+   "confusion": {
+    "KD": {
+     "CY": 1,
+     "HH": 11,
+     "SD": 5,
+     "TT": 3,
+     "missed": 67
+    },
+    "SD": {
+     "CY": 15,
+     "HH": 58,
+     "KD": 71,
+     "TT": 15,
+     "missed": 433
+    },
+    "HH": {
+     "CY": 12,
+     "KD": 13,
+     "SD": 24,
+     "TT": 5,
+     "missed": 193
+    },
+    "TT": {
+     "HH": 3,
+     "KD": 4,
+     "SD": 3
+    },
+    "CY": {
+     "HH": 62,
+     "KD": 14,
+     "SD": 11,
+     "TT": 1,
+     "missed": 125
+    }
+   },
+   "extra": {
+    "KD": 368,
+    "SD": 198,
+    "HH": 244,
+    "TT": 36,
+    "CY": 33
+   },
+   "mean track F (KD/SD/HH)": 0.726
+  },
+  "sep": {
+   "KD": {
+    "F": 0.847,
+    "P": 0.808,
+    "R": 0.891,
+    "F30": 0.837,
+    "tp": 589,
+    "ref": 661,
+    "est": 729,
+    "err_ms": 6205.079999999999,
+    "tp30": 582,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 10.5,
+    "R_fast": null
+   },
+   "SD": {
+    "F": 0.709,
+    "P": 0.849,
+    "R": 0.608,
+    "F30": 0.686,
+    "tp": 793,
+    "ref": 1304,
+    "est": 934,
+    "err_ms": 10273.842,
+    "tp30": 768,
+    "ref_fast": 281,
+    "tp_fast": 73,
+    "timing_ms": 13.0,
+    "R_fast": 0.26
+   },
+   "HH": {
+    "F": 0.815,
+    "P": 0.731,
+    "R": 0.922,
+    "F30": 0.804,
+    "tp": 1478,
+    "ref": 1603,
+    "est": 2023,
+    "err_ms": 15408.302,
+    "tp30": 1457,
+    "ref_fast": 4,
+    "tp_fast": 2,
+    "timing_ms": 10.4,
+    "R_fast": 0.5
+   },
+   "TT": {
+    "F": 0.593,
+    "P": 0.667,
+    "R": 0.533,
+    "F30": 0.593,
+    "tp": 8,
+    "ref": 15,
+    "est": 12,
+    "err_ms": 61.451,
+    "tp30": 8,
+    "ref_fast": 2,
+    "tp_fast": 1,
+    "timing_ms": 7.7,
+    "R_fast": 0.5
+   },
+   "CY": {
+    "F": 0.486,
+    "P": 0.802,
+    "R": 0.348,
+    "F30": 0.47,
+    "tp": 93,
+    "ref": 267,
+    "est": 116,
+    "err_ms": 1059.886,
+    "tp30": 90,
+    "ref_fast": 0,
+    "tp_fast": 0,
+    "timing_ms": 11.4,
+    "R_fast": null
+   },
+   "KD/SD/HH": {
+    "F": 0.789,
+    "P": 0.776,
+    "R": 0.802,
+    "F30": 0.774,
+    "tp": 2860,
+    "ref": 3568,
+    "est": 3686,
+    "err_ms": 31887.224,
+    "tp30": 2807,
+    "ref_fast": 285,
+    "tp_fast": 75,
+    "timing_ms": 11.1,
+    "R_fast": 0.263
+   },
+   "all 5": {
+    "F": 0.773,
+    "P": 0.776,
+    "R": 0.769,
+    "F30": 0.758,
+    "tp": 2961,
+    "ref": 3850,
+    "est": 3814,
+    "err_ms": 33008.561,
+    "tp30": 2905,
+    "ref_fast": 287,
+    "tp_fast": 76,
+    "timing_ms": 11.1,
+    "R_fast": 0.265
+   },
+   "confusion": {
+    "KD": {
+     "HH": 21,
+     "SD": 7,
+     "missed": 44
+    },
+    "SD": {
+     "CY": 9,
+     "HH": 223,
+     "KD": 8,
+     "TT": 1,
+     "missed": 270
+    },
+    "HH": {
+     "CY": 4,
+     "KD": 5,
+     "SD": 8,
+     "missed": 108
+    },
+    "TT": {
+     "HH": 1,
+     "KD": 1,
+     "SD": 5
+    },
+    "CY": {
+     "HH": 60,
+     "KD": 1,
+     "SD": 1,
+     "missed": 112
+    }
+   },
+   "extra": {
+    "KD": 125,
+    "SD": 120,
+    "HH": 240,
+    "TT": 3,
+    "CY": 10
+   },
+   "mean track F (KD/SD/HH)": 0.812
+  }
+ },
+ "pipeline": "detect",
+ "detector": "auto",
+ "split": "train",
+ "tracks": {
+  "80sRock/drums": {
+   "KD": {
+    "tp": 63,
+    "ref": 63,
+    "est": 64,
+    "tp30": 63,
+    "err_ms": 590.522,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 31,
+    "ref": 35,
+    "est": 31,
+    "tp30": 31,
+    "err_ms": 304.49,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 51,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 5,
+    "ref": 5,
+    "est": 10,
+    "tp30": 5,
+    "err_ms": 37.8,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "CY": 4
+    },
+    "HH": {},
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 1,
+    "SD": 0,
+    "HH": 51,
+    "TT": 0,
+    "CY": 1
+   }
+  },
+  "80sRock/mix": {
+   "KD": {
+    "tp": 63,
+    "ref": 63,
+    "est": 70,
+    "tp30": 62,
+    "err_ms": 495.375,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 18,
+    "ref": 35,
+    "est": 28,
+    "tp30": 17,
+    "err_ms": 153.016,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 32,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 3,
+    "ref": 5,
+    "est": 19,
+    "tp30": 3,
+    "err_ms": 22.336,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "CY": 8,
+     "HH": 2,
+     "missed": 7
+    },
+    "HH": {},
+    "TT": {},
+    "CY": {
+     "HH": 1,
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 7,
+    "SD": 10,
+    "HH": 29,
+    "TT": 1,
+    "CY": 8
+   }
+  },
+  "80sRock/sep": {
+   "KD": {
+    "tp": 63,
+    "ref": 63,
+    "est": 64,
+    "tp30": 63,
+    "err_ms": 671.474,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 14,
+    "ref": 35,
+    "est": 14,
+    "tp30": 14,
+    "err_ms": 134.943,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 44,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 5,
+    "ref": 5,
+    "est": 12,
+    "tp30": 5,
+    "err_ms": 43.605,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "CY": 7,
+     "HH": 6,
+     "missed": 8
+    },
+    "HH": {},
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 1,
+    "SD": 0,
+    "HH": 38,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "BebopJazz/drums": {
+   "KD": {
+    "tp": 27,
+    "ref": 30,
+    "est": 33,
+    "tp30": 27,
+    "err_ms": 192.811,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 349,
+    "ref": 413,
+    "est": 517,
+    "tp30": 349,
+    "err_ms": 2910.885,
+    "ref_fast": 247,
+    "tp_fast": 197
+   },
+   "HH": {
+    "tp": 174,
+    "ref": 186,
+    "est": 252,
+    "tp30": 174,
+    "err_ms": 1446.575,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 4,
+    "ref": 6,
+    "est": 4,
+    "tp30": 4,
+    "err_ms": 36.712,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 2,
+     "missed": 1
+    },
+    "SD": {
+     "HH": 5,
+     "KD": 1,
+     "missed": 58
+    },
+    "HH": {
+     "SD": 7,
+     "missed": 5
+    },
+    "TT": {},
+    "CY": {
+     "HH": 1,
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 5,
+    "SD": 159,
+    "HH": 72,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "BebopJazz/mix": {
+   "KD": {
+    "tp": 20,
+    "ref": 30,
+    "est": 179,
+    "tp30": 20,
+    "err_ms": 380.658,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 152,
+    "ref": 413,
+    "est": 194,
+    "tp30": 139,
+    "err_ms": 3687.302,
+    "ref_fast": 247,
+    "tp_fast": 54
+   },
+   "HH": {
+    "tp": 171,
+    "ref": 186,
+    "est": 231,
+    "tp30": 151,
+    "err_ms": 4008.571,
+    "ref_fast": 2,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 22,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 3,
+    "ref": 6,
+    "est": 7,
+    "tp30": 3,
+    "err_ms": 74.83,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 4,
+     "HH": 1,
+     "TT": 1,
+     "missed": 4
+    },
+    "SD": {
+     "KD": 49,
+     "HH": 27,
+     "TT": 6,
+     "CY": 1,
+     "missed": 178
+    },
+    "HH": {
+     "KD": 4,
+     "SD": 2,
+     "missed": 9
+    },
+    "TT": {},
+    "CY": {
+     "HH": 2,
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 106,
+    "SD": 36,
+    "HH": 30,
+    "TT": 15,
+    "CY": 3
+   }
+  },
+  "BebopJazz/sep": {
+   "KD": {
+    "tp": 22,
+    "ref": 30,
+    "est": 28,
+    "tp30": 22,
+    "err_ms": 479.774,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 141,
+    "ref": 413,
+    "est": 221,
+    "tp30": 118,
+    "err_ms": 3559.842,
+    "ref_fast": 247,
+    "tp_fast": 51
+   },
+   "HH": {
+    "tp": 177,
+    "ref": 186,
+    "est": 387,
+    "tp30": 161,
+    "err_ms": 4249.795,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 1,
+    "ref": 6,
+    "est": 1,
+    "tp30": 1,
+    "err_ms": 26.553,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "HH": 1,
+     "SD": 1,
+     "missed": 6
+    },
+    "SD": {
+     "HH": 148,
+     "missed": 124
+    },
+    "HH": {
+     "SD": 2,
+     "missed": 7
+    },
+    "TT": {},
+    "CY": {
+     "HH": 1,
+     "missed": 4
+    }
+   },
+   "extra": {
+    "KD": 6,
+    "SD": 77,
+    "HH": 60,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Britpop/drums": {
+   "KD": {
+    "tp": 48,
+    "ref": 48,
+    "est": 50,
+    "tp30": 48,
+    "err_ms": 332.789,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 84,
+    "ref": 90,
+    "est": 91,
+    "tp30": 84,
+    "err_ms": 931.032,
+    "ref_fast": 8,
+    "tp_fast": 5
+   },
+   "HH": {
+    "tp": 115,
+    "ref": 118,
+    "est": 126,
+    "tp30": 113,
+    "err_ms": 1156.963,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 1,
+    "ref": 1,
+    "est": 2,
+    "tp30": 1,
+    "err_ms": 12.041,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "missed": 6
+    },
+    "HH": {
+     "missed": 3
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 2,
+    "SD": 7,
+    "HH": 11,
+    "TT": 1,
+    "CY": 1
+   }
+  },
+  "Britpop/mix": {
+   "KD": {
+    "tp": 37,
+    "ref": 48,
+    "est": 39,
+    "tp30": 37,
+    "err_ms": 314.944,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 63,
+    "ref": 90,
+    "est": 83,
+    "tp30": 61,
+    "err_ms": 572.074,
+    "ref_fast": 8,
+    "tp_fast": 2
+   },
+   "HH": {
+    "tp": 88,
+    "ref": 118,
+    "est": 109,
+    "tp30": 82,
+    "err_ms": 940.273,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 1,
+    "ref": 1,
+    "est": 11,
+    "tp30": 1,
+    "err_ms": 0.431,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 11
+    },
+    "SD": {
+     "HH": 5,
+     "TT": 1,
+     "CY": 3,
+     "missed": 18
+    },
+    "HH": {
+     "CY": 2,
+     "SD": 3,
+     "TT": 1,
+     "missed": 24
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 2,
+    "SD": 17,
+    "HH": 16,
+    "TT": 0,
+    "CY": 5
+   }
+  },
+  "Britpop/sep": {
+   "KD": {
+    "tp": 47,
+    "ref": 48,
+    "est": 51,
+    "tp30": 47,
+    "err_ms": 354.898,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 81,
+    "ref": 90,
+    "est": 90,
+    "tp30": 80,
+    "err_ms": 710.851,
+    "ref_fast": 8,
+    "tp_fast": 5
+   },
+   "HH": {
+    "tp": 113,
+    "ref": 118,
+    "est": 138,
+    "tp30": 111,
+    "err_ms": 1082.133,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 1,
+    "ref": 1,
+    "est": 2,
+    "tp30": 1,
+    "err_ms": 6.236,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "HH": 1,
+     "KD": 1,
+     "CY": 1,
+     "missed": 6
+    },
+    "HH": {
+     "missed": 5
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 3,
+    "SD": 9,
+    "HH": 24,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "CoolJazz/drums": {
+   "KD": {
+    "tp": 44,
+    "ref": 69,
+    "est": 44,
+    "tp30": 44,
+    "err_ms": 356.259,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 222,
+    "ref": 286,
+    "est": 246,
+    "tp30": 222,
+    "err_ms": 1955.713,
+    "ref_fast": 4,
+    "tp_fast": 4
+   },
+   "HH": {
+    "tp": 76,
+    "ref": 82,
+    "est": 155,
+    "tp30": 76,
+    "err_ms": 775.059,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 3,
+    "ref": 7,
+    "est": 3,
+    "tp30": 3,
+    "err_ms": 21.179,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 1,
+     "HH": 3,
+     "missed": 21
+    },
+    "SD": {
+     "HH": 14,
+     "missed": 50
+    },
+    "HH": {
+     "SD": 2,
+     "missed": 4
+    },
+    "TT": {},
+    "CY": {
+     "HH": 3,
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 21,
+    "HH": 59,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "CoolJazz/mix": {
+   "KD": {
+    "tp": 37,
+    "ref": 69,
+    "est": 53,
+    "tp30": 34,
+    "err_ms": 501.77,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 72,
+    "ref": 286,
+    "est": 79,
+    "tp30": 72,
+    "err_ms": 794.08,
+    "ref_fast": 4,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 59,
+    "ref": 82,
+    "est": 96,
+    "tp30": 58,
+    "err_ms": 538.778,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 18,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 7,
+    "est": 5,
+    "tp30": 2,
+    "err_ms": 10.658,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "TT": 2,
+     "HH": 5,
+     "missed": 25
+    },
+    "SD": {
+     "HH": 18,
+     "KD": 4,
+     "TT": 8,
+     "CY": 1,
+     "missed": 183
+    },
+    "HH": {
+     "SD": 3,
+     "KD": 2,
+     "TT": 1,
+     "missed": 17
+    },
+    "TT": {},
+    "CY": {
+     "TT": 1,
+     "missed": 4
+    }
+   },
+   "extra": {
+    "KD": 10,
+    "SD": 4,
+    "HH": 14,
+    "TT": 6,
+    "CY": 2
+   }
+  },
+  "CoolJazz/sep": {
+   "KD": {
+    "tp": 11,
+    "ref": 69,
+    "est": 30,
+    "tp30": 11,
+    "err_ms": 75.85,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 125,
+    "ref": 286,
+    "est": 140,
+    "tp30": 124,
+    "err_ms": 1289.91,
+    "ref_fast": 4,
+    "tp_fast": 2
+   },
+   "HH": {
+    "tp": 75,
+    "ref": 82,
+    "est": 201,
+    "tp30": 73,
+    "err_ms": 804.47,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 7,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "HH": 20,
+     "SD": 4,
+     "missed": 34
+    },
+    "SD": {
+     "HH": 67,
+     "KD": 3,
+     "missed": 91
+    },
+    "HH": {
+     "KD": 4,
+     "missed": 3
+    },
+    "TT": {},
+    "CY": {
+     "HH": 1,
+     "SD": 1,
+     "missed": 5
+    }
+   },
+   "extra": {
+    "KD": 12,
+    "SD": 10,
+    "HH": 38,
+    "TT": 2,
+    "CY": 1
+   }
+  },
+  "Disco/drums": {
+   "KD": {
+    "tp": 118,
+    "ref": 118,
+    "est": 118,
+    "tp30": 117,
+    "err_ms": 1294.626,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 147,
+    "ref": 147,
+    "est": 149,
+    "tp30": 147,
+    "err_ms": 1900.476,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 710,
+    "ref": 728,
+    "est": 831,
+    "tp30": 710,
+    "err_ms": 5138.865,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {
+     "SD": 1,
+     "missed": 17
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 1,
+    "HH": 121,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Disco/mix": {
+   "KD": {
+    "tp": 117,
+    "ref": 118,
+    "est": 255,
+    "tp30": 114,
+    "err_ms": 1335.737,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 147,
+    "ref": 147,
+    "est": 241,
+    "tp30": 146,
+    "err_ms": 1650.862,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 675,
+    "ref": 728,
+    "est": 723,
+    "tp30": 662,
+    "err_ms": 5202.584,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 4,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 12,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {},
+    "HH": {
+     "SD": 4,
+     "CY": 5,
+     "KD": 1,
+     "missed": 43
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 137,
+    "SD": 90,
+    "HH": 48,
+    "TT": 4,
+    "CY": 7
+   }
+  },
+  "Disco/sep": {
+   "KD": {
+    "tp": 118,
+    "ref": 118,
+    "est": 206,
+    "tp30": 117,
+    "err_ms": 1358.481,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 147,
+    "ref": 147,
+    "est": 154,
+    "tp30": 147,
+    "err_ms": 1871.451,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 715,
+    "ref": 728,
+    "est": 738,
+    "tp30": 715,
+    "err_ms": 5359.274,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {
+     "SD": 1,
+     "missed": 12
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 88,
+    "SD": 6,
+    "HH": 23,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "FunkJazz/drums": {
+   "KD": {
+    "tp": 59,
+    "ref": 59,
+    "est": 63,
+    "tp30": 59,
+    "err_ms": 536.508,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 104,
+    "ref": 109,
+    "est": 112,
+    "tp30": 104,
+    "err_ms": 1121.814,
+    "ref_fast": 3,
+    "tp_fast": 2
+   },
+   "HH": {
+    "tp": 132,
+    "ref": 142,
+    "est": 152,
+    "tp30": 132,
+    "err_ms": 1449.707,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 2,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 6,
+    "ref": 6,
+    "est": 8,
+    "tp30": 6,
+    "err_ms": 121.542,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "missed": 5
+    },
+    "HH": {
+     "missed": 10
+    },
+    "TT": {
+     "SD": 2
+    },
+    "CY": {}
+   },
+   "extra": {
+    "KD": 4,
+    "SD": 6,
+    "HH": 20,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "FunkJazz/mix": {
+   "KD": {
+    "tp": 46,
+    "ref": 59,
+    "est": 82,
+    "tp30": 46,
+    "err_ms": 355.964,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 87,
+    "ref": 109,
+    "est": 92,
+    "tp30": 86,
+    "err_ms": 816.78,
+    "ref_fast": 3,
+    "tp_fast": 2
+   },
+   "HH": {
+    "tp": 130,
+    "ref": 142,
+    "est": 150,
+    "tp30": 124,
+    "err_ms": 1361.474,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 1,
+    "ref": 2,
+    "est": 1,
+    "tp30": 1,
+    "err_ms": 13.379,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 6,
+    "ref": 6,
+    "est": 9,
+    "tp30": 6,
+    "err_ms": 75.102,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "CY": 1,
+     "HH": 2,
+     "missed": 10
+    },
+    "SD": {
+     "KD": 6,
+     "missed": 16
+    },
+    "HH": {
+     "SD": 1,
+     "missed": 11
+    },
+    "TT": {
+     "HH": 1
+    },
+    "CY": {}
+   },
+   "extra": {
+    "KD": 30,
+    "SD": 4,
+    "HH": 17,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "FunkJazz/sep": {
+   "KD": {
+    "tp": 59,
+    "ref": 59,
+    "est": 62,
+    "tp30": 59,
+    "err_ms": 524.898,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 97,
+    "ref": 109,
+    "est": 101,
+    "tp30": 97,
+    "err_ms": 1007.8,
+    "ref_fast": 3,
+    "tp_fast": 2
+   },
+   "HH": {
+    "tp": 129,
+    "ref": 142,
+    "est": 152,
+    "tp30": 129,
+    "err_ms": 1387.031,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 2,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 6,
+    "ref": 6,
+    "est": 6,
+    "tp30": 5,
+    "err_ms": 115.737,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "missed": 12
+    },
+    "HH": {
+     "SD": 1,
+     "missed": 12
+    },
+    "TT": {
+     "HH": 1,
+     "SD": 1
+    },
+    "CY": {}
+   },
+   "extra": {
+    "KD": 3,
+    "SD": 2,
+    "HH": 22,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "FusionJazz/drums": {
+   "KD": {
+    "tp": 133,
+    "ref": 137,
+    "est": 146,
+    "tp30": 130,
+    "err_ms": 1172.765,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 103,
+    "ref": 123,
+    "est": 118,
+    "tp30": 103,
+    "err_ms": 919.025,
+    "ref_fast": 16,
+    "tp_fast": 14
+   },
+   "HH": {
+    "tp": 96,
+    "ref": 110,
+    "est": 161,
+    "tp30": 95,
+    "err_ms": 939.59,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "TT": {
+    "tp": 8,
+    "ref": 13,
+    "est": 9,
+    "tp30": 8,
+    "err_ms": 50.635,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "CY": {
+    "tp": 49,
+    "ref": 119,
+    "est": 55,
+    "tp30": 48,
+    "err_ms": 668.278,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 2,
+     "missed": 2
+    },
+    "SD": {
+     "KD": 5,
+     "CY": 2,
+     "missed": 13
+    },
+    "HH": {
+     "KD": 1,
+     "SD": 1,
+     "missed": 12
+    },
+    "TT": {
+     "SD": 4,
+     "KD": 1
+    },
+    "CY": {
+     "HH": 40,
+     "KD": 1,
+     "SD": 1,
+     "missed": 28
+    }
+   },
+   "extra": {
+    "KD": 5,
+    "SD": 7,
+    "HH": 25,
+    "TT": 1,
+    "CY": 4
+   }
+  },
+  "FusionJazz/mix": {
+   "KD": {
+    "tp": 123,
+    "ref": 137,
+    "est": 212,
+    "tp30": 119,
+    "err_ms": 1199.454,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 83,
+    "ref": 123,
+    "est": 106,
+    "tp30": 82,
+    "err_ms": 649.864,
+    "ref_fast": 16,
+    "tp_fast": 12
+   },
+   "HH": {
+    "tp": 89,
+    "ref": 110,
+    "est": 226,
+    "tp30": 85,
+    "err_ms": 952.743,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "TT": {
+    "tp": 4,
+    "ref": 13,
+    "est": 5,
+    "tp30": 4,
+    "err_ms": 33.719,
+    "ref_fast": 2,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 17,
+    "ref": 119,
+    "est": 21,
+    "tp30": 16,
+    "err_ms": 253.652,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "HH": 3,
+     "missed": 11
+    },
+    "SD": {
+     "HH": 6,
+     "KD": 12,
+     "CY": 1,
+     "missed": 21
+    },
+    "HH": {
+     "KD": 3,
+     "SD": 1,
+     "CY": 1,
+     "missed": 16
+    },
+    "TT": {
+     "SD": 3,
+     "KD": 4,
+     "HH": 2
+    },
+    "CY": {
+     "HH": 58,
+     "KD": 10,
+     "SD": 3,
+     "missed": 31
+    }
+   },
+   "extra": {
+    "KD": 60,
+    "SD": 16,
+    "HH": 68,
+    "TT": 1,
+    "CY": 2
+   }
+  },
+  "FusionJazz/sep": {
+   "KD": {
+    "tp": 134,
+    "ref": 137,
+    "est": 150,
+    "tp30": 131,
+    "err_ms": 1202.266,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 95,
+    "ref": 123,
+    "est": 110,
+    "tp30": 95,
+    "err_ms": 856.032,
+    "ref_fast": 16,
+    "tp_fast": 12
+   },
+   "HH": {
+    "tp": 95,
+    "ref": 110,
+    "est": 184,
+    "tp30": 95,
+    "err_ms": 890.067,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "TT": {
+    "tp": 8,
+    "ref": 13,
+    "est": 8,
+    "tp30": 8,
+    "err_ms": 61.451,
+    "ref_fast": 2,
+    "tp_fast": 1
+   },
+   "CY": {
+    "tp": 30,
+    "ref": 119,
+    "est": 35,
+    "tp30": 29,
+    "err_ms": 474.105,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 2,
+     "missed": 1
+    },
+    "SD": {
+     "KD": 4,
+     "CY": 1,
+     "HH": 1,
+     "missed": 22
+    },
+    "HH": {
+     "KD": 1,
+     "SD": 1,
+     "missed": 13
+    },
+    "TT": {
+     "SD": 4,
+     "KD": 1
+    },
+    "CY": {
+     "HH": 58,
+     "KD": 1,
+     "missed": 30
+    }
+   },
+   "extra": {
+    "KD": 9,
+    "SD": 8,
+    "HH": 30,
+    "TT": 0,
+    "CY": 4
+   }
+  },
+  "Reggae/drums": {
+   "KD": {
+    "tp": 30,
+    "ref": 31,
+    "est": 32,
+    "tp30": 28,
+    "err_ms": 432.812,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 9,
+    "ref": 10,
+    "est": 14,
+    "tp30": 9,
+    "err_ms": 133.016,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 24,
+    "ref": 34,
+    "est": 32,
+    "tp30": 24,
+    "err_ms": 339.729,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 3,
+    "ref": 3,
+    "est": 5,
+    "tp30": 2,
+    "err_ms": 70.93,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "missed": 1
+    },
+    "HH": {
+     "missed": 10
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 2,
+    "SD": 5,
+    "HH": 8,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "Reggae/mix": {
+   "KD": {
+    "tp": 29,
+    "ref": 31,
+    "est": 37,
+    "tp30": 29,
+    "err_ms": 460.793,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 8,
+    "ref": 10,
+    "est": 19,
+    "tp30": 8,
+    "err_ms": 110.725,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 15,
+    "ref": 34,
+    "est": 26,
+    "tp30": 10,
+    "err_ms": 360.886,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 5,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 3,
+    "est": 8,
+    "tp30": 1,
+    "err_ms": 53.628,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 2
+    },
+    "SD": {
+     "missed": 2
+    },
+    "HH": {
+     "SD": 2,
+     "CY": 3,
+     "TT": 1,
+     "KD": 1,
+     "missed": 12
+    },
+    "TT": {},
+    "CY": {
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 7,
+    "SD": 9,
+    "HH": 11,
+    "TT": 4,
+    "CY": 3
+   }
+  },
+  "Reggae/sep": {
+   "KD": {
+    "tp": 30,
+    "ref": 31,
+    "est": 32,
+    "tp30": 27,
+    "err_ms": 473.447,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 7,
+    "ref": 10,
+    "est": 13,
+    "tp30": 7,
+    "err_ms": 112.653,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 15,
+    "ref": 34,
+    "est": 18,
+    "tp30": 14,
+    "err_ms": 237.348,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 3,
+    "est": 5,
+    "tp30": 1,
+    "err_ms": 59.433,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "TT": 1,
+     "missed": 2
+    },
+    "HH": {
+     "CY": 2,
+     "SD": 1,
+     "missed": 16
+    },
+    "TT": {},
+    "CY": {
+     "missed": 1
+    }
+   },
+   "extra": {
+    "KD": 2,
+    "SD": 5,
+    "HH": 3,
+    "TT": 1,
+    "CY": 1
+   }
+  },
+  "Rock/drums": {
+   "KD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 12,
+    "tp30": 12,
+    "err_ms": 129.251,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 12,
+    "tp30": 12,
+    "err_ms": 84.762,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 46,
+    "ref": 48,
+    "est": 46,
+    "tp30": 46,
+    "err_ms": 511.338,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {
+     "missed": 2
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 0,
+    "HH": 0,
+    "TT": 0,
+    "CY": 1
+   }
+  },
+  "Rock/mix": {
+   "KD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 18,
+    "tp30": 12,
+    "err_ms": 133.513,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 26,
+    "tp30": 12,
+    "err_ms": 100.635,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 21,
+    "ref": 48,
+    "est": 26,
+    "tp30": 20,
+    "err_ms": 215.714,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 4,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {
+     "SD": 8,
+     "TT": 1,
+     "KD": 2,
+     "missed": 16
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 4,
+    "SD": 6,
+    "HH": 5,
+    "TT": 3,
+    "CY": 0
+   }
+  },
+  "Rock/sep": {
+   "KD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 12,
+    "tp30": 12,
+    "err_ms": 124.217,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 12,
+    "ref": 12,
+    "est": 14,
+    "tp30": 12,
+    "err_ms": 74.692,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 33,
+    "ref": 48,
+    "est": 33,
+    "tp30": 33,
+    "err_ms": 393.673,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {
+     "CY": 2,
+     "SD": 1,
+     "missed": 12
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 1,
+    "HH": 0,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Rockabilly/drums": {
+   "KD": {
+    "tp": 26,
+    "ref": 26,
+    "est": 26,
+    "tp30": 26,
+    "err_ms": 223.562,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 24,
+    "ref": 24,
+    "est": 24,
+    "tp30": 24,
+    "err_ms": 238.821,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 94,
+    "ref": 94,
+    "est": 95,
+    "tp30": 94,
+    "err_ms": 775.24,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {},
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 0,
+    "HH": 1,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Rockabilly/mix": {
+   "KD": {
+    "tp": 25,
+    "ref": 26,
+    "est": 28,
+    "tp30": 24,
+    "err_ms": 184.808,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 22,
+    "ref": 24,
+    "est": 26,
+    "tp30": 22,
+    "err_ms": 137.437,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 86,
+    "ref": 94,
+    "est": 92,
+    "tp30": 85,
+    "err_ms": 707.209,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "CY": 1,
+     "missed": 1
+    },
+    "HH": {
+     "CY": 1,
+     "missed": 7
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 3,
+    "SD": 4,
+    "HH": 6,
+    "TT": 2,
+    "CY": 0
+   }
+  },
+  "Rockabilly/sep": {
+   "KD": {
+    "tp": 26,
+    "ref": 26,
+    "est": 27,
+    "tp30": 26,
+    "err_ms": 275.807,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 24,
+    "ref": 24,
+    "est": 24,
+    "tp30": 24,
+    "err_ms": 215.601,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 94,
+    "ref": 94,
+    "est": 95,
+    "tp30": 94,
+    "err_ms": 777.551,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {},
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 1,
+    "SD": 0,
+    "HH": 1,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Shadows/drums": {
+   "KD": {
+    "tp": 31,
+    "ref": 31,
+    "est": 31,
+    "tp30": 31,
+    "err_ms": 148.64,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 31,
+    "ref": 31,
+    "est": 35,
+    "tp30": 31,
+    "err_ms": 260.453,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 2,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 55,
+    "ref": 118,
+    "est": 57,
+    "tp30": 55,
+    "err_ms": 337.3,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {},
+    "TT": {},
+    "CY": {
+     "SD": 4,
+     "HH": 2,
+     "missed": 57
+    }
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 0,
+    "HH": 0,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "Shadows/mix": {
+   "KD": {
+    "tp": 29,
+    "ref": 31,
+    "est": 33,
+    "tp30": 28,
+    "err_ms": 251.088,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 31,
+    "ref": 31,
+    "est": 40,
+    "tp30": 31,
+    "err_ms": 260.453,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 18,
+    "ref": 118,
+    "est": 19,
+    "tp30": 18,
+    "err_ms": 88.072,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "SD": 1,
+     "missed": 1
+    },
+    "SD": {},
+    "HH": {},
+    "TT": {},
+    "CY": {
+     "KD": 4,
+     "SD": 8,
+     "HH": 1,
+     "missed": 87
+    }
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 0,
+    "HH": 0,
+    "TT": 0,
+    "CY": 1
+   }
+  },
+  "Shadows/sep": {
+   "KD": {
+    "tp": 31,
+    "ref": 31,
+    "est": 31,
+    "tp30": 31,
+    "err_ms": 300.884,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 31,
+    "ref": 31,
+    "est": 31,
+    "tp30": 31,
+    "err_ms": 272.063,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "HH": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 46,
+    "ref": 118,
+    "est": 48,
+    "tp30": 46,
+    "err_ms": 317.527,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {},
+    "HH": {},
+    "TT": {},
+    "CY": {
+     "missed": 72
+    }
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 0,
+    "HH": 0,
+    "TT": 0,
+    "CY": 2
+   }
+  },
+  "Zeppelin/drums": {
+   "KD": {
+    "tp": 37,
+    "ref": 37,
+    "est": 37,
+    "tp30": 37,
+    "err_ms": 317.007,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 22,
+    "ref": 24,
+    "est": 23,
+    "tp30": 22,
+    "err_ms": 213.446,
+    "ref_fast": 3,
+    "tp_fast": 3
+   },
+   "HH": {
+    "tp": 48,
+    "ref": 61,
+    "est": 49,
+    "tp30": 48,
+    "err_ms": 368.773,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 2,
+    "est": 2,
+    "tp30": 2,
+    "err_ms": 11.656,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {},
+    "SD": {
+     "missed": 2
+    },
+    "HH": {
+     "missed": 13
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 1,
+    "HH": 1,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Zeppelin/mix": {
+   "KD": {
+    "tp": 36,
+    "ref": 37,
+    "est": 38,
+    "tp30": 35,
+    "err_ms": 223.129,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 17,
+    "ref": 24,
+    "est": 19,
+    "tp30": 17,
+    "err_ms": 110.453,
+    "ref_fast": 3,
+    "tp_fast": 1
+   },
+   "HH": {
+    "tp": 22,
+    "ref": 61,
+    "est": 22,
+    "tp30": 20,
+    "err_ms": 243.764,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 1,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 2,
+    "est": 2,
+    "tp30": 2,
+    "err_ms": 11.564,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "missed": 7
+    },
+    "HH": {
+     "TT": 1,
+     "missed": 38
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 2,
+    "SD": 2,
+    "HH": 0,
+    "TT": 0,
+    "CY": 0
+   }
+  },
+  "Zeppelin/sep": {
+   "KD": {
+    "tp": 36,
+    "ref": 37,
+    "est": 36,
+    "tp30": 36,
+    "err_ms": 363.084,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "SD": {
+    "tp": 19,
+    "ref": 24,
+    "est": 22,
+    "tp30": 19,
+    "err_ms": 168.004,
+    "ref_fast": 3,
+    "tp_fast": 1
+   },
+   "HH": {
+    "tp": 32,
+    "ref": 61,
+    "est": 33,
+    "tp30": 32,
+    "err_ms": 226.96,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "TT": {
+    "tp": 0,
+    "ref": 0,
+    "est": 0,
+    "tp30": 0,
+    "err_ms": 0,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "CY": {
+    "tp": 2,
+    "ref": 2,
+    "est": 2,
+    "tp30": 2,
+    "err_ms": 16.69,
+    "ref_fast": 0,
+    "tp_fast": 0
+   },
+   "confusion": {
+    "KD": {
+     "missed": 1
+    },
+    "SD": {
+     "missed": 5
+    },
+    "HH": {
+     "SD": 1,
+     "missed": 28
+    },
+    "TT": {},
+    "CY": {}
+   },
+   "extra": {
+    "KD": 0,
+    "SD": 2,
+    "HH": 1,
+    "TT": 0,
+    "CY": 0
+   }
+  }
+ },
+ "meta": {
+  "date": "2026-11-04 19:40",
+  "commit": "9a7d6ae",
+  "uncommitted_changes": false,
+  "classifier": "4 (v2+v3)",
+  "separation": "htdemucs",
+  "tracks": [
+   "80sRock",
+   "BebopJazz",
+   "Britpop",
+   "CoolJazz",
+   "Disco",
+   "FunkJazz",
+   "FusionJazz",
+   "Reggae",
+   "Rock",
+   "Rockabilly",
+   "Shadows",
+   "Zeppelin"
+  ],
+  "machine": "Windows 11, Intel64 Family 6 Model 140 Stepping 1, GenuineIntel, Python 3.12.10",
+  "seconds": 13653
+ }
+}

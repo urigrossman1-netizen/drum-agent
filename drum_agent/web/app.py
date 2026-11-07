@@ -6,7 +6,7 @@ Routes (all JSON unless noted):
   POST /api/songs                          pick a search result: stores it, resolves its source
   GET  /api/songs                          the catalog
   GET  /api/songs/{id}                     song, status, source resolution, jobs, chart versions
-  POST /api/songs/{id}/upload              multipart file + rights: validated, normalized, queued
+  POST /api/songs/{id}/upload              multipart file + rights: checked and queued; its job decodes it
   GET  /api/songs/{id}/library             personal app: the user's audio files that match the song
   POST /api/songs/{id}/library             personal app: chart the best match (or the picked file) for
                                            the user's own practice
@@ -15,14 +15,18 @@ Routes (all JSON unless noted):
   GET  /api/jobs/{id}                      stages, status, error
   POST /api/jobs/{id}/cancel | /retry
   GET  /api/charts/{id}                    chart version, validation, summary, bar map
-  GET  /api/charts/{id}/files/{name}       chart.pdf | chart.musicxml | chart.mid | chart.json | page-N.svg
+  GET  /api/charts/{id}/files/{name}       chart.pdf | chart.musicxml | chart.mid | chart.json |
+                                           chart.detections.json | page-N.svg
   GET  /api/charts/{id}/audio              the chart's source audio, for playback-follow (if any)
   POST /api/charts/{id}/suggest-sections   Claude's section names (a suggestion; changes nothing)
   POST /api/charts/{id}/sections           apply section names: a new chart version
+  POST /api/charts/{id}/simplify           a Beginner or Intermediate practice version: a new version
+  POST /api/charts/{id}/explain            Claude's guide and practice plan (text; changes nothing)
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -33,7 +37,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -41,8 +45,10 @@ from .. import __version__
 from ..audio.prepare import MAX_BYTES, AudioError
 from ..model import RIGHTS, Score
 from ..rights import RightsError, shareable
+from ..simplify import simplify
 from ..song.fetch import FetchError
-from . import claude, library, owners, sources
+from . import claude, library, listen, owners, sources
+from .guard import Guard
 from .jobs import ENGINE, JobRunner
 from .providers import Providers, split_query
 from .store import Store, default_data_dir, song_id_for
@@ -52,7 +58,9 @@ STATIC = Path(__file__).parent / "static"
 ID = {"song": re.compile(r"s_[0-9a-f]{16}"), "job": re.compile(r"job_[0-9a-f]{16}"),
       "chart": re.compile(r"ch_[0-9a-f]{16}"), "source": re.compile(r"src_[0-9a-f]{16}")}
 FILES = {"chart.pdf": "application/pdf", "chart.musicxml": "application/vnd.recordare.musicxml+xml",
-         "chart.mid": "audio/midi", "chart.json": "application/json"}
+         "chart.mid": "audio/midi", "chart.json": "application/json",
+         # what the detector heard (audio transcriptions; every later version keeps its first one's)
+         "chart.detections.json": "application/json"}
 PAGE = re.compile(r"page-([1-9][0-9]{0,2})\.svg")
 
 
@@ -82,6 +90,22 @@ class SectionName(BaseModel):
 
 class ReviewIn(BaseModel):
     bars: list[int] = Field(min_length=1, max_length=2000)  # score bar numbers (1-based)
+
+
+class HintsIn(BaseModel):
+    """What a person knows about the recording: the transcriber's --bpm, --time-signature,
+    --downbeat and --feel."""
+    bpm: float | None = Field(default=None, ge=30, le=320)  # quarter notes per minute
+    time_signature: str | None = Field(default=None, max_length=5)
+    downbeat: float | None = Field(default=None, ge=0, le=7200)  # seconds into the recording
+    feel: str = Field(default="auto", pattern="^(auto|straight|swing|triplet)$")
+
+    def given(self) -> dict:
+        return {k: v for k, v in self.model_dump().items() if v is not None and v != "auto"}
+
+
+class SimplifyIn(BaseModel):
+    level: str = Field(pattern="^(beginner|intermediate)$")
 
 
 class SectionsIn(BaseModel):
@@ -116,6 +140,10 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
                     log.warning("could not render the %s sample", inst["id"])
         threading.Thread(target=warm, name="drum-agent-samples", daemon=True).start()
 
+    # Added first, so it runs last, inside the two below: a refusal gets their headers, and the
+    # visitor's token is known. Reading the body through them would hide its 413 from the route.
+    app.add_middleware(Guard)
+
     @app.middleware("http")
     async def headers(request: Request, call_next):
         response = await call_next(request)
@@ -125,6 +153,10 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; "
             "object-src 'none'; frame-ancestors 'none'; "
             "frame-src https://www.youtube-nocookie.com")  # YouTube's own player, for songs found there
+        if request.url.path.startswith("/static/"):  # checked each time (a 304 when unchanged), so an update arrives
+            response.headers["Cache-Control"] = "no-cache"
+        if _https(request):
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
 
     @app.middleware("http")
@@ -142,9 +174,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         finally:
             owners.leave(token)
         if fresh:
-            https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
             response.set_cookie(owners.COOKIE, owner, max_age=owners.MAX_AGE_S, httponly=True, samesite="lax",
-                                secure=https, path="/")
+                                secure=_https(request), path="/")
         return response
 
     @app.exception_handler(AudioError)
@@ -226,19 +257,26 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return _song_detail(store, _song(store, song_id))
 
     @app.post("/api/songs/{song_id}/upload")
-    def upload(song_id: str, file: Annotated[UploadFile, File()], rights: Annotated[str, Form()] = ""):
+    def upload(song_id: str, file: Annotated[UploadFile, File()], rights: Annotated[str, Form()] = "",
+               bpm: Annotated[float | None, Form()] = None, time_signature: Annotated[str, Form()] = "",
+               downbeat: Annotated[float | None, Form()] = None, feel: Annotated[str, Form()] = "auto"):
         row = _song(store, song_id, write=True)
         name = sources.safe_name(file.filename)
         try:
             sources.rights_gate.require_rights(rights or None, name, personal_ok=sources.personal_mode())
         except RightsError as exc:
             raise HTTPException(403, str(exc)) from None
+        try:  # optional: what the uploader knows about the recording, checked before any work
+            hints = _hints(HintsIn(bpm=bpm, time_signature=time_signature or None, downbeat=downbeat,
+                                   feel=feel or "auto"))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
         tmp = sources.save_stream(file.file, MAX_BYTES, dir=store.root / "uploads")
         try:
             src = sources.add_upload(store, row, tmp, name, rights)
         finally:
             tmp.unlink(missing_ok=True)
-        job, created = runner.submit(row["id"], src["id"])
+        job, created = runner.submit(row["id"], src["id"], hints)
         return {"source": _public_source(src), "job": _public_job(job), "created": created}
 
     @app.get("/api/songs/{song_id}/library")
@@ -309,7 +347,8 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         song_row = store.get_song(c["song_id"])
         return {**_public_chart(c), "song": _public_song(song_row), "view": view,
                 "versions": [_public_chart(v) for v in store.charts_for(c["song_id"])],
-                "has_audio": bool(c["source_id"]),
+                "has_audio": _has_audio(store, c),
+                "can_rechart": c["origin"] != "simplified" and _log_version(d / "chart.detections.json") >= 2,
                 "files": {k: f"/api/charts/{c['id']}/files/{k}" for k in FILES if (d / k).is_file()}}
 
     @app.get("/api/charts/{chart_id}/files/{name}")
@@ -339,6 +378,22 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             raise HTTPException(404, "this chart has no source audio")
         return FileResponse(src["path"], media_type="audio/wav", headers={"Cache-Control": "private, no-store"})
 
+    @app.get("/api/charts/{chart_id}/listen")
+    def chart_listen(chart_id: str, speed: float = 1.0):
+        """The recording for listening along: compressed, at `speed` with its pitch kept
+        (web/listen.py). The first request for a speed takes a few seconds."""
+        c = _chart(store, chart_id)
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        if src is None or not Path(src["path"]).is_file():
+            raise HTTPException(404, "this chart has no source audio")
+        try:
+            path = listen.rendition(store.listen_dir(src["sha256"]), Path(src["path"]), round(speed, 2))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        except listen.ListenError as exc:
+            raise HTTPException(503, str(exc)) from None
+        return FileResponse(path, media_type="audio/ogg", headers={"Cache-Control": "private, no-store"})
+
     @app.post("/api/charts/{chart_id}/suggest-sections")
     def suggest(chart_id: str):
         c = _chart(store, chart_id, write=True)
@@ -346,8 +401,23 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         try:
             return {"suggestion": claude.suggest_section_names(score), "applied": False}
         except claude.ClaudeUnavailable as exc:
-            status = 503 if exc.code in ("not_configured", "unreachable", "timeout", "rate_limited") else 502
-            return JSONResponse({"error": exc.code, "detail": str(exc)}, status_code=status)
+            return _claude_error(exc)
+
+    @app.post("/api/charts/{chart_id}/explain")
+    def explain(chart_id: str):
+        """Claude's guide to this version, written from the chart's facts: text beside the chart,
+        which changes nothing. A version never changes, so the answer is kept with it and
+        asking again costs nothing."""
+        c = _chart(store, chart_id, write=True)
+        kept = Path(c["dir"]) / "explanation.json"
+        if kept.is_file():
+            return {"explanation": json.loads(kept.read_text(encoding="utf-8")), "kept": True}
+        try:
+            answer = claude.explain_chart(Score.load(Path(c["dir"]) / "chart.json"))
+        except claude.ClaudeUnavailable as exc:
+            return _claude_error(exc)
+        kept.write_text(json.dumps(answer), encoding="utf-8")
+        return {"explanation": answer, "kept": False}
 
     @app.post("/api/charts/{chart_id}/sections")
     def apply_sections(chart_id: str, body: SectionsIn):
@@ -368,6 +438,63 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
             new = runner._save_chart(song_row, score, lambda stage: None, origin="correction", source=src,
                                      audio_duration=src["info"].get("duration_s") if src else None,
                                      parent_id=c["id"])
+        return _public_chart(new)
+
+    @app.post("/api/charts/{chart_id}/rechart")
+    def rechart_chart(chart_id: str, body: HintsIn):
+        """The strokes detected before, charted again with the tempo, meter, downbeat or feel
+        given: a new version in seconds (no audio read, nothing detected again). Charting
+        starts from the detector's strokes, so a version's hand edits are not carried over."""
+        from ..audio.transcribe import TranscribeOptions, rechart
+        c = _chart(store, chart_id, write=True)
+        if c["origin"] == "simplified":
+            raise HTTPException(409, "this is a practice version: chart the transcription again instead")
+        d = Path(c["dir"])
+        hints = _hints(body)
+        if not hints:
+            raise HTTPException(422, "give a tempo, a time signature, a downbeat or a feel to chart with")
+        log_path = d / "chart.detections.json"
+        if not log_path.is_file():
+            raise HTTPException(409, "this version has no detection log to chart again from")
+        before = Score.load(d / "chart.json")
+        try:
+            score = rechart(json.loads(log_path.read_text(encoding="utf-8")), TranscribeOptions(**hints),
+                            title=before.title)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        for name in ("artist", "transcriber", "source", "copyright", "chart_type", "rights"):
+            setattr(score, name, getattr(before, name))
+        song_row = store.get_song(c["song_id"])
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        with revise_lock:
+            new = runner._save_chart(song_row, score, lambda stage: None, origin="rechart", source=src,
+                                     audio_duration=src["info"].get("duration_s") if src else None,
+                                     parent_id=c["id"], note="Charted again: " + _describe_hints(hints))
+        return _public_chart(new)
+
+    @app.post("/api/charts/{chart_id}/simplify")
+    def simplify_chart(chart_id: str, body: SimplifyIn):
+        """A practice version of this transcription: a new version made from it, labelled as
+        not what was played. The transcription stays as it is (simplify.py)."""
+        c = _chart(store, chart_id, write=True)
+        score = Score.load(Path(c["dir"]) / "chart.json")
+        if score.chart_type == "original_beat":
+            raise HTTPException(409, "an original beat is made simpler in Shape the beat")
+        note = f"{body.level.capitalize()} practice version"
+        made = next((v for v in store.charts_for(c["song_id"]) if v["parent_id"] == c["id"]
+                     and v["origin"] == "simplified" and v["note"] == note), None)
+        if made is not None:
+            return _public_chart(made)
+        try:
+            practice = simplify(score, body.level)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        song_row = store.get_song(c["song_id"])
+        src = store.get_source(c["source_id"]) if c["source_id"] else None
+        with revise_lock:
+            new = runner._save_chart(song_row, practice, lambda stage: None, origin="simplified", source=src,
+                                     audio_duration=src["info"].get("duration_s") if src else None,
+                                     parent_id=c["id"], note=note)
         return _public_chart(new)
 
     @app.post("/api/charts/{chart_id}/review")
@@ -392,16 +519,50 @@ def create_app(data_dir: str | Path | None = None, *, providers: Providers | Non
         return _public_chart(new)
 
     # ---- page ------------------------------------------------------------
+    # The page loads its files from a path that changes with them. A browser can't then keep an
+    # old copy of one script beside new ones after an update, which leaves a blank page.
+    build = _build_id()
+    app.mount(f"/static/{build}", StaticFiles(directory=STATIC), name="build")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
+    page = (STATIC / "index.html").read_text(encoding="utf-8").replace('"/static/', f'"/static/{build}/')
 
     @app.get("/", include_in_schema=False)
     def index():
-        return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
     return app
 
 
 # ---- views of rows (no server paths, no secrets) ---------------------------------------
+
+def _hints(body: HintsIn) -> dict:
+    """The hints given, as TranscribeOptions fields (a meter audio can't be charted in is a 422)."""
+    from ..audio.transcribe import AUDIO_SIMPLE_METERS
+    hints = body.given()
+    ts = hints.get("time_signature")
+    if ts is not None and ts not in AUDIO_SIMPLE_METERS:
+        raise HTTPException(422, f"time signature {ts!r}: one of {', '.join(sorted(AUDIO_SIMPLE_METERS))}")
+    return hints
+
+
+def _log_version(path: Path) -> int:
+    """The format version of a chart's detection log (0: none). The log is written with
+    "format" and "version" first, so its first bytes are enough."""
+    try:
+        with path.open("rb") as f:
+            head = f.read(256).decode("utf-8", "replace")
+    except OSError:
+        return 0
+    m = re.search(r'"version":\s*(\d+)', head)
+    return int(m.group(1)) if m and '"drum-agent detections"' in head else 0
+
+
+def _describe_hints(hints: dict) -> str:
+    parts = [f"{hints['bpm']:g} BPM" if "bpm" in hints else None, hints.get("time_signature"),
+             f"beat 1 at {hints['downbeat']:g} s" if "downbeat" in hints else None,
+             f"{hints['feel']} feel" if "feel" in hints else None]
+    return ", ".join(p for p in parts if p)
+
 
 def _song(store: Store, song_id: str, *, write: bool = False) -> dict:
     """The song, if this visitor may see it (else 404, as if it didn't exist); `write`: and change it."""
@@ -494,8 +655,34 @@ def _song_detail(store: Store, s: dict) -> dict:
             "charts": [_public_chart(c) for c in store.charts_for(s["id"])]}
 
 
+def _https(request: Request) -> bool:
+    forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
+    return request.url.scheme == "https" or forwarded == "https"
+
+
+def _has_audio(store: Store, chart: dict) -> bool:
+    src = store.get_source(chart["source_id"]) if chart["source_id"] else None
+    return src is not None and Path(src["path"]).is_file()
+
+
+def _claude_error(exc: claude.ClaudeUnavailable) -> JSONResponse:
+    status = 503 if exc.code in ("not_configured", "unreachable", "timeout", "rate_limited") else 502
+    return JSONResponse({"error": exc.code, "detail": str(exc)}, status_code=status)
+
+
+def _build_id() -> str:
+    """Changes whenever a file the page loads changes."""
+    digest = hashlib.sha256()
+    for p in sorted(STATIC.rglob("*")):
+        if p.is_file():
+            digest.update(p.relative_to(STATIC).as_posix().encode() + p.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 def _download_name(song: dict, chart: dict, name: str) -> str:
-    base = f"{song['title']} - {song['artist']} - drums v{chart['version']}"
+    kind = (chart.get("summary") or {}).get("chart_type") or ""
+    level = f" {kind.removeprefix('practice_')} practice" if kind.startswith("practice_") else ""
+    base = f"{song['title']} - {song['artist']} - drums v{chart['version']}{level}"
     base = re.sub(r"[^\w\s.,()'&-]", "", base).strip()[:150] or "chart"
     return base + Path(name).suffix
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import shutil
-from pathlib import Path
 
 
 def run_doctor() -> int:
@@ -28,10 +27,13 @@ def run_doctor() -> int:
         except ImportError:
             ok &= not need
             print(f"  [{'FAIL' if need else 'optional'}] {mod} not installed")
+    from .synth import find_soundfont
     fs = shutil.which("fluidsynth")
-    sf = next((p for p in ("/usr/share/sounds/sf2/FluidR3_GM.sf2", "/usr/share/soundfonts/FluidR3_GM.sf2")
-               if Path(p).exists()), None)
-    print(f"  [{'ok' if fs else 'optional'}] fluidsynth {fs or 'not found'} (test-fixture synthesis)")
+    try:
+        sf = find_soundfont()
+    except FileNotFoundError:
+        sf = None
+    print(f"  [{'ok' if fs else 'optional'}] fluidsynth {fs or 'not found'} (sampled drums in the player, test fixtures)")
     print(f"  [{'ok' if sf else 'optional'}] GM soundfont {sf or 'not found'}")
     ff = shutil.which("ffmpeg")
     print(f"  [{'ok' if ff else 'optional'}] ffmpeg {ff or 'not found'} (M4A/AAC and other formats libsndfile cannot read)")

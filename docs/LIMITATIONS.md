@@ -53,6 +53,29 @@ the held-out numbers are the table above. Separation (the
 default when PyTorch and demucs are installed; the Windows app has them) is
 described and measured in [MODELS.md](MODELS.md).
 
+The development recordings were measured again on Windows on 2026-11-04
+(`benchmarks/results/2026-11-04_phase1-dev-*`). The numbers agree to within 0.001: separated
+band mixes 0.773, against 0.774 on Linux. Three new measures show where the errors are:
+- **Fast passages** are strokes no more than 100 ms apart on one drum: 16th-note hi-hats at
+  speed, rolls and fills. Their recall:
+  - drum stem 0.79;
+  - band mix 0.25;
+  - band mix with the drums separated 0.27, against 0.77 for all its strokes.
+
+  However, 249 of the 287 fast strokes are in one recording (BebopJazz: a fast swung ride
+  pattern), so this mostly measures that recording, not fast playing in general.
+- **Snare written as hi-hat.** In separated band mixes this happens to 223 of 1,304 snare
+  strokes, and 270 more are not written at all.
+- **Strokes written where nothing was played** are about half hi-hat: 240 of 498 in
+  separated band mixes, and 369 of 610 on drum stems.
+- **The finished chart keeps what the detector found.** Scored note by note, it is within
+  0.003 F of the detector's strokes on every class. The notation steps (merging, flams, rolls)
+  lose a few fast strokes: fast-passage recall is 0.003–0.007 lower.
+- **Grid placement on real recordings is not measured.** These annotations are stroke times
+  without beats or bars, so the benchmark checks when each note was heard. It does not check
+  whether the note sits in the right place on the grid. That is measured only on synthesized
+  recordings, where the answer is exact (below).
+
 What this means for a chart made from a real recording:
 - **Kick and snare** are mostly right on a drum stem (0.96, 0.87), and in a
   full band mix once the drums are separated (0.95, 0.82; about two in three
@@ -60,6 +83,16 @@ What this means for a chart made from a real recording:
 - **Hi-hat** is right about three times in four; open versus closed and
   hi-hat versus ride are the usual confusions, and brushes and dense jazz
   ride patterns produce extra hi-hat strokes.
+- **Jazz is the weak spot.** On separated band mixes:
+
+  | | Jazz | Other styles |
+  |---|---|---|
+  | development split | 0.59 (bebop, cool and fusion jazz) | 0.89 (rock, pop, disco, funk, reggae…; 9 recordings) |
+  | held-out recordings | 0.64 (4 recordings) | 0.87 (7 recordings) |
+
+  On drum stems, other styles score 0.88–0.91 and jazz 0.70–0.78. Separation struggles with
+  soft jazz drumming under a band, and the classifier hears jazz snare comping and ride
+  patterns less reliably.
 - **Toms** are found about half the time on a stem, and less often in a band
   mix (0.43 separated, 0.31 as given).
 - **Cymbals (crash, ride, china, splash) are the weakest class**: about one
@@ -150,25 +183,53 @@ Charts of non-commercial-licensed material are not committed.
 5. **Tempo** can still come out doubled or halved on unusual material, and
    steady swing can be read at 3/4 of its tempo (swung 8ths line up with a
    16th grid there), as can, now and then, a take whose tempo drifts a lot.
-   The report says "tempo ambiguous" when it is close; pass `--bpm`.
+   The report says "tempo ambiguous" when it is close; pass `--bpm`, or chart
+   it again in seconds with the right tempo (`drum-agent rechart`, or "Chart
+   again" in the studio), which reuses the detected strokes.
 6. **Meter.** 4/4, 3/4, 6/8 and 12/8 are detected, along with a switch to
    12/8 for a section (the boundary can be a bar off) and short bars that
    shift the downbeat (2/4, 1/4, 3/4 inside 4/4, found from crash
    placement). A meter given with `--time-signature` holds for the whole
-   take. Odd meters (5/4, 7/8) from audio are not supported: use MIDI, a game
-   chart or a chart spec.
+   take. Odd meters aren't detected from audio:
+   - 5/4, 6/4, 7/4 and 9/8 can be given (`--time-signature`, or "Chart again" in the studio);
+   - 7/8 and 5/8 (beats of unequal length) need MIDI, a game chart or a chart spec;
+   - a second beat tracker (Beat This!) was measured and didn't find them either.
 7. **Bass bleed.** In full mixes bass notes can turn into kicks. A density
    warning catches the extreme cases; a drum stem (`--drums-only`) avoids it.
 8. **Sparse passages.** Calibration is relative to the recording, so an
    isolated stroke after a long silence can be misread, and a long cymbal
    ring-out can create phantom strokes. Noise below -60 dBFS is ignored.
-9. **Section names** are letters (A, B, C); name them with `--sections` or
-   `edit --sections`.
+9. **Section names** are letters; a section whose bars match an earlier one's
+   takes its letter again, numbered (A, B, A2, B2, C). Similar but varied
+   sections can get a new letter. Name them with `--sections`, `edit
+   --sections` or the studio. **Fills** are marked "Fill" when a bar is busy
+   (toms, a snare run) and unlike its section's usual bar; a fill played with
+   few strokes isn't marked.
 10. **Drum separation needs PyTorch and demucs** (`pip install demucs`; the
     Windows app includes them). Without them a band mix is transcribed as
     given, which is much less accurate (above). Separation takes about as
     long as the recording on two CPU threads, and can lose quiet strokes in
-    soft jazz (`--separate off`).
+    soft jazz (`--separate off`). If separation fails, the band mix is
+    transcribed as given, and the report says so.
+11. **Jazz in a band mix** is charted less accurately than other styles
+    (separated: 0.59–0.64 against 0.87–0.89 on the development and held-out
+    recordings). Fast swung ride patterns lose the most strokes. A drum stem
+    helps most here.
+
+## Practice and explanation limits
+
+- **Practice versions follow fixed rules.** They keep notes by where they fall in the bar
+  and what they're played on; they don't know the song. A part built on off-beats loses
+  what makes it that part at Beginner level: a syncopated kick is left on the beats,
+  or out. Stickings are kept as written, so with notes gone they can read oddly.
+- **Practice speed on the recording** needs a browser that can decode Opus. Without one it
+  falls back to the WAV, and then the speed changes the pitch. Slowing down a whole song
+  also holds about 100 MB of decoded audio per four minutes in the browser's memory, on
+  top of the original, which may be too much for a phone.
+- **"Explain this chart"** has never been run against the live Anthropic API, because no key is
+  set on this PC. What it writes comes from the chart's data, so it can't catch a wrong
+  transcription, and only the bars it names are checked: the rest is advice to judge
+  by ear.
 
 ## Notation limits
 - Rhythms finer than 32nds or sextuplets (quintuplets, 64ths) can't be

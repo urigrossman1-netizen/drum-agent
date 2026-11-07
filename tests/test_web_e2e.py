@@ -28,6 +28,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import wave
 
 import pytest
 from conftest import ROOT, needs_fluidsynth, needs_lilypond
@@ -126,7 +127,13 @@ def test_song_to_chart_end_to_end(server, tmp_path, artifacts):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(wav), "-b:a", "192k", str(mix)], check=True)
     corrupt = tmp_path / "corrupt.mp3"
     corrupt.write_bytes(b"not audio " * 500)
-    _run("song.e2e.js", server, artifacts / "web_e2e", E2E_MIX=str(mix), E2E_CORRUPT=str(corrupt))
+    silent = tmp_path / "silent.wav"  # it looks like audio: only its job can refuse it
+    with wave.open(str(silent), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(8000)
+        w.writeframes(b"\0\0" * 8000 * 6)
+    _run("song.e2e.js", server, artifacts / "web_e2e", E2E_MIX=str(mix), E2E_CORRUPT=str(corrupt), E2E_SILENT=str(silent))
 
 
 @needs_browser

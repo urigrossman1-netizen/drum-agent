@@ -49,7 +49,7 @@ class App:
 
     def call(self, method: str, path: str, *, json_body=None, data: bytes | None = None,
              headers: dict | None = None, raw: bool = False):
-        h = dict(headers or {})
+        h = {**(headers or {}), "X-Drum-Agent": "test"}  # the server refuses writes without it (web/guard.py)
         if json_body is not None:
             data = json.dumps(json_body).encode()
             h["Content-Type"] = "application/json"

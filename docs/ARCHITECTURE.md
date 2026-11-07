@@ -34,7 +34,10 @@
 - `Hit`: position as an exact `Fraction` of a whole note from the start of
   the bar, instrument id, velocity, accent/ghost/flam/drag/roll/choke,
   confidence, and the performed time and offset (for audio and MIDI
-  sources).
+  sources). Provenance: `raw`, the ids of the detector strokes behind the
+  note in the transcription's detection log (`<stem>.detections.json`,
+  `audio/detections.py`), and `edited`, set when a person added or changed
+  it. Both are optional, so older score.json files read unchanged.
 
 Floats are rejected for positions. `Score.validate()` enforces the invariants:
 positions inside the bar, no duplicate strokes, no conflicting hi-hat states
@@ -145,6 +148,13 @@ as the foot closes it); in transcriptions those bars are flagged.
 | Quantization | `quantize.py` | per-beat grid choice by timing error plus complexity, swing/triplet feel, tempo map, uncertain-bar flags |
 | Structure | `structure.py`, `transcribe.py` | sections at groove/meter changes, 12/8 section refinement, roll notation, bass-bleed warning |
 
+Every stroke the detector accepts, and every candidate it looked at (with the
+classifier's probabilities), goes into the detection log, together with what became of
+the stroke: notated, a flam's grace, merged into a slot already taken, or dropped and
+why. It is written beside the chart and kept through every later version, so the
+machine's evidence survives quantization, rules and edits. Details:
+`docs/AUDIO_TRANSCRIPTION_PIPELINE.md`.
+
 Templates are rebuilt by `scripts/build_templates.py`. Accuracy is measured,
 not assumed: `scripts/eval_detection.py` (onset level) and
 `scripts/eval_notation.py` (end to end, notation level) render charts with
@@ -167,6 +177,8 @@ known content to audio and score the transcription. See `LIMITATIONS.md`.
   tests and examples.
 - `edit.py`: exact, reference-based corrections to a score.json (the
   human-in-the-loop step after listening).
+- `simplify.py`: Beginner and Intermediate practice versions of a transcription: a
+  subset of its notes, labelled as not what was played.
 
 ## Rights
 

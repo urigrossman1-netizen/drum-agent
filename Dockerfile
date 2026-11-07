@@ -15,6 +15,10 @@
 FROM python:3.12-slim-bookworm
 
 ARG LILYPOND_VERSION=2.26.0
+# The `separation` extra in pyproject.toml (tests/test_supply_chain.py keeps them the same).
+ARG TORCH_VERSION=2.15.0
+ARG TORCHAUDIO_VERSION=2.11.1
+ARG DEMUCS_VERSION=4.1.0
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     DRUM_AGENT_DATA_DIR=/data DRUM_AGENT_LILYPOND=/opt/lilypond-${LILYPOND_VERSION}/bin/lilypond \
     TORCH_HOME=/opt/torch NUMBA_CACHE_DIR=/tmp/numba PORT=8000
@@ -31,8 +35,8 @@ RUN LILYPOND_VERSION=${LILYPOND_VERSION} PREFIX=/opt bash /tmp/install_lilypond.
 # loads it from (demucs checks the weights' SHA-256 here). numpy first: demucs imports it
 # without declaring it, and the PyTorch index doesn't bring it.
 RUN pip install numpy \
- && pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
- && pip install demucs \
+ && pip install torch==${TORCH_VERSION} torchaudio==${TORCHAUDIO_VERSION} --index-url https://download.pytorch.org/whl/cpu \
+ && pip install demucs==${DEMUCS_VERSION} \
  && mkdir -p /opt/torch/hub/checkpoints && cd /opt/torch/hub/checkpoints \
  && curl -fsSLO https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th \
  && echo "models: ['955717e8']" > htdemucs.yaml \

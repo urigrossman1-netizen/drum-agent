@@ -476,7 +476,10 @@ def test_library_match_by_file_name(library, monkeypatch):
 def test_library_scan_is_bounded_and_survives_symlink_loops(library):
     for i in range(5):
         write_wav(library / "rips" / f"Test Groove take {i}.wav")
-    os.symlink(library, library / "rips" / "loop")  # a link back up the tree
+    try:
+        os.symlink(library, library / "rips" / "loop")  # a link back up the tree
+    except OSError as exc:  # Windows: symlinks need Developer Mode or administrator rights
+        pytest.skip(f"symbolic links can't be made here: {exc}")
     os.symlink(library / "rips", library / "again")  # the same folder twice
     found = local.find_local("Test Groove take 1", None, [library], time_limit=10)
     paths = [m.path for m in found]
@@ -487,12 +490,11 @@ def test_library_scan_is_bounded_and_survives_symlink_loops(library):
     assert local.find_local("Test Groove", None, [library / "nope"]).warnings[0].startswith("not a folder")
 
 
-def test_default_roots(tmp_path, monkeypatch):
-    home = tmp_path / "home"
+def test_default_roots(tmp_path, monkeypatch, fake_home):
+    home = fake_home
     (home / "Music").mkdir(parents=True)
     extra = tmp_path / "Bounces"
     extra.mkdir()
-    monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv(local.MUSIC_DIRS_ENV, os.pathsep.join([str(extra), str(tmp_path / "missing"), str(extra)]))
     assert local.default_roots() == [(home / "Music").resolve(), extra.resolve()]
 
@@ -962,3 +964,21 @@ def test_the_suggested_rights_command_keeps_the_source_and_options():
     mine = AudioSource(Path("/music/x.wav"), "file")
     mine_cmd = run._rerun_command(given, mine).replace("BASIS", "own")
     assert parser.parse_args(shlex.split(mine_cmd)[3:]).audio == "/music/x.wav"
+
+
+def test_musicbrainz_is_asked_at_most_once_a_second(monkeypatch):
+    """Its terms ask an application for one request a second, however many visitors search."""
+    from drum_agent.song import lookup
+    naps, clock = [], [100.0]
+    monkeypatch.setattr(lookup, "MUSICBRAINZ_GAP_S", 1.0)
+    monkeypatch.setattr(lookup.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(lookup.time, "sleep", naps.append)
+    monkeypatch.setattr(lookup, "_get", lambda *a: {"recordings": []})
+    for _ in range(3):
+        assert lookup.search_musicbrainz("A Song", None, 1) == []
+    assert naps == [0.0, 1.0, 2.0]
+    for _ in range(3):
+        lookup.search_musicbrainz("A Song", None, 1)  # the queue is now 6 s long
+    with pytest.raises(lookup.MetadataError, match="busy"):
+        lookup.search_musicbrainz("A Song", None, 1)  # past the wait a search will take: it goes on without it
+

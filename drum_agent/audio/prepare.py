@@ -163,10 +163,8 @@ def file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def prepare(src: str | Path, out_wav: str | Path, *, original_name: str | None = None) -> PreparedAudio:
-    """Validate `src` and decode it to the internal WAV at `out_wav`."""
-    src, out_wav = Path(src), Path(out_wav)
-    name = original_name or src.name
+def check_file(src: Path, name: str) -> str:
+    """The checks that need no decoder: extension, size and signature. Returns the signature's kind."""
     ext = Path(name).suffix.lower()
     if ext not in EXTENSIONS:
         raise AudioError("unsupported_type", f"{ext or 'no extension'}: supported audio files are "
@@ -180,6 +178,15 @@ def prepare(src: str | Path, out_wav: str | Path, *, original_name: str | None =
         kind = sniff(f.read(16))
     if kind is None:
         raise AudioError("bad_signature", f"{name} does not start like an audio file (renamed or corrupt?)")
+    return kind
+
+
+def prepare(src: str | Path, out_wav: str | Path, *, original_name: str | None = None) -> PreparedAudio:
+    """Validate `src` and decode it to the internal WAV at `out_wav`."""
+    src, out_wav = Path(src), Path(out_wav)
+    name = original_name or src.name
+    kind = check_file(src, name)
+    size = src.stat().st_size
     props = probe(src)
     expected = props["duration_s"]
     if kind == "wav":

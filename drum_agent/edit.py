@@ -76,6 +76,7 @@ def relabel(score: Score, mapping: str, bars: str | None = None, kit: Kit = DEFA
                 targets.append(h)
     for h in targets:
         h.inst = dst
+        h.edited = True
     return len(targets)
 
 
@@ -119,6 +120,44 @@ def _apply_flags(h: Hit, flags: list[str]) -> None:
         else:
             setattr(h, f, True)
     h.confidence = 1.0  # a human put it here
+    h.edited = True
+
+
+# What a person changes when they edit a note (not its timing evidence or confidence).
+MUSICAL_FIELDS = ("velocity", "accent", "ghost", "flam", "drag", "roll", "choke", "sticking")
+
+
+def mark_edits(score: Score, before: Score) -> int:
+    """Mark the notes a person added or changed (Hit.edited), comparing an edited score with
+    the version it was made from, bar by bar. Unchanged notes keep their link to the
+    detector's strokes (Hit.raw) even when the editor didn't carry it, and a note put on another
+    instrument at the same position keeps the strokes of the note it replaced. Notes already
+    marked stay marked. Returns how many notes were newly marked."""
+    marked = 0
+    for i, m in enumerate(score.measures):
+        old = {h.key(): h for h in before.measures[i].hits} if i < len(before.measures) else {}
+        keys = {h.key() for h in m.hits}
+        replaced: dict = {}
+        for k, h in old.items():
+            if k not in keys:
+                replaced.setdefault(k[0], []).append(h)
+        for h in sorted(m.hits, key=lambda h: (h.pos, h.inst)):
+            prev = old.get(h.key())
+            if prev is not None:
+                if not h.raw and prev.raw:
+                    h.raw = prev.raw
+                changed = any(getattr(h, f) != getattr(prev, f) for f in MUSICAL_FIELDS)
+                if (changed or prev.edited) and not h.edited:
+                    h.edited = True
+                    marked += changed
+            else:
+                if not h.edited:
+                    h.edited = True
+                    marked += 1
+                gone = replaced.get(h.pos)
+                if gone and not h.raw:
+                    h.raw = gone.pop(0).raw
+    return marked
 
 
 def parse_sections(spec: str, n_bars: int) -> dict[int, str]:

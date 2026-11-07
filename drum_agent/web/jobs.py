@@ -3,7 +3,7 @@
 A job turns one authorized source (a normalized WAV with a stated rights basis) into a
 chart version:
 
-  prepare   read the normalized audio
+  prepare   decode an upload into the normalized audio, and read it
   separate  pull the drums out of the band mix (HTDemucs), when it is installed
   detect    onset detection and instrument classification (the trained classifier)
   beats     tempo, meter and downbeat tracking
@@ -43,6 +43,7 @@ from ..model import Score
 from ..pipeline import ExportError, ExportOptions, export_all
 from ..song.fetch import FetchError
 from ..validate import chart_status, validate_score
+from . import sources
 from .store import Store, new_id
 from .view import build_view
 
@@ -95,19 +96,22 @@ class JobRunner:
             self._thread.start()
 
     # ---- API -------------------------------------------------------------
-    def submit(self, song_id: str, source_id: str) -> tuple[dict, bool]:
-        """(job, created): the existing job for this song, recording and engine when there is one.
+    def submit(self, song_id: str, source_id: str, hints: dict | None = None) -> tuple[dict, bool]:
+        """(job, created): the existing job for this song, recording, engine and hints when there is one.
 
         The key includes the song: the same recording uploaded to another song (another
-        visitor's, on a shared server) is that song's own job, never a job it can't see."""
+        visitor's, on a shared server) is that song's own job, never a job it can't see.
+        `hints` are TranscribeOptions fields the uploader gave (bpm, time_signature, downbeat, feel)."""
         source = self.store.get_source(source_id)
         if source is None or source["song_id"] != song_id:
             raise KeyError("source not found for this song")
-        key = f"{song_id}|{source['sha256']}|{ENGINE}"
+        key = f"{song_id}|{source['sha256']}|{ENGINE}" + (f"|{_json(dict(sorted(hints.items())))}" if hints else "")
         existing = self.store.job_by_key(key)
-        if existing is not None:
+        # A finished job doesn't answer for a recording uploaded again because its audio had gone.
+        if existing is not None and not (existing["status"] == "succeeded" and source["info"].get("waiting")):
             return existing, False
-        job = self.store.create_job(song_id=song_id, source_id=source_id, engine=ENGINE, key=key)
+        job = self.store.create_job(song_id=song_id, source_id=source_id, engine=ENGINE, key=key,
+                                    params={"hints": hints} if hints else {})
         self.queue.put(job["id"])
         return job, True
 
@@ -135,7 +139,9 @@ class JobRunner:
         if job["kind"] == "library":
             new, _ = self.submit_library(job["song_id"], job["params"].get("file"))
             return new
-        new, _ = self.submit(job["song_id"], job["source_id"])
+        if job["source_id"] is None:
+            raise ValueError("this recording couldn't be used, so it wasn't kept: upload it again")
+        new, _ = self.submit(job["song_id"], job["source_id"], (job["params"] or {}).get("hints"))
         return new
 
     def submit_generate(self, song_id: str, params: dict) -> tuple[dict, bool]:
@@ -250,11 +256,15 @@ class JobRunner:
         song = song or self.store.get_song(job["song_id"])
         source = source or self.store.get_source(job["source_id"])
         step("prepare")
+        if source is None:  # refused by another job on the same upload
+            raise AudioError("source_missing", "this recording couldn't be used, so it wasn't kept: upload it again")
+        source = sources.decode_source(self.store, source)
         wav = Path(source["path"])
         if not wav.is_file():
             raise AudioError("source_missing", "the prepared audio for this source is missing; upload it again")
         y = load_audio(wav)
-        score = transcribe_audio(y, TranscribeOptions(), title=song["title"], progress=step)
+        hints = (job.get("params") or {}).get("hints") or {}
+        score = transcribe_audio(y, TranscribeOptions(**hints), title=song["title"], progress=step)
         score.artist = song["artist"]
         score.rights = source["rights"]
         score.source = (f"your music folders: {source['original_name']}" if source["kind"] == "library"
@@ -285,6 +295,8 @@ class JobRunner:
     def _save_chart(self, song: dict, score: Score, step, *, origin: str = "transcription", job: dict | None = None,
                     source: dict | None = None, audio_duration: float | None = None,
                     parent_id: str | None = None, note: str | None = None) -> dict:
+        if score.status == "simplified":
+            origin = "simplified"  # edited, restored or renamed, a practice version stays one
         step("validate")
         validation = validate_score(score, DEFAULT_KIT, audio_duration)
         if not validation.ok:
@@ -302,6 +314,13 @@ class JobRunner:
             status = chart_status(validation, report.rendering_ok)
             summary = chart_summary(score, report, view)
             (out / "validation.json").write_text(_json(validation.to_dict()), encoding="utf-8")
+            if score.detections is None and parent_id:
+                # An edited, renamed or restored version keeps what the detector heard: the
+                # machine's original evidence is never lost to an edit.
+                parent = self.store.get_chart(parent_id)
+                log = Path(parent["dir"]) / "chart.detections.json" if parent else None
+                if log is not None and log.is_file():
+                    shutil.copy2(log, out / "chart.detections.json")
             return self.store.add_chart(chart_id=chart_id, song_id=song["id"], status=status, origin=origin,
                                         bars=len(score.measures), validation=validation.to_dict(), summary=summary,
                                         job_id=job["id"] if job else None,

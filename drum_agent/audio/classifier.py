@@ -19,6 +19,7 @@ plus loudness and the gaps to the neighbouring candidates.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -58,6 +59,53 @@ def model_available(path: Path = MODEL_PATH) -> bool:
     return path.exists()
 
 
+# Drum families every model shares (MDB Drums' five classes): another model is compared
+# with this classifier family by family, since models name cymbals and toms differently.
+FAMILY = {"kick": "KD", "snare": "SD", "cross_stick": "SD", "hihat": "HH", "hihat_open": "HH",
+          "hihat_pedal": "HH", "ride": "CY", "ride_bell": "CY", "crash": "CY", "tom": "TT",
+          # the instruments a detection names (DrumHit.inst), for evidence taken from one
+          "kick2": "KD", "rimshot": "SD", "hihat_half": "HH", "hihat_splash": "HH", "crash2": "CY",
+          "china": "CY", "splash": "CY", "tom1": "TT", "tom2": "TT", "floor_tom": "TT", "floor_tom2": "TT"}
+
+
+@dataclass
+class Evidence:
+    """Strokes another transcription model heard, to weigh this classifier's decisions with.
+
+    `strokes` are (time in seconds, class) in this classifier's class names. At each candidate,
+    a class whose family the other model also heard within `window` seconds is accepted from
+    `agree[family]` times its threshold, one it did not hear from `alone[family]` times (a
+    factor of 1 changes nothing). A stroke of a family in `add` with no candidate of ours
+    within `window` is added as the other model heard it.
+    """
+    strokes: list[tuple[float, str]]
+    source: str = "another model"
+    window: float = 0.03
+    agree: dict[str, float] = field(default_factory=dict)
+    alone: dict[str, float] = field(default_factory=dict)
+    add: frozenset[str] = frozenset()
+
+    def __post_init__(self):
+        fam: dict[str, list[float]] = {}
+        for t, c in self.strokes:
+            if FAMILY.get(c):
+                fam.setdefault(FAMILY[c], []).append(float(t))
+        self._times = {f: np.sort(np.asarray(v, dtype=float)) for f, v in fam.items()}
+
+    def heard(self, family: str, time: float) -> bool:
+        ts = self._times.get(family)
+        if ts is None or not len(ts):
+            return False
+        i = int(np.searchsorted(ts, time))
+        return any(0 <= j < len(ts) and abs(ts[j] - time) <= self.window for j in (i - 1, i))
+
+    def factor(self, cls: str, time: float) -> float:
+        f = FAMILY.get(cls)
+        if f is None:
+            return 1.0
+        return self.agree.get(f, 1.0) if self.heard(f, time) else self.alone.get(f, 1.0)
+
+
 class _Net:
     """One multi-layer perceptron: standardization, ReLU hidden layers, sigmoid outputs."""
 
@@ -82,12 +130,14 @@ class OnsetClassifier:
     (members stored with prefixes m0_, m1_, ...; thresholds are the ensemble's own)."""
 
     def __init__(self, path: Path = MODEL_PATH):
-        d = np.load(path, allow_pickle=False)
-        self.classes = tuple(str(c) for c in d["classes"])
-        prefixes = [f"m{j}_" for j in range(int(d["members"]))] if "members" in d else [""]
-        self.nets = [_Net(d, p) for p in prefixes]
-        self.thresholds = d["thresholds"].astype(np.float32)
-        self.version = str(d["version"]) if "version" in d else "?"
+        # Read everything, then close the file: an open .npz is locked on Windows, so a model
+        # file that was loaded could not be replaced or deleted (scripts/adt/train.py does both).
+        with np.load(path, allow_pickle=False) as d:
+            self.classes = tuple(str(c) for c in d["classes"])
+            prefixes = [f"m{j}_" for j in range(int(d["members"]))] if "members" in d else [""]
+            self.nets = [_Net(d, p) for p in prefixes]
+            self.thresholds = d["thresholds"].astype(np.float32)
+            self.version = str(d["version"]) if "version" in d else "?"
         for net in self.nets:
             if net.mu.shape[0] != FEATURE_DIM:
                 raise ValueError(f"{path.name}: model expects {net.mu.shape[0]} features, this code makes {FEATURE_DIM}")
@@ -258,18 +308,24 @@ def name_toms(fe, opts, frames: list[int]) -> list[str]:
     return out
 
 
-def classify_hits(fe, opts) -> tuple[list, dict]:
-    """DrumHits for every candidate the classifier accepts (see detect.detect)."""
+def classify_hits(fe, opts, evidence: Evidence | None = None) -> tuple[list, dict]:
+    """DrumHits for every candidate the classifier accepts (see detect.detect), weighed with
+    another model's strokes when `evidence` is given."""
     from .detect import FLAM_DRUMS, PAD, DrumHit, _has_grace
+    from .detections import DetectionLog
     model = load_model()
     X = onset_features(fe.M_full, fe.M_perc, fe.flux, fe.cand)
     P = model.predict(X) if len(X) else np.zeros((0, len(model.classes)), dtype=np.float32)
     ci = {c: i for i, c in enumerate(model.classes)}
     sens = max(opts.sensitivity, 0.1)
-    thr = np.clip(model.thresholds / sens, 0.03, 0.97)
+    base_thr = np.clip(model.thresholds / sens, 0.03, 0.97)
+    thr = base_thr
     E = _region_energy(fe.M_perc)
     T = fe.M_perc.shape[1]
-    raw: list[tuple[int, str, float, float, float]] = []  # (frame, class, p, margin, confidence)
+    detector = f"classifier {model.version}" + (f" + {evidence.source}" if evidence else "")
+    log = DetectionLog(detector=detector, classes=list(model.classes),
+                       thresholds={c: float(base_thr[ci[c]]) for c in model.classes})
+    raw: list[tuple[int, str, float, float, float, int]] = []  # (frame, class, p, margin, confidence, candidate id)
     # Strokes the network almost heard: a class above NEAR_MISS of its threshold that was
     # not accepted, or one a rule removed. A bar holding one may be missing a stroke, which
     # hit confidences can't show (a missed stroke has no confidence).
@@ -278,9 +334,20 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     local_max = maximum_filter1d(fe.flux, size=2 * int(LOCAL_S / FRAME) + 1)
     for k, t in enumerate(fe.cand):
         time = float(t * FRAME) - PAD
-        if time < -0.02 or fe.flux[t] < LOCAL_FLUX_GATE * local_max[t]:
-            continue
         p = P[k]
+        probs = {c: float(p[ci[c]]) for c in model.classes}
+        if time < -0.02:
+            log.candidate(time, probs, gate="before the recording starts")
+            continue
+        if fe.flux[t] < LOCAL_FLUX_GATE * local_max[t]:
+            log.candidate(time, probs, gate="weak onset next to a stronger one")
+            continue
+        cid = log.candidate(time, probs)
+        if evidence is not None:  # this candidate's thresholds, moved by what the other model heard
+            thr = np.clip(base_thr * np.array([evidence.factor(c, time) for c in model.classes]), 0.03, 0.97)
+            moved = {c: round(float(thr[ci[c]]), 3) for c in model.classes if thr[ci[c]] != base_thr[ci[c]]}
+            if moved:
+                log.candidates[cid]["thresholds"] = moved
         for c in model.classes:
             ratio = float(p[ci[c]] / thr[ci[c]])
             if c != "other" and NEAR_MISS <= ratio < 1.0:
@@ -291,15 +358,21 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
         margin = {c: acc[c] / thr[ci[c]] for c in acc}
         for a, b in (("hihat", "hihat_open"), ("ride", "ride_bell")):
             if a in acc and b in acc:
-                acc.pop(a if margin[a] < margin[b] else b)
+                lost = a if margin[a] < margin[b] else b
+                acc.pop(lost)
+                log.reject(cid, lost, f"{a} and {b} can't sound at once; {b if lost == a else a} was stronger")
         if "hihat_pedal" in acc and ({"hihat", "hihat_open"} & set(acc)):
             acc.pop("hihat_pedal")  # a stick on the closed hat sounds the same instant
+            log.reject(cid, "hihat_pedal", "a stick stroke on the hi-hat at the same instant")
         if "hihat" in acc and "ride" in acc and min(margin["hihat"], margin["ride"]) < 1.6:
-            acc.pop("hihat" if margin["hihat"] < margin["ride"] else "ride")  # rarely both at once
+            lost = "hihat" if margin["hihat"] < margin["ride"] else "ride"
+            acc.pop(lost)  # rarely both at once
+            log.reject(cid, lost, "hi-hat and ride rarely sound at once; the other was stronger")
         hands = sorted((c for c in acc if c in HANDS), key=lambda c: -margin[c])
         for c in hands[2:]:
             acc.pop(c)
             near.append((time, c, 1.0))  # heard, but a third hand: one of them is wrong
+            log.reject(cid, c, "a third hand stroke at one instant (two hands only)")
         for c, pc in acc.items():
             th = float(thr[ci[c]])
             conf = 0.5 + 0.5 * (pc - th) / max(1e-6, 1 - th)
@@ -307,7 +380,25 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
             if rival:
                 amb = min(1.0, max(rival))
                 conf *= 1.0 - 0.6 * amb ** 2
-            raw.append((int(t), c, pc, margin[c], float(np.clip(conf, 0.0, 1.0))))
+            raw.append((int(t), c, pc, margin[c], float(np.clip(conf, 0.0, 1.0)), cid))
+    thr = base_thr
+    added: set[int] = set()  # candidate ids of strokes only the other model heard
+    if evidence is not None and evidence.add:
+        # Strokes only the other model heard, where no candidate of ours was weighed.
+        weighed = np.array(sorted(float(c["time"]) for c in log.candidates if "gate" not in c))
+        for st, c in evidence.strokes:
+            if FAMILY.get(c) not in evidence.add or c not in ci or st < 0 or st > fe.duration:
+                continue
+            i = int(np.searchsorted(weighed, st))
+            if any(0 <= j < len(weighed) and abs(weighed[j] - st) <= evidence.window for j in (i - 1, i)):
+                continue
+            t = int(round((st + PAD) / FRAME))
+            if not 0 <= t < T:
+                continue
+            cid = log.candidate(st, None, source=evidence.source)
+            added.add(cid)
+            raw.append((t, c, float(thr[ci[c]]), 1.0, 0.5, cid))
+        raw.sort(key=lambda r: r[0])
     # Loudness relative to each class's typical stroke in this recording.
     rises = {}
     for t, c, *_ in raw:
@@ -317,16 +408,17 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
     tom_names = name_toms(fe, opts, tom_frames)
     tom_iter = iter(tom_names)
     hits = []
-    for t, c, pc, m, conf in raw:
+    for t, c, pc, m, conf, cid in raw:
         inst = next(tom_iter) if c == "tom" else c
         strength = _rise(E[c], t) / typical[c]
         vel = int(np.clip(35 + 75 * min(strength, 1.5) / 1.5, 1, 127))
         rv = None
-        if inst in ("hihat", "ride"):
+        if inst in ("hihat", "ride") and cid not in added:  # an added stroke has no probabilities of ours
             k = int(np.searchsorted(fe.cand, t))
             rv = (float(P[k, ci["ride"]] / thr[ci["ride"]]), float(P[k, ci["hihat"]] / thr[ci["hihat"]]))
-        hits.append(DrumHit(float(t * FRAME) - PAD, inst, round(float(strength), 3), vel, round(conf, 3),
-                            ride_vs_hat=rv))
+        time = float(log.candidates[cid]["time"]) if cid in added else float(t * FRAME) - PAD
+        hits.append(DrumHit(time, inst, round(float(strength), 3), vel, round(conf, 3), ride_vs_hat=rv,
+                            rid=log.stroke(time, inst, strength, vel, conf, cand=cid)))
     # Flams whose grace note is too close to be its own candidate.
     last: dict[str, int] = {}
     for h in sorted(hits, key=lambda h: h.time):
@@ -335,4 +427,4 @@ def classify_hits(fe, opts) -> tuple[list, dict]:
             region = E["tom"] if h.inst.startswith(("tom", "floor")) else E["snare"]
             h.flam = _has_grace(region, f, last.get(h.inst, -10 ** 9), T)
             last[h.inst] = f
-    return hits, {"detector": f"classifier {model.version}", "frames": int(T), "near_misses": near}
+    return hits, {"detector": f"classifier {model.version}", "frames": int(T), "near_misses": near, "log": log}

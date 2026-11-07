@@ -122,6 +122,64 @@ weights).
 All three ranges use the same one-shot library (`oneshots.py`, whose default
 output hasn't changed).
 
+### Training on Windows, and data aimed at the measured errors (2026-11-05)
+
+`oneshots.py` and `generate.py` read their sources from the Debian/Ubuntu package
+paths. Where those packages aren't installed:
+1. `scripts/adt/fetch_sources.py` downloads the same five Debian packages (about 530 MB) and checks each against the SHA-256 that packages.debian.org publishes.
+2. It unpacks them under `~/.cache/drum-agent/adt/debian`.
+3. `DRUM_AGENT_SAMPLE_ROOT` then points both scripts there. When it's unset they read `/` as before.
+
+Phase 2's measurements on real recordings found two errors that the training data could
+explain:
+- **Phantom hi-hats on snares and kicks.** In the default style mix, nearly every loud backbeat snare has a hi-hat or ride with it (about half of all snares do, counting ghost notes and fills).
+- **Snares lost in separated band recordings.** No training clip was ever separated.
+
+Two additions aim at these:
+- **A "nohat" style.** Kick and snare grooves without a time-keeping cymbal, or with one on the off-beats only.
+  - Its weight in the default mix is 0, so every existing seed draws the same clip.
+  - A build uses it through `DRUM_AGENT_STYLES`. In `nohat:3,jazz:1,jazz_ballad:1,isolated:1`, 87% of snares have no hi-hat or ride within 30 ms, against 48% in the default mix.
+- **`train.py build --separate`.** Every clip with a band (`--mix-p 1.0`: all of them) goes through HTDemucs, and its separated drums are then read as drums only, as the transcriber reads a separated band recording. This costs about 20 s of CPU per clip.
+
+**The retraining round: not adopted.**
+
+Data, built on this PC (`~/.cache/drum-agent/adt/shards_v5`, about 5 hours):
+
+| Seeds | Build |
+|---|---|
+| 400001-403000 | the default mix |
+| 500001-501000 | `DRUM_AGENT_STYLES="nohat:3,jazz:1,jazz_ballad:1,isolated:1"` |
+| 600001-600600 | `--mix-p 1.0 --separate` |
+
+**Models:** both use `train --hidden 512,256 --epochs 30`, like v2 and v3.
+- **v5a:** the first two builds, 4,000 clips.
+- **v5:** all three builds, 4,600 clips (535,840 candidates).
+
+**Results** (MDB Drums development split, all 5 classes, `benchmarks/results/2026-11-05_phase2b-dev-*`):
+
+| Model | Drum stems | Band mix | Separated | Toms / cymbals (stems) | Precision (stems) |
+|---|---|---|---|---|---|
+| **v2 + v3 (shipped)** | **0.856** | 0.696 | 0.773 | 0.640 / 0.618 | 0.826 |
+| v5a | 0.847 | 0.671 | 0.770 | 0.741 / 0.510 | 0.820 |
+| v5 | 0.834 | 0.672 | 0.756 | 0.640 / 0.535 | 0.784 |
+| v2 + v3 + v5a | 0.855 | 0.699 | 0.777 | 0.696 / 0.554 | 0.832 |
+| v2 + v3 + v5 | 0.852 | 0.706 | 0.773 | 0.696 / 0.565 | 0.819 |
+
+- **Not adopted.** No candidate improves on the shipped model by more than 0.004 anywhere. Every one loses cymbals: 0.05 to 0.11 on drum stems, beyond the 0.02 a class may drop.
+- **The held-out test split was not run.** There was no finalist.
+
+What the round showed:
+- **The phantom hi-hats did not go away.** Precision on drum stems is unchanged or lower.
+  - Every phantom hi-hat comes from the same onset candidate as a real snare or kick, so it is the classifier's call, not double detection.
+  - Snares without a hi-hat in training didn't change it. So it is most likely the sound of a real snare recorded with overhead and room microphones, which summed one-shot samples don't produce.
+- **Separated training clips made things worse, even on separated recordings** (v5 against v5a: separated 0.770 → 0.756, precision on stems 0.820 → 0.784).
+  - In those clips 13–17% of strokes have no candidate after separation, against 6.8% unseparated.
+  - Labels on the strokes that remain include near-inaudible residue, which teaches the classifier to call faint noise a drum.
+- **Toms improve with today's generator** (0.640 → 0.741 for v5a), but cymbals drop. The generator's cymbal data differs from what v2 and v3 were trained on (part of theirs came from the first generator, `1a6e780`).
+- **The remaining errors come from the gap between synthesized and real recordings.** More synthesized data of the same kind doesn't close it.
+  - The annotated recordings of real kits in real rooms that we know of (ENST-Drums, IDMT-SMT-Drums, ADTOF, MDB Drums) are licensed for non-commercial use or for evaluation only, which this project excluded (`docs/DEPENDENCY_AND_MODEL_LICENSE_AUDIT.md`).
+  - E-GMD (CC BY 4.0) is human playing, but on an electronic kit's samples.
+
 ### Sources and licences
 
 The samples are only rendered into training audio; none is redistributed.
@@ -219,3 +277,67 @@ them by less than 0.005, and four higher; the open and closed hi-hat chart 0.958
 0.920). Per-chart numbers are in
 `docs/LIMITATIONS.md`. `scripts/eval_detection.py` measures `detect()` itself, which
 separation doesn't change; its results are unchanged.
+
+## A second opinion for the classifier (`classifier.Evidence`)
+
+`detect(y, opts, evidence=...)` takes another model's strokes as `(time, class)` pairs:
+- Per drum family, the classifier's threshold moves where that model also heard the family within 30 ms (`agree`) or did not (`alone`).
+- Strokes only it heard can be added (`add`).
+- The detection log records the moved thresholds per candidate and the source of an added stroke.
+- The NMF detector ignores evidence.
+
+Phase 2 used it to measure other models and one idea of our own. None was adopted.
+
+### Tried: checking separated drums against the band mix
+
+Separation leaves artefacts the classifier hears as strokes:
+- residue of a snare that sounds like a hi-hat;
+- snare and bass energy that sounds like a kick.
+
+The detection log showed these as phantom hi-hats and kicks on top of real snares, and a real
+hi-hat or kick is also in the band mix. So the classifier first read the band mix as given.
+Then, on the separated drums, a hi-hat or kick that pass didn't hear had to clear twice its
+threshold. It was chosen on the development split, committed (`fa16547`) and then measured on
+the held-out recordings:
+
+| Separated band mixes | KD | SD | HH | TT | CY | all 5 | P / R |
+|---|---|---|---|---|---|---|---|
+| Development (12), without | 0.847 | 0.709 | 0.815 | 0.593 | 0.486 | 0.773 | 0.776 / 0.769 |
+| Development (12), with | 0.880 | 0.709 | 0.853 | 0.593 | 0.485 | 0.792 | 0.854 / 0.739 |
+| **Test (11), without** | 0.945 | 0.823 | 0.700 | 0.415 | 0.141 | **0.732** | 0.762 / 0.703 |
+| **Test (11), with** | 0.932 | 0.823 | 0.676 | 0.415 | 0.145 | **0.723** | 0.798 / 0.660 |
+
+- **Synthesized band mixes with separation:** it helped (`eval_notation.py`, 20 runs: notation F 0.9643 → 0.9705).
+- **Held-out recordings:** it lost. Loud, guitar-heavy mixes bury the hi-hat, so the band-mix pass missed it and the check deleted real hi-hats:
+  - Hendrix 0.888 → 0.696 (hi-hat 0.817 → 0.222);
+  - Punk −0.052, Country1 −0.049, Gospel −0.031, Grunge −0.027.
+- **Where it helped:** jazz and the Beatles track.
+- **Decision:** the adoption rule fails (overall F down, hi-hat down 0.024), so it was reverted.
+
+### Other models measured, not adopted
+
+`scripts/eval_backends.py` runs other drum transcription models on MDB Drums with the same
+scoring, alone and as a second opinion. Each is pinned by revision and SHA-256 and downloaded
+only on request. Development split, all 5 classes, onset F at 50 ms. The second-opinion gains
+come from sweeps on the development split; since neither model was adopted, neither went to
+the held-out split:
+
+| Model | Drum stems | Separated band mixes | As a second opinion |
+|---|---|---|---|
+| Onset classifier (this one) | 0.856 | 0.773 | |
+| Onsets & Frames drums, ONNX (E-GMD; Apache-2.0) | 0.557 | 0.495 | kick and toms: 0.857 / 0.777 (+0.001 / +0.004; `phase2-dev-oaf-evidence`) |
+| ADT_STR, tau-0.8 (CC BY-SA 4.0 by its README; sample rights unclear) | 0.745 | 0.731 | cymbals, toms, hi-hat and kick: 0.866 / 0.782 (+0.010 / +0.009; `phase2-dev-adt-str-evidence`) |
+
+**Onsets & Frames, ONNX conversion.**
+- It runs at about 51× real time on this laptop's CPU.
+- The only published conversion (`thebluescreen/oaf-drums-onnx`) outputs exactly 0 on every frame of every recording for its closed hi-hat and clave outputs. Its "ride" output fires on snares. So it has no usable hi-hat and only its kick, snare, tom and crash outputs are used.
+- Its onsets are 11.5 ms early on average; this is corrected.
+
+**ADT_STR.**
+- It is a 69M-parameter encoder-decoder that writes notes as tokens per 2.56 s window.
+- Its own sampler runs the whole decoder again for every token, so dense recordings are slow: 103 s of bebop took over 9 minutes.
+- Its decoder mask is additive (−1e4). With these weights that doesn't stop earlier positions from attending to later tokens; a boolean mask does.
+- The benchmark decodes greedily with a key/value cache and a strictly causal decoder, at about 1.5× real time. On four recordings (80sRock, Britpop, Reggae, Rock) this scored the same as the model's own sampler on drum stems (0.841 against 0.840) and 0.03 lower on separated band mixes (0.805 against 0.837). So its separated-mix numbers above are likely somewhat low.
+- Even so, neither model alone approaches the classifier.
+
+**DrumScript** (rule-based, alpha, Python < 3.13) was not run.
